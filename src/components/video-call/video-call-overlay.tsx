@@ -49,8 +49,6 @@ export function VideoCallOverlay() {
     toggleVideo,
     toggleAudio,
     toggleMinimize,
-    togglePause,
-    completeConsultation,
     currentUser,
   } = videoCall
   
@@ -120,8 +118,6 @@ export function VideoCallOverlay() {
             onToggleAudio={toggleAudio}
             onEndCall={endCall}
             onToggleMinimize={toggleMinimize}
-            onTogglePause={role === 'doctor' ? togglePause : undefined}
-            onCompleteConsultation={role === 'doctor' ? completeConsultation : undefined}
           />
         )}
         
