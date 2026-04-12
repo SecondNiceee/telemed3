@@ -127,10 +127,37 @@
 
 | Handler | Событие | Описание |
 |---------|---------|----------|
-| `createCallHandler` | `call-initiate` | Инициирует звонок, отправляет `incoming-call` получателю |
+| `createCallHandler` | `call-initiate` | Инициирует звонок, получает `targetId` из БД, отправляет `incoming-call` конкретному получателю |
 | `createCallAnswerHandler` | `call-answer` | Принимает звонок, отправляет `call-answered` звонящему |
 | `createCallRejectHandler` | `call-reject` | Отклоняет звонок, отправляет `call-rejected` звонящему |
 | `createCallEndHandler` | `call-end` | Завершает звонок, отправляет `call-ended` обоим участникам |
+| `checkPendingCallsForSocket` | (при подключении) | Проверяет активные звонки для пользователя при подключении/переподключении |
+
+### Active Calls Store
+
+Файл: `src/lib/socket/stores/activeCallsStore.ts`
+
+Хранит активные звонки в памяти сервера для обработки случаев, когда получатель подключается позже звонящего.
+
+```typescript
+interface ActiveCall {
+  appointmentId: number       // ID записи
+  callerPeerId: string        // PeerJS ID звонящего
+  callerName: string          // Имя звонящего
+  callerType: 'user' | 'doctor'
+  callerId: number            // ID звонящего в БД
+  targetType: 'user' | 'doctor'
+  targetId: number | null     // ID получателя (из БД appointment)
+  createdAt: number           // Timestamp создания
+}
+```
+
+| Функция | Описание |
+|---------|----------|
+| `addActiveCall(call)` | Добавляет активный звонок |
+| `removeActiveCall(appointmentId)` | Удаляет звонок при завершении/отклонении |
+| `getActiveCallsForTarget(type, id)` | Получает звонки для конкретного пользователя |
+| `hasActiveCall(appointmentId)` | Проверяет, есть ли активный звонок |
 
 ### Структура Socket событий
 
@@ -199,31 +226,37 @@ type CallStatus =
      │ 1. startCall()                    │                                    │
      │ ─────────────────────────────────>│                                    │
      │    emit('call-initiate')          │                                    │
-     │                                   │ 2. Находит сокеты пациента         │
+     │                                   │                                    │
+     │                                   │ 2. Получает appointment из БД      │
+     │                                   │    Извлекает targetId (userId)     │
+     │                                   │    Сохраняет в activeCallsStore    │
+     │                                   │                                    │
+     │                                   │ 3. Находит сокеты пациента         │
+     │                                   │    по targetId (НЕ всех users!)    │
      │                                   │ ─────────────────────────────────> │
      │                                   │    emit('incoming-call')           │
      │                                   │                                    │
-     │                                   │                    3. Показывает   │
+     │                                   │                    4. Показывает   │
      │                                   │                    IncomingCallView│
      │                                   │                                    │
      │                                   │ <───────────────────────────────── │
-     │                                   │    4. answerCall()                 │
+     │                                   │    5. answerCall()                 │
      │                                   │       emit('call-answer')          │
      │                                   │                                    │
      │ <─────────────────────────────────│                                    │
-     │ 5. Получает 'call-answered'       │                                    │
+     │ 6. Получает 'call-answered'       │                                    │
      │    setRemoteAnswered(true)        │                                    │
      │                                   │                                    │
-     │ 6. peer.call(remotePeerId, stream)│                                    │
+     │ 7. peer.call(remotePeerId, stream)│                                    │
      │ ═══════════════════════════════════════════════════════════════════════│
      │                      PeerJS (WebRTC P2P соединение)                    │
      │ ═══════════════════════════════════════════════════════════════════════│
      │                                   │                                    │
-     │ 7. on('stream') - получили        │           on('call') - получили    │
+     │ 8. on('stream') - получили        │           on('call') - получили    │
      │    удаленный видеопоток           │              входящий peer call    │
      │                                   │           incomingCall.answer()    │
      │                                   │                                    │
-     │ ◀═══════════════════ WebRTC Media Stream ══════════════════════════════▶│
+     │ <═══════════════════ WebRTC Media Stream ══════════════════════════════>│
      │                                   │                                    │
 ```
 
@@ -235,37 +268,87 @@ type CallStatus =
    - Создается PeerJS инстанс
    - Отправляется событие `call-initiate` на Socket сервер
 
-2. **Сервер маршрутизирует звонок**
-   - `callHandler` получает событие
-   - Находит все сокеты пациента по `userId`
-   - Отправляет `incoming-call` на все сокеты пациента
+2. **Сервер получает appointment из БД**
+   - `callHandler` получает событие с `appointmentId`
+   - Запрашивает appointment из Payload CMS
+   - Извлекает `targetId` (userId если звонит doctor, doctorId если звонит user)
+   - Сохраняет звонок в `activeCallsStore` с `targetId`
 
-3. **Пациент видит входящий звонок**
+3. **Сервер маршрутизирует звонок конкретному пользователю**
+   - Находит сокеты только с `senderId === targetId` и `senderType === targetType`
+   - Отправляет `incoming-call` только этому конкретному пользователю
+   - Другие пациенты НЕ получают этот звонок
+
+4. **Пациент видит входящий звонок**
    - `SocketProvider` получает `incoming-call`
    - `useCallStore` переходит в состояние `incoming`
    - `VideoCallOverlay` показывает `IncomingCallView`
 
-4. **Пациент принимает звонок**
+5. **Пациент принимает звонок**
    - Нажимает кнопку "Принять"
    - Вызывается `answerCall()` из `useVideoCall()`
    - Запрашивается доступ к камере/микрофону
    - Создается PeerJS инстанс
    - Отправляется `call-answer` с `peerId` на сервер
 
-5. **Врач получает подтверждение**
+6. **Врач получает подтверждение**
    - Получает событие `call-answered` с `peerId` пациента
    - `setRemoteAnswered(true)` и `setRemotePeerId(peerId)`
 
-6. **Устанавливается P2P соединение**
+7. **Устанавливается P2P соединение**
    - Врач вызывает `peer.call(remotePeerId, localStream)`
    - PeerJS использует ICE серверы для NAT traversal
    - Устанавливается прямое соединение между браузерами
 
-7. **Обмен медиа-потоками**
+8. **Обмен медиа-потоками**
    - Пациент получает входящий `peer.on('call')` и отвечает `call.answer(localStream)`
    - Оба получают `call.on('stream')` с удаленным потоком
    - Состояние переходит в `connected`
    - `ConnectedView` отображает оба видео
+
+### Сценарий: Пациент подключается после начала звонка
+
+Этот сценарий важен когда:
+- Пациент перезагрузил страницу во время входящего звонка
+- Пациент подключился к системе позже, чем врач начал звонить
+- Произошел временный разрыв WebSocket соединения
+
+```
+Врач (Doctor)                          Сервер                           Пациент (User)
+     │                                   │                                    │
+     │ 1. startCall()                    │                                    │
+     │ ─────────────────────────────────>│                                    │
+     │    emit('call-initiate')          │                                    │
+     │                                   │                                    │
+     │                                   │ 2. Сохраняет в activeCallsStore    │
+     │                                   │    { appointmentId, targetId, ... }│
+     │                                   │                                    │
+     │                                   │ 3. Пациент НЕ подключен!           │
+     │                                   │    Звонок сохранен, ждем...        │
+     │                                   │                                    │
+     │                                   │                    4. Пациент      │
+     │                                   │ <───────────────────────────────── │
+     │                                   │    подключается (socket connect)   │
+     │                                   │                                    │
+     │                                   │ 5. checkPendingCallsForSocket()    │
+     │                                   │    Ищет звонки где:                │
+     │                                   │    - targetType === 'user'         │
+     │                                   │    - targetId === пациент.id       │
+     │                                   │                                    │
+     │                                   │ 6. Нашли! Отправляем звонок        │
+     │                                   │ ─────────────────────────────────> │
+     │                                   │    emit('incoming-call')           │
+     │                                   │                                    │
+     │                                   │                    7. Пациент      │
+     │                                   │                    видит звонок!   │
+     │                                   │                                    │
+```
+
+**Ключевые моменты:**
+- `targetId` получается из БД (appointment), а не из подключенных сокетов
+- Звонок хранится в `activeCallsStore` пока не будет принят/отклонен/завершен
+- При подключении нового сокета `checkPendingCallsForSocket` проверяет pending calls
+- Фильтрация по `targetId` гарантирует, что звонок получит только нужный пользователь
 
 ---
 
@@ -398,8 +481,10 @@ src/
 ├── lib/
 │   ├── socket/
 │   │   ├── server.ts                 # Socket.IO сервер
-│   │   └── handlers/
-│   │       └── callHandler.ts        # Обработчики звонков
+│   │   ├── handlers/
+│   │   │   └── callHandler.ts        # Обработчики звонков
+│   │   └── stores/
+│   │       └── activeCallsStore.ts   # Хранилище активных звонков
 │   └── video-call/
 │       ├── config.ts                 # Конфигурация
 │       └── types.ts                  # TypeScript типы
