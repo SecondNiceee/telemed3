@@ -27,6 +27,7 @@ import {
   createCallEndHandler,
   createCallParticipantLeavingHandler,
   createCallParticipantRejoiningHandler,
+  checkPendingCallsForSocket,
 } from './handlers/callHandler'
 import { rateLimitMap } from './config/rate-limit.config'
 
@@ -70,11 +71,14 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
   const callEndHandler = createCallEndHandler(io)
   const callParticipantLeavingHandler = createCallParticipantLeavingHandler(io)
   const callParticipantRejoiningHandler = createCallParticipantRejoiningHandler(io)
-  const disconnectHandler = createDisconnectHandler()
+  const disconnectHandler = createDisconnectHandler(io)
 
   io.on('connection', (socket: Socket) => {
     const authSocket = socket as AuthenticatedSocket
     console.log(`[Socket] Client connected: ${socket.id}, type: ${authSocket.data.senderType}, id: ${authSocket.data.senderId}`)
+    
+    // Check for pending incoming calls (handles page refresh during incoming call)
+    checkPendingCallsForSocket(authSocket)
 
     // Когда чувак входит в чат (именно в какую-то конкретную консультацию)
     socket.on('join-room', (data: JoinRoomPayload) => joinRoomHandler(authSocket, data))

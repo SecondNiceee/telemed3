@@ -28,11 +28,15 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
   const appointments = apptFetched ? storeAppointments : initialAppointments
   const upcomingAppointment = getUpcomingAppointment(appointments)
   
-  const [filter, setFilter] = useState<'active' | 'completed'>('active')
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
   
   const activeAppointments = appointments.filter(a => a.status === 'confirmed' || a.status === 'in_progress')
   const completedAppointments = appointments.filter(a => a.status === 'completed')
-  const filteredAppointments = filter === 'active' ? activeAppointments : completedAppointments
+  const filteredAppointments = filter === 'all' 
+    ? appointments 
+    : filter === 'active' 
+      ? activeAppointments 
+      : completedAppointments
 
   // Sync doctor from server to store
   useEffect(() => {
@@ -80,6 +84,18 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
           </div>
         </div>
 
+        {/* Stats row */}
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          <div className="rounded-xl bg-card border border-border px-4 py-3">
+            <p className="text-2xl font-bold text-foreground">{activeAppointments.length}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Предстоящих консультаций</p>
+          </div>
+          <div className="rounded-xl bg-card border border-border px-4 py-3">
+            <p className="text-2xl font-bold text-foreground">{completedAppointments.length}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Завершённых консультаций</p>
+          </div>
+        </div>
+
         {/* Upcoming appointment countdown */}
         {upcomingAppointment && (
           <AppointmentCountdownBanner
@@ -98,6 +114,22 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
           {/* Filter tabs */}
           <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
             <button
+              onClick={() => setFilter('all')}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                filter === 'all' 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Все
+              {appointments.length > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-muted-foreground/20 text-muted-foreground">
+                  {appointments.length}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => setFilter('active')}
               className={cn(
                 "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
@@ -106,7 +138,7 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              Активные
+              Предстоящие
               {activeAppointments.length > 0 && (
                 <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-green-100 text-green-700">
                   {activeAppointments.length}
@@ -122,7 +154,7 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              Завершенные
+              Завершённые
               {completedAppointments.length > 0 && (
                 <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-muted-foreground/20 text-muted-foreground">
                   {completedAppointments.length}
@@ -135,21 +167,22 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
         {filteredAppointments.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-8 flex flex-col items-center justify-center text-center gap-4">
             <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
-              {filter === 'active' ? (
-                <CalendarX className="w-7 h-7 text-muted-foreground" />
-              ) : (
+              {filter === 'completed' ? (
                 <CheckCircle2 className="w-7 h-7 text-muted-foreground" />
+              ) : (
+                <CalendarX className="w-7 h-7 text-muted-foreground" />
               )}
             </div>
             <div>
               <p className="text-lg font-medium text-foreground">
-                {filter === 'active' ? 'Нет активных консультаций' : 'Нет завершенных консультаций'}
+                {filter === 'all' && "Нет консультаций"}
+                {filter === 'active' && "Нет предстоящих консультаций"}
+                {filter === 'completed' && "Нет завершённых консультаций"}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                {filter === 'active' 
-                  ? 'Новые консультации появятся здесь, когда пациенты запишутся к вам'
-                  : 'Завершенные консультации будут отображаться здесь'
-                }
+                {filter === 'all' && "Консультации появятся здесь, когда пациенты запишутся к вам"}
+                {filter === 'active' && "Предстоящие консультации появятся здесь, когда пациенты запишутся к вам"}
+                {filter === 'completed' && "Завершённые консультации будут отображаться здесь"}
               </p>
             </div>
           </div>
@@ -197,7 +230,7 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-foreground hover:bg-secondary transition-colors"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
-                    {appt.status === "confirmed" ? 'Написать' : 'Посмотреть'}
+                    Чат
                   </Link>
                 </div>
               </div>

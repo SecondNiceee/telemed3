@@ -1,0 +1,472 @@
+# Архитектура видеозвонков в проекте Telemed
+
+## Оглавление
+
+- [Высокоуровневая схема](#высокоуровневая-схема)
+- [Технологии](#технологии)
+- [Ключевые компоненты](#ключевые-компоненты)
+- [Серверная часть](#серверная-часть)
+- [Состояния звонка](#состояния-звонка)
+- [Пошаговый процесс звонка](#пошаговый-процесс-звонка)
+- [Конфигурация](#конфигурация)
+- [Почему это работает](#почему-это-работает)
+
+---
+
+## Высокоуровневая схема
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              КЛИЕНТ (Browser)                                │
+│  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────────────┐│
+│  │  /lk/chat       │     │  /lk-med/chat   │     │  VideoCallProvider      ││
+│  │  (Пациент)      │     │  (Врач)         │     │  VideoCallOverlay       ││
+│  └────────┬────────┘     └────────┬────────┘     └──────────┬──────────────┘│
+│           │                       │                         │               │
+│           ▼                       ▼                         ▼               │
+│  ┌──────────────────────────────────────────────────────────────────────────│
+│  │                       SocketProvider                                      │
+│  │  (WebSocket соединение для сигналинга звонков)                           │
+│  └───────────────────────────────┬──────────────────────────────────────────│
+│                                  │                                          │
+│                                  ▼                                          │
+│  ┌──────────────────────────────────────────────────────────────────────────│
+│  │                      PeerJS Client (WebRTC)                               │
+│  │  (P2P видео/аудио стриминг)                                              │
+│  └───────────────────────────────┬──────────────────────────────────────────│
+└──────────────────────────────────┼──────────────────────────────────────────┘
+                                   │
+        ┌──────────────────────────┼──────────────────────────┐
+        │                          │                          │
+        ▼                          ▼                          ▼
+┌───────────────────┐  ┌───────────────────────┐  ┌─────────────────────────┐
+│  Socket.IO Server │  │    PeerJS Server      │  │   TURN/STUN Servers     │
+│  (src/server.ts)  │  │ (src/peer-server.ts)  │  │  (nice-sites.online)    │
+│  Порт: 3001       │  │  Порт: 3002           │  │  Порт: 3478/5349        │
+└───────────────────┘  └───────────────────────┘  └─────────────────────────┘
+```
+
+---
+
+## Технологии
+
+| Технология | Назначение |
+|------------|------------|
+| **Socket.IO** | WebSocket библиотека для real-time сигналинга |
+| **PeerJS** | Обертка над WebRTC для упрощения P2P соединений |
+| **WebRTC** | Стандарт для peer-to-peer аудио/видео в браузере |
+| **STUN/TURN** | Серверы для NAT traversal и relay |
+| **Zustand** | State management для состояния звонка |
+
+---
+
+## Ключевые компоненты
+
+### 1. Страницы чата
+
+| Файл | Описание |
+|------|----------|
+| `src/app/(frontend)/lk/chat/page.tsx` | Страница чата для **пациентов** (Users). Загружает `ChatPage` с `currentSenderType="user"` |
+| `src/app/(frontend)/lk-med/chat/page.tsx` | Страница чата для **врачей** (Doctors). Загружает `DoctorChatWrapper` |
+
+### 2. Провайдеры (Context)
+
+| Компонент | Файл | Роль |
+|-----------|------|------|
+| `SocketProvider` | `src/components/socket-provider.tsx` | Управляет WebSocket соединением для сигналинга (вызов, ответ, отклонение, завершение) |
+| `VideoCallProvider` | `src/components/video-call/video-call-provider.tsx` | Главный провайдер видеозвонков. Управляет PeerJS, медиа-стримами, состоянием звонка |
+
+### 3. UI Компоненты видеозвонков
+
+| Компонент | Файл | Роль |
+|-----------|------|------|
+| `VideoCallOverlay` | `src/components/video-call/video-call-overlay.tsx` | Глобальный оверлей, который рендерит нужное view в зависимости от статуса звонка |
+| `IncomingCallView` | `src/components/video-call/views/incoming-call-view.tsx` | UI для входящего звонка (кнопки "Принять"/"Отклонить") |
+| `CallingView` | `src/components/video-call/views/calling-view.tsx` | UI исходящего звонка (ожидание ответа) |
+| `ConnectingView` | `src/components/video-call/views/connecting-view.tsx` | UI подключения |
+| `ConnectedView` | `src/components/video-call/views/connected-view.tsx` | Главный UI активного звонка с видео |
+| `MinimizedView` | `src/components/video-call/views/minimized-view.tsx` | Свернутый вид (PiP) |
+| `LocalVideo` | `src/components/video-call/components/local-video.tsx` | Компонент локального видео (камера пользователя) |
+| `RemoteVideo` | `src/components/video-call/components/remote-video.tsx` | Компонент удаленного видео (собеседник) |
+| `CallControls` | `src/components/video-call/components/call-controls.tsx` | Кнопки управления (вкл/выкл камеру, микрофон, завершить) |
+| `CallTimer` | `src/components/video-call/components/call-timer.tsx` | Таймер консультации |
+| `ConnectionQuality` | `src/components/video-call/components/connection-quality.tsx` | Индикатор качества соединения |
+
+### 4. Хуки
+
+| Хук | Файл | Роль |
+|-----|------|------|
+| `usePeerConnection` | `src/components/video-call/hooks/use-peer-connection.ts` | Управление PeerJS соединением |
+| `useMediaStream` | `src/components/video-call/hooks/use-media-stream.ts` | Управление медиа-стримом (камера/микрофон) |
+| `useCallTimer` | `src/components/video-call/hooks/use-call-timer.ts` | Таймер консультации |
+| `useConnectionQuality` | `src/components/video-call/hooks/use-connection-quality.ts` | Мониторинг качества соединения |
+| `useTurnTest` | `src/components/video-call/hooks/use-turn-test.ts` | Тестирование TURN сервера |
+
+### 5. Zustand Stores
+
+| Store | Файл | Роль |
+|-------|------|------|
+| `useCallStore` | `src/stores/call-store.ts` | Глобальное состояние звонка (status, streams, peerId и т.д.) |
+| `useUserStore` | `src/stores/user-store.ts` | Данные текущего пациента |
+| `useDoctorStore` | `src/stores/doctor-store.ts` | Данные текущего врача |
+
+---
+
+## Серверная часть
+
+### Серверы
+
+| Сервер | Файл | Порт | Роль |
+|--------|------|------|------|
+| **Socket.IO Server** | `src/lib/socket/server.ts` | 3001 | Сигналинг звонков (call-initiate, call-answer, call-reject, call-end) |
+| **PeerJS Server** | `src/peer-server.ts` | 3002 | WebRTC signaling для P2P соединения |
+
+### Socket Handlers (сигналинг)
+
+Файл: `src/lib/socket/handlers/callHandler.ts`
+
+| Handler | Событие | Описание |
+|---------|---------|----------|
+| `createCallHandler` | `call-initiate` | Инициирует звонок, отправляет `incoming-call` получателю |
+| `createCallAnswerHandler` | `call-answer` | Принимает звонок, отправляет `call-answered` звонящему |
+| `createCallRejectHandler` | `call-reject` | Отклоняет звонок, отправляет `call-rejected` звонящему |
+| `createCallEndHandler` | `call-end` | Завершает звонок, отправляет `call-ended` обоим участникам |
+
+### Структура Socket событий
+
+```typescript
+// Исходящие от клиента
+'call-initiate'   // { recipientId, recipientType, callerInfo }
+'call-answer'     // { callerId, callerType, peerId }
+'call-reject'     // { callerId, callerType, reason }
+'call-end'        // { recipientId, recipientType }
+
+// Входящие к клиенту
+'incoming-call'   // Входящий звонок
+'call-answered'   // Звонок принят
+'call-rejected'   // Звонок отклонен
+'call-ended'      // Звонок завершен
+```
+
+---
+
+## Состояния звонка
+
+```typescript
+type CallStatus =
+  | 'idle'        // Нет активного звонка
+  | 'incoming'    // Входящий звонок (показывается IncomingCallView)
+  | 'calling'     // Исходящий звонок (ждем ответа)
+  | 'connecting'  // Устанавливается P2P соединение
+  | 'connected'   // Активный звонок
+  | 'reconnecting'// Переподключение
+  | 'ended'       // Звонок завершен
+  | 'error'       // Ошибка
+```
+
+### Диаграмма переходов состояний
+
+```
+                    startCall()
+        idle ─────────────────────► calling
+          │                            │
+          │                            │ call-answered
+          │ incoming-call              ▼
+          ▼                        connecting
+      incoming                         │
+          │                            │ peer connected
+          │ answerCall()               ▼
+          └───────────────────────► connected
+                                       │
+                                       │ endCall() / call-ended
+                                       ▼
+                                     ended
+                                       │
+                                       │ timeout
+                                       ▼
+                                     idle
+```
+
+---
+
+## Пошаговый процесс звонка
+
+### Сценарий: Врач звонит пациенту
+
+```
+Врач (Doctor)                          Сервер                           Пациент (User)
+     │                                   │                                    │
+     │ 1. startCall()                    │                                    │
+     │ ─────────────────────────────────>│                                    │
+     │    emit('call-initiate')          │                                    │
+     │                                   │ 2. Находит сокеты пациента         │
+     │                                   │ ─────────────────────────────────> │
+     │                                   │    emit('incoming-call')           │
+     │                                   │                                    │
+     │                                   │                    3. Показывает   │
+     │                                   │                    IncomingCallView│
+     │                                   │                                    │
+     │                                   │ <───────────────────────────────── │
+     │                                   │    4. answerCall()                 │
+     │                                   │       emit('call-answer')          │
+     │                                   │                                    │
+     │ <─────────────────────────────────│                                    │
+     │ 5. Получает 'call-answered'       │                                    │
+     │    setRemoteAnswered(true)        │                                    │
+     │                                   │                                    │
+     │ 6. peer.call(remotePeerId, stream)│                                    │
+     │ ═══════════════════════════════════════════════════════════════════════│
+     │                      PeerJS (WebRTC P2P соединение)                    │
+     │ ═══════════════════════════════════════════════════════════════════════│
+     │                                   │                                    │
+     │ 7. on('stream') - получили        │           on('call') - получили    │
+     │    удаленный видеопоток           │              входящий peer call    │
+     │                                   │           incomingCall.answer()    │
+     │                                   │                                    │
+     │ ◀═══════════════════ WebRTC Media Stream ══════════════════════════════▶│
+     │                                   │                                    │
+```
+
+### Детальное описание шагов
+
+1. **Врач нажимает кнопку звонка**
+   - Вызывается `startCall()` из `useVideoCall()`
+   - Запрашивается доступ к камере/микрофону
+   - Создается PeerJS инстанс
+   - Отправляется событие `call-initiate` на Socket сервер
+
+2. **Сервер маршрутизирует звонок**
+   - `callHandler` получает событие
+   - Находит все сокеты пациента по `userId`
+   - Отправляет `incoming-call` на все сокеты пациента
+
+3. **Пациент видит входящий звонок**
+   - `SocketProvider` получает `incoming-call`
+   - `useCallStore` переходит в состояние `incoming`
+   - `VideoCallOverlay` показывает `IncomingCallView`
+
+4. **Пациент принимает звонок**
+   - Нажимает кнопку "Принять"
+   - Вызывается `answerCall()` из `useVideoCall()`
+   - Запрашивается доступ к камере/микрофону
+   - Создается PeerJS инстанс
+   - Отправляется `call-answer` с `peerId` на сервер
+
+5. **Врач получает подтверждение**
+   - Получает событие `call-answered` с `peerId` пациента
+   - `setRemoteAnswered(true)` и `setRemotePeerId(peerId)`
+
+6. **Устанавливается P2P соединение**
+   - Врач вызывает `peer.call(remotePeerId, localStream)`
+   - PeerJS использует ICE серверы для NAT traversal
+   - Устанавливается прямое соединение между браузерами
+
+7. **Обмен медиа-потоками**
+   - Пациент получает входящий `peer.on('call')` и отвечает `call.answer(localStream)`
+   - Оба получают `call.on('stream')` с удаленным потоком
+   - Состояние переходит в `connected`
+   - `ConnectedView` отображает оба видео
+
+---
+
+## Конфигурация
+
+Файл: `src/lib/video-call/config.ts`
+
+### ICE серверы для NAT traversal
+
+```typescript
+export const ICE_SERVERS = [
+  // STUN сервер (бесплатный, для простых случаев)
+  { urls: 'stun:nice-sites.online:3478' },
+  
+  // TURN серверы (для сложных сетей, за NAT/firewall)
+  { 
+    urls: 'turn:nice-sites.online:3478',
+    username: '...',
+    credential: '...'
+  },
+  { 
+    urls: 'turn:nice-sites.online:3478?transport=tcp',
+    username: '...',
+    credential: '...'
+  },
+  
+  // TURNS (TURN over TLS) для корпоративных сетей
+  { 
+    urls: 'turns:nice-sites.online:5349',
+    username: '...',
+    credential: '...'
+  },
+]
+```
+
+### Таймауты
+
+```typescript
+export const CALL_TIMEOUTS = {
+  CALL_TIMEOUT: 30000,        // 30 сек ожидания ответа
+  RECONNECT_INTERVAL: 2000,   // 2 сек между попытками переподключения
+  MAX_RECONNECT_ATTEMPTS: 3,  // Максимум 3 попытки
+}
+```
+
+### Настройки медиа
+
+```typescript
+export const MEDIA_CONSTRAINTS = {
+  video: {
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+    facingMode: 'user'
+  },
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true
+  }
+}
+```
+
+---
+
+## Почему это работает
+
+### 1. Разделение ответственности
+
+- **Socket.IO** используется **только** для сигналинга (передача метаданных о звонке)
+- **PeerJS/WebRTC** используется для передачи медиа-данных
+- Это позволяет серверу быть легковесным - он не обрабатывает видео
+
+### 2. P2P архитектура
+
+- Медиа-потоки идут **напрямую между браузерами**
+- Сервер не участвует в передаче видео/аудио
+- Минимальная задержка, максимальное качество
+
+### 3. NAT Traversal
+
+- **STUN** сервер помогает узнать публичный IP
+- **TURN** сервер работает как relay для сложных сетей
+- Поддержка TCP и TLS для корпоративных firewall
+
+### 4. Zustand для состояния
+
+- Глобальный store позволяет любому компоненту реагировать на звонок
+- `VideoCallOverlay` может показываться поверх любой страницы
+- Состояние сохраняется при навигации
+
+---
+
+## Структура файлов
+
+```
+src/
+├── app/(frontend)/
+│   ├── lk/
+│   │   └── chat/
+│   │       └── page.tsx              # Страница чата пациента
+│   └── lk-med/
+│       └── chat/
+│           └── page.tsx              # Страница чата врача
+│
+├── components/
+│   ├── socket-provider.tsx           # WebSocket провайдер
+│   ├── chat/
+│   │   └── chat-page.tsx             # Основной компонент чата
+│   └── video-call/
+│       ├── video-call-provider.tsx   # Главный провайдер
+│       ├── video-call-overlay.tsx    # Оверлей звонка
+│       ├── components/
+│       │   ├── local-video.tsx       # Локальное видео
+│       │   ├── remote-video.tsx      # Удаленное видео
+│       │   ├── call-controls.tsx     # Кнопки управления
+│       │   ├── call-timer.tsx        # Таймер
+│       │   └── connection-quality.tsx # Качество связи
+│       ├── views/
+│       │   ├── incoming-call-view.tsx # Входящий звонок
+│       │   ├── calling-view.tsx       # Исходящий звонок
+│       │   ├── connecting-view.tsx    # Подключение
+│       │   ├── connected-view.tsx     # Активный звонок
+│       │   └── minimized-view.tsx     # Свернутый вид
+│       └── hooks/
+│           ├── use-peer-connection.ts # PeerJS хук
+│           ├── use-media-stream.ts    # Медиа хук
+│           ├── use-call-timer.ts      # Таймер хук
+│           └── use-connection-quality.ts # Качество хук
+│
+├── lib/
+│   ├── socket/
+│   │   ├── server.ts                 # Socket.IO сервер
+│   │   └── handlers/
+│   │       └── callHandler.ts        # Обработчики звонков
+│   └── video-call/
+│       ├── config.ts                 # Конфигурация
+│       └── types.ts                  # TypeScript типы
+│
+├── stores/
+│   ├── call-store.ts                 # Zustand store звонка
+│   ├── user-store.ts                 # Store пациента
+│   └── doctor-store.ts               # Store врача
+│
+├── server.ts                         # Главный сервер
+└── peer-server.ts                    # PeerJS сервер
+```
+
+---
+
+## Диаграмма компонентов
+
+```
+/lk/chat ─────────────────────────────┐
+                                      │
+                                      ▼
+                              ┌───────────────┐
+                              │   ChatPage    │
+                              └───────┬───────┘
+                                      │
+              ┌───────────────────────┼───────────────────────┐
+              ▼                       ▼                       ▼
+      SocketProvider          ChatWindow              VideoCallProvider
+              │                                              │
+              ▼                                              ▼
+         useSocket()                                   useVideoCall()
+              │                                              │
+              │                                              ▼
+              │                                     VideoCallOverlay
+              │                                              │
+              ▼                                              ▼
+    Socket.IO Server  ◄─────────────────────────►   PeerJS Client
+    (сигналинг)                                    (P2P видео)
+```
+
+---
+
+## Troubleshooting
+
+### Звонок не устанавливается
+
+1. Проверьте, что PeerJS сервер запущен на порту 3002
+2. Проверьте, что STUN/TURN серверы доступны
+3. Проверьте права доступа к камере/микрофону
+
+### Нет видео/аудио
+
+1. Проверьте `mediaStream` в DevTools
+2. Убедитесь, что браузер дал разрешения
+3. Проверьте `ICE connection state` в WebRTC internals
+
+### Звонок обрывается
+
+1. Проверьте качество соединения
+2. Возможно, TURN сервер недоступен
+3. Проверьте логи в `useConnectionQuality`
+
+---
+
+## Полезные ссылки
+
+- [WebRTC Documentation](https://webrtc.org/)
+- [PeerJS Documentation](https://peerjs.com/docs/)
+- [Socket.IO Documentation](https://socket.io/docs/v4/)
+- [Zustand Documentation](https://zustand-demo.pmnd.rs/)

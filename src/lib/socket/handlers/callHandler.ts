@@ -8,6 +8,34 @@ import type {
   CallParticipantLeavingPayload,
   CallParticipantRejoiningPayload,
 } from '../types'
+import { 
+  addActiveCall, 
+  removeActiveCall, 
+  getActiveCallsForTarget,
+  type ActiveCall 
+} from '../stores/activeCallsStore'
+
+/**
+ * Check for pending incoming calls when a user connects
+ * This handles the case where someone refreshes the page during an incoming call
+ */
+export function checkPendingCallsForSocket(socket: AuthenticatedSocket): void {
+  const pendingCalls = getActiveCallsForTarget(socket.data.senderType)
+  
+  console.log(`[Socket] Checking pending calls for ${socket.data.senderType}:${socket.data.senderId}`)
+  console.log(`[Socket] Found ${pendingCalls.length} pending calls`)
+  
+  for (const call of pendingCalls) {
+    console.log(`[Socket] Sending pending incoming-call for appointment ${call.appointmentId} to ${socket.id}`)
+    socket.emit('incoming-call', {
+      appointmentId: call.appointmentId,
+      callerPeerId: call.callerPeerId,
+      callerName: call.callerName,
+      callerType: call.callerType,
+      callerId: call.callerId,
+    })
+  }
+}
 
 /**
  * Handle initiating a call - notify the other party directly
@@ -25,6 +53,18 @@ export function createCallHandler(io: SocketIOServer) {
     
     // Determine who we need to call based on the caller type
     const targetType = socket.data.senderType === 'doctor' ? 'user' : 'doctor'
+    
+    // Store the active call so new connections can receive it
+    const activeCall: ActiveCall = {
+      appointmentId,
+      callerPeerId,
+      callerName,
+      callerType: socket.data.senderType,
+      callerId: socket.data.senderId,
+      targetType,
+      createdAt: Date.now(),
+    }
+    addActiveCall(activeCall)
     
     // First, try to send to the room (if target is already in the chat)
     const room = io.sockets.adapter.rooms.get(roomName)
@@ -114,6 +154,9 @@ export function createCallAnswerHandler(io: SocketIOServer) {
     
     console.log(`[Socket] Call answered by ${socket.data.senderType}:${socket.data.senderId}, peerId: ${answerPeerId}`)
     
+    // Remove from active calls - the call is now connected
+    removeActiveCall(appointmentId)
+    
     // Broadcast to the caller (who might not be in the room)
     broadcastToOtherParticipant(io, socket, roomName, 'call-answered', {
       appointmentId,
@@ -134,6 +177,9 @@ export function createCallRejectHandler(io: SocketIOServer) {
     
     console.log(`[Socket] Call rejected by ${socket.data.senderType}:${socket.data.senderId}`)
     
+    // Remove from active calls
+    removeActiveCall(appointmentId)
+    
     broadcastToOtherParticipant(io, socket, roomName, 'call-rejected', {
       appointmentId,
       rejectedBy: socket.data.senderType,
@@ -150,6 +196,9 @@ export function createCallEndHandler(io: SocketIOServer) {
     const roomName = `appointment:${appointmentId}`
     
     console.log(`[Socket] Call ended by ${socket.data.senderType}:${socket.data.senderId}`)
+    
+    // Remove from active calls
+    removeActiveCall(appointmentId)
     
     broadcastToOtherParticipant(io, socket, roomName, 'call-ended', {
       appointmentId,
