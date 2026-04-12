@@ -65,7 +65,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
   const stopTypingHandler = createStopTypingHandler() // Остановился печать
 
   // Хэндлеры звонка
-  const callHandler = createCallHandler(io)
+  const callHandler = createCallHandler(io, payload)
   const callAnswerHandler = createCallAnswerHandler(io)
   const callRejectHandler = createCallRejectHandler(io)
   const callEndHandler = createCallEndHandler(io)

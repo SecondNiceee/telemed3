@@ -1,4 +1,5 @@
 import type { Server as SocketIOServer } from 'socket.io'
+import type { Payload } from 'payload'
 import type { 
   AuthenticatedSocket, 
   CallSignalPayload, 
@@ -12,7 +13,6 @@ import {
   addActiveCall, 
   removeActiveCall, 
   getActiveCallsForTarget,
-  updateActiveCallTargetId,
   type ActiveCall 
 } from '../stores/activeCallsStore'
 
@@ -23,17 +23,13 @@ import {
  */
 export function checkPendingCallsForSocket(socket: AuthenticatedSocket): void {
   // Pass both senderType and senderId to filter calls for this specific user
+  // This ensures we only send calls meant for THIS specific user, not all users of the same type
   const pendingCalls = getActiveCallsForTarget(socket.data.senderType, socket.data.senderId)
   
   console.log(`[Socket] Checking pending calls for ${socket.data.senderType}:${socket.data.senderId}`)
   console.log(`[Socket] Found ${pendingCalls.length} pending calls`)
   
   for (const call of pendingCalls) {
-    // Update targetId if it was null (user wasn't connected when call was initiated)
-    if (call.targetId === null) {
-      updateActiveCallTargetId(call.appointmentId, socket.data.senderId)
-    }
-    
     console.log(`[Socket] Sending pending incoming-call for appointment ${call.appointmentId} to ${socket.id}`)
     socket.emit('incoming-call', {
       appointmentId: call.appointmentId,
@@ -49,8 +45,8 @@ export function checkPendingCallsForSocket(socket: AuthenticatedSocket): void {
  * Handle initiating a call - notify the other party directly
  * This works even if the other party is not in the appointment room
  */
-export function createCallHandler(io: SocketIOServer) {
-  return (socket: AuthenticatedSocket, data: CallSignalPayload) => {
+export function createCallHandler(io: SocketIOServer, payload: Payload) {
+  return async (socket: AuthenticatedSocket, data: CallSignalPayload) => {
     const { appointmentId, callerPeerId, callerName } = data
     const roomName = `appointment:${appointmentId}`
     
@@ -62,74 +58,33 @@ export function createCallHandler(io: SocketIOServer) {
     // Determine who we need to call based on the caller type
     const targetType = socket.data.senderType === 'doctor' ? 'user' : 'doctor'
     
-    // First, try to send to the room (if target is already in the chat)
-    const room = io.sockets.adapter.rooms.get(roomName)
-    const roomSize = room ? room.size : 0
-    console.log(`[Socket] Room ${roomName} has ${roomSize} clients`)
-    
-    // Track target IDs we find to store in activeCall
-    const targetIds: number[] = []
-    
-    // Broadcast to room (this catches the case where target is already viewing the chat)
-    // Also collect targetIds from room members
-    if (room) {
-      for (const socketId of room) {
-        if (socketId === socket.id) continue
-        const roomSocket = io.sockets.sockets.get(socketId) as AuthenticatedSocket | undefined
-        if (roomSocket && roomSocket.data.senderType === targetType) {
-          targetIds.push(roomSocket.data.senderId)
+    // Get appointment from database to find the exact targetId
+    let targetId: number | null = null
+    try {
+      const appointment = await payload.findByID({
+        collection: 'appointments',
+        id: appointmentId,
+        depth: 0, // We only need IDs, not populated data
+      })
+      
+      if (appointment) {
+        // If caller is doctor, target is user. If caller is user, target is doctor.
+        if (socket.data.senderType === 'doctor') {
+          // Target is user - get user ID from appointment
+          targetId = typeof appointment.user === 'number' ? appointment.user : appointment.user?.id ?? null
+        } else {
+          // Target is doctor - get doctor ID from appointment
+          targetId = typeof appointment.doctor === 'number' ? appointment.doctor : appointment.doctor?.id ?? null
         }
+        console.log(`[Socket] Found appointment ${appointmentId}, targetId: ${targetId}`)
+      } else {
+        console.log(`[Socket] Warning: Appointment ${appointmentId} not found`)
       }
+    } catch (error) {
+      console.error(`[Socket] Error fetching appointment ${appointmentId}:`, error)
     }
     
-    socket.to(roomName).emit('incoming-call', {
-      appointmentId,
-      callerPeerId,
-      callerName,
-      callerType: socket.data.senderType,
-      callerId: socket.data.senderId,
-    })
-    
-    // Additionally, find ALL sockets of the other participant type and notify them
-    // This ensures they get the call notification even if not in the room
-    // We iterate through all connected sockets to find the right participant
-    console.log(`[Socket] Looking for ${targetType} sockets to notify...`)
-    let foundTargetSockets = 0
-    for (const [socketId, connectedSocket] of io.sockets.sockets) {
-      const authSocket = connectedSocket as AuthenticatedSocket
-      
-      // Skip the caller's own socket
-      if (socketId === socket.id) continue
-      
-      // Skip if already in the room (they already got the event)
-      if (room?.has(socketId)) continue
-      
-      // Check if this is the opposite participant type
-      // For simplicity, we send to ALL users if caller is doctor, and ALL doctors if caller is user
-      // In production, you'd want to check the actual appointment participants
-      console.log(`[Socket] Checking socket ${socketId}: senderType=${authSocket.data.senderType}, senderId=${authSocket.data.senderId}`)
-      if (authSocket.data.senderType === targetType) {
-        foundTargetSockets++
-        // Collect targetId
-        if (!targetIds.includes(authSocket.data.senderId)) {
-          targetIds.push(authSocket.data.senderId)
-        }
-        console.log(`[Socket] *** MATCH! Sending incoming-call to ${targetType}:${authSocket.data.senderId} (socket: ${socketId})`)
-        authSocket.emit('incoming-call', {
-          appointmentId,
-          callerPeerId,
-          callerName,
-          callerType: socket.data.senderType,
-          callerId: socket.data.senderId,
-        })
-      }
-    }
-    
-    // Store the active call so new connections can receive it
-    // Use the first targetId found (if any) - in production this should come from appointment data
-    const targetId = targetIds.length > 0 ? targetIds[0] : null
-    console.log(`[Socket] Storing active call with targetType=${targetType}, targetId=${targetId}`)
-    
+    // Store the active call first so new connections can receive it
     const activeCall: ActiveCall = {
       appointmentId,
       callerPeerId,
@@ -141,9 +96,50 @@ export function createCallHandler(io: SocketIOServer) {
       createdAt: Date.now(),
     }
     addActiveCall(activeCall)
+    console.log(`[Socket] Stored active call with targetType=${targetType}, targetId=${targetId}`)
     
-    console.log(`[Socket] Found ${foundTargetSockets} ${targetType} sockets to notify`)
-    console.log(`[Socket] Emitted incoming-call to room ${roomName} and all ${targetType} sockets`)
+    // Prepare the incoming call payload
+    const incomingCallPayload = {
+      appointmentId,
+      callerPeerId,
+      callerName,
+      callerType: socket.data.senderType,
+      callerId: socket.data.senderId,
+    }
+    
+    // First, broadcast to room (catches the case where target is already viewing the chat)
+    const room = io.sockets.adapter.rooms.get(roomName)
+    const roomSize = room ? room.size : 0
+    console.log(`[Socket] Room ${roomName} has ${roomSize} clients`)
+    socket.to(roomName).emit('incoming-call', incomingCallPayload)
+    
+    // Then find sockets of the target user specifically by their ID
+    console.log(`[Socket] Looking for ${targetType} with ID ${targetId} to notify...`)
+    let foundTargetSockets = 0
+    
+    for (const [socketId, connectedSocket] of io.sockets.sockets) {
+      const authSocket = connectedSocket as AuthenticatedSocket
+      
+      // Skip the caller's own socket
+      if (socketId === socket.id) continue
+      
+      // Skip if already in the room (they already got the event)
+      if (room?.has(socketId)) continue
+      
+      // Check if this is the exact target user
+      const isTargetType = authSocket.data.senderType === targetType
+      const isTargetId = targetId !== null ? authSocket.data.senderId === targetId : true
+      
+      console.log(`[Socket] Checking socket ${socketId}: senderType=${authSocket.data.senderType}, senderId=${authSocket.data.senderId}, isMatch=${isTargetType && isTargetId}`)
+      
+      if (isTargetType && isTargetId) {
+        foundTargetSockets++
+        console.log(`[Socket] *** MATCH! Sending incoming-call to ${targetType}:${authSocket.data.senderId} (socket: ${socketId})`)
+        authSocket.emit('incoming-call', incomingCallPayload)
+      }
+    }
+    
+    console.log(`[Socket] Found ${foundTargetSockets} matching ${targetType} sockets to notify`)
     console.log(`[Socket] ====== END CALL INITIATE ======`)
   }
 }
