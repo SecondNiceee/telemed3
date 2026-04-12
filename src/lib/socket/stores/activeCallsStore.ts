@@ -10,6 +10,7 @@ export interface ActiveCall {
   callerType: 'user' | 'doctor'
   callerId: number
   targetType: 'user' | 'doctor'
+  targetId: number | null // ID of the target user/doctor (null if unknown)
   createdAt: number
 }
 
@@ -57,15 +58,22 @@ export function getActiveCall(appointmentId: number): ActiveCall | undefined {
 }
 
 /**
- * Get all active calls for a specific target type (user or doctor)
+ * Get all active calls for a specific target type and optionally target ID
  * Used when a user/doctor connects to check if they have pending incoming calls
  */
-export function getActiveCallsForTarget(targetType: 'user' | 'doctor'): ActiveCall[] {
+export function getActiveCallsForTarget(targetType: 'user' | 'doctor', targetId?: number): ActiveCall[] {
   const calls: ActiveCall[] = []
   for (const call of activeCallsMap.values()) {
-    if (call.targetType === targetType) {
-      calls.push(call)
+    // Match by targetType
+    if (call.targetType !== targetType) continue
+    
+    // If targetId is specified, also match by targetId
+    // If the call has no targetId stored (null), we still include it for backward compatibility
+    if (targetId !== undefined && call.targetId !== null && call.targetId !== targetId) {
+      continue
     }
+    
+    calls.push(call)
   }
   return calls
 }
@@ -75,6 +83,18 @@ export function getActiveCallsForTarget(targetType: 'user' | 'doctor'): ActiveCa
  */
 export function hasActiveCall(appointmentId: number): boolean {
   return activeCallsMap.has(appointmentId)
+}
+
+/**
+ * Update the targetId for an active call
+ * Called when we discover the target user's ID (e.g., when they connect)
+ */
+export function updateActiveCallTargetId(appointmentId: number, targetId: number): void {
+  const call = activeCallsMap.get(appointmentId)
+  if (call && call.targetId === null) {
+    call.targetId = targetId
+    console.log(`[ActiveCalls] Updated targetId for appointment ${appointmentId} to ${targetId}`)
+  }
 }
 
 /**

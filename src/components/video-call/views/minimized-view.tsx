@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Maximize2, PhoneOff, GripVertical } from 'lucide-react'
+import { Maximize2, PhoneOff, Hand } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { MinimizedViewProps } from '@/lib/video-call/types'
@@ -191,13 +191,13 @@ export function MinimizedView({
         <div
           data-drag-handle
           className={cn(
-            "absolute left-1/2 top-1 -translate-x-1/2 flex items-center justify-center",
-            "px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm",
+            "absolute left-1/2 top-2 -translate-x-1/2 flex items-center justify-center",
+            "w-10 h-10 rounded-full bg-white/30 backdrop-blur-sm",
             "opacity-0 group-hover:opacity-100 transition-opacity",
             isDragging ? "opacity-100 cursor-grabbing" : "cursor-grab"
           )}
         >
-          <GripVertical className="h-4 w-4 text-white/80" />
+          <Hand className="h-5 w-5 text-white" />
         </div>
 
         {/* Top info */}
