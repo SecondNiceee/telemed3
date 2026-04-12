@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { UseCallRecordingReturn } from '@/lib/video-call/types'
+import { getBasePath } from '@/lib/utils/basePath'
 
 // Интервал отправки chunks (30 секунд)
 const CHUNK_INTERVAL_MS = 30000
@@ -55,7 +56,8 @@ export function useCallRecording(): UseCallRecordingReturn {
       formData.append('isLast', isLast.toString())
       formData.append('mimeType', state.mimeType)
 
-      const response = await fetch('/api/recording-chunks', {
+      const basePath = getBasePath()
+      const response = await fetch(`${basePath}/api/recording-chunks`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -169,7 +171,8 @@ export function useCallRecording(): UseCallRecordingReturn {
       : undefined
 
     try {
-      const response = await fetch('/api/recording-chunks/finalize', {
+      const basePath = getBasePath()
+      const response = await fetch(`${basePath}/api/recording-chunks/finalize`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -325,12 +328,13 @@ export function useCallRecording(): UseCallRecordingReturn {
       console.log('[Recording] Client-side upload, size:', blob.size)
 
       // Upload video to media
+      const basePath = getBasePath()
       const formData = new FormData()
       const filename = `consultation-${appointmentId}-${Date.now()}.webm`
       formData.append('file', blob, filename)
       formData.append('alt', `Запись консультации #${appointmentId}`)
 
-      const mediaResponse = await fetch('/api/media', {
+      const mediaResponse = await fetch(`${basePath}/api/media`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -352,7 +356,7 @@ export function useCallRecording(): UseCallRecordingReturn {
       }
 
       // Create call-recording entry
-      const recordingResponse = await fetch('/api/call-recordings', {
+      const recordingResponse = await fetch(`${basePath}/api/call-recordings`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
