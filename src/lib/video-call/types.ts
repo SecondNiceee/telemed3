@@ -172,13 +172,10 @@ export interface ConnectedViewProps {
   remainingSeconds: number
   isPaused: boolean
   isMinimized: boolean
-  role: CallRole
   onToggleVideo: () => void
   onToggleAudio: () => void
   onEndCall: () => void
   onToggleMinimize: () => void
-  onTogglePause?: () => void
-  onCompleteConsultation?: () => void
 }
 
 /**

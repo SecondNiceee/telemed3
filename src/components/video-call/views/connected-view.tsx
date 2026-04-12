@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { LocalVideo } from '../components/local-video'
 import { RemoteVideo } from '../components/remote-video'
 import { CallControls } from '../components/call-controls'
-import { DoctorControls } from '../components/doctor-controls'
 import { CallTimer } from '../components/call-timer'
 import { ConnectionQualityIndicator } from '../components/connection-quality'
 import { EndCallDialog } from '../components/end-call-dialog'
@@ -20,18 +19,13 @@ export function ConnectedView({
   remainingSeconds,
   isPaused,
   isMinimized,
-  role,
   onToggleVideo,
   onToggleAudio,
   onEndCall,
   onToggleMinimize,
-  onTogglePause,
-  onCompleteConsultation,
 }: ConnectedViewProps) {
   const [showEndDialog, setShowEndDialog] = useState(false)
   const [showControls, setShowControls] = useState(true)
-
-  const isDoctor = role === 'doctor'
 
   const handleEndCallClick = () => {
     setShowEndDialog(true)
@@ -86,15 +80,6 @@ export function ConnectedView({
           showControls ? 'opacity-100' : 'opacity-0'
         )}
       >
-        {/* Doctor controls */}
-        {isDoctor && onTogglePause && onCompleteConsultation && (
-          <DoctorControls
-            isPaused={isPaused}
-            onTogglePause={onTogglePause}
-            onCompleteConsultation={onCompleteConsultation}
-          />
-        )}
-
         {/* Main controls */}
         <CallControls
           isVideoEnabled={mediaState.isVideoEnabled}
@@ -121,7 +106,6 @@ export function ConnectedView({
         open={showEndDialog}
         onOpenChange={setShowEndDialog}
         onConfirm={handleConfirmEnd}
-        isDoctor={isDoctor}
       />
     </div>
   )
