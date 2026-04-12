@@ -133,11 +133,25 @@
 | `useConnectionQuality` | `src/components/video-call/hooks/use-connection-quality.ts` | Мониторинг качества |
 | `useCallRecording` | `src/components/video-call/hooks/use-call-recording.ts` | Запись звонка |
 
-**Логика записи звонков:**
+**Логика записи звонков (Chunks):**
+
+Запись использует **периодическую отправку chunks** для надежности. Если врач закроет вкладку, потеряются только последние 30 секунд.
+
 1. Врач начинает звонок → `VideoCallProvider` активирует `useCallRecording`
 2. При подключении (`status === 'connected'`) начинается запись (только для врача)
-3. При завершении звонка запись останавливается и загружается через `CallRecordingsApi.uploadRecording()`
-4. Запись сохраняется в коллекцию `CallRecordings` с привязкой к `appointment` и `doctor`
+3. **Каждые 30 секунд** chunks отправляются на `/api/recording-chunks`
+4. При завершении звонка → `/api/recording-chunks/finalize` склеивает chunks
+5. Создается `Media` (видео-файл) и `CallRecording` (запись в БД)
+
+**API записи:**
+| Endpoint | Метод | Описание |
+|----------|-------|----------|
+| `/api/recording-chunks` | POST | Прием chunk видео |
+| `/api/recording-chunks/finalize` | POST | Склейка и создание записи |
+
+**Логи:** Все логи с префиксом `[Recording]` в консоли браузера врача.
+
+**Подробнее:** см. `ABOUT_VIDEO.md` → раздел "Система записи звонков (Chunks)"
 
 ---
 
@@ -218,14 +232,20 @@
    └── Создается Appointment (status: 'scheduled')
 
 2. Врач начинает видеозвонок
-   └── VideoCallProvider → useCallRecording.startRecording()
+   └── VideoCallProvider → useCallRecording.startRecording(stream, appointmentId, doctorId)
+   └── Генерируется sessionId для этой записи
 
-3. Звонок завершается
+3. Во время звонка (каждые 30 сек)
+   └── useCallRecording отправляет chunks
+   └── POST /api/recording-chunks
+   └── Chunks сохраняются в /tmp/recording-chunks/{sessionId}/
+
+4. Звонок завершается
    └── useCallRecording.stopRecording()
-   └── CallRecordingsApi.uploadRecording()
-   └── Создается CallRecording (appointment, doctor, video)
+   └── POST /api/recording-chunks/finalize
+   └── Сервер склеивает chunks → загружает в Media → создает CallRecording
 
-4. Организация просматривает консультацию
+5. Организация просматривает консультацию
    └── /lk-org/doctor/[id]/consultation/[appointmentId]
    └── OrgConsultationView (таб "Записи звонков")
    └── Отображается список CallRecordings с видео-ссылками
@@ -242,7 +262,7 @@
 | `doctors-token` | Doctors | Врачи |
 | `organisations-token` | Organisations | Организации |
 
-**Проверка на сервере:**
+**П��оверка на сервере:**
 - `getSessionFromCookie()` (`src/lib/auth/getSessionFromCookie.ts`)
 - `getCallerFromRequest()` (`src/collections/helpers/auth.ts`)
 
