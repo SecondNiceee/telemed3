@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { DoctorsApi } from "@/lib/api/doctors"
 import { AppointmentsApi } from "@/lib/api/appointments"
 import { MessagesApi } from "@/lib/api/messages"
+import { CallRecordingsApi } from "@/lib/api/call-recordings"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 import { OrgConsultationView } from "@/components/lk-org/consultation/OrgConsultationView"
 import { Footer } from "@/components/footer"
@@ -71,8 +72,11 @@ export default async function ConsultationPage({ params }: ConsultationPageProps
     redirect(`/lk-org/doctor/${doctorId}`)
   }
 
-  // Fetch messages
-  const messages = await MessagesApi.fetchByAppointmentServer(appointmentId, { cookie })
+  // Fetch messages and recordings
+  const [messages, recordings] = await Promise.all([
+    MessagesApi.fetchByAppointmentServer(appointmentId, { cookie }),
+    CallRecordingsApi.fetchByAppointmentServer(appointmentId, { cookie }),
+  ])
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -80,6 +84,7 @@ export default async function ConsultationPage({ params }: ConsultationPageProps
         doctor={doctor}
         appointment={appointment}
         initialMessages={messages}
+        initialRecordings={recordings}
         doctorId={doctorId}
       />
       <Footer />

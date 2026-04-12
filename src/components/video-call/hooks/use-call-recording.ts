@@ -1,14 +1,18 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { CallRecordingsApi } from '@/lib/api/call-recordings'
 import type { UseCallRecordingReturn } from '@/lib/video-call/types'
 
 export function useCallRecording(): UseCallRecordingReturn {
   const [isRecording, setIsRecording] = useState(false)
   const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const recordingStartTimeRef = useRef<number | null>(null)
 
   const startRecording = useCallback((stream: MediaStream) => {
     if (mediaRecorderRef.current?.state === 'recording') {
@@ -58,6 +62,7 @@ export function useCallRecording(): UseCallRecordingReturn {
       // Record in 1 second chunks
       recorder.start(1000)
       mediaRecorderRef.current = recorder
+      recordingStartTimeRef.current = Date.now()
       setIsRecording(true)
       console.log('[useCallRecording] Recording started with mime type:', selectedMimeType)
     } catch (err) {
@@ -87,6 +92,49 @@ export function useCallRecording(): UseCallRecordingReturn {
     })
   }, [recordingBlob])
 
+  const uploadRecording = useCallback(async (
+    appointmentId: number,
+    doctorId: number
+  ): Promise<boolean> => {
+    const blob = recordingBlob
+    if (!blob) {
+      console.log('[useCallRecording] No recording to upload')
+      return false
+    }
+
+    // Calculate duration
+    const durationSeconds = recordingStartTimeRef.current
+      ? Math.round((Date.now() - recordingStartTimeRef.current) / 1000)
+      : undefined
+
+    setIsUploading(true)
+    try {
+      console.log('[useCallRecording] Uploading recording, size:', blob.size)
+      const result = await CallRecordingsApi.uploadRecording(
+        appointmentId,
+        doctorId,
+        blob,
+        durationSeconds
+      )
+
+      if (result) {
+        console.log('[useCallRecording] Recording uploaded successfully:', result.id)
+        toast.success('Запись консультации сохранена')
+        return true
+      } else {
+        console.error('[useCallRecording] Failed to upload recording')
+        toast.error('Не удалось сохранить запись')
+        return false
+      }
+    } catch (error) {
+      console.error('[useCallRecording] Error uploading recording:', error)
+      toast.error('Ошибка при сохранении записи')
+      return false
+    } finally {
+      setIsUploading(false)
+    }
+  }, [recordingBlob])
+
   const downloadRecording = useCallback(
     (filename: string = 'consultation-recording') => {
       if (!recordingBlob) {
@@ -109,8 +157,10 @@ export function useCallRecording(): UseCallRecordingReturn {
   return {
     isRecording,
     recordingBlob,
+    isUploading,
     startRecording,
     stopRecording,
+    uploadRecording,
     downloadRecording,
   }
 }
