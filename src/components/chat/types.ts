@@ -1,0 +1,75 @@
+import type { ApiAppointment } from '@/lib/api/types'
+import type { ApiMessageAttachment, ApiMessageSender } from '@/lib/api/messages'
+
+export interface ChatWindowProps {
+  appointment: ApiAppointment
+  currentSenderType: 'user' | 'doctor'
+  currentSenderId: number
+  onBack?: () => void
+  onAppointmentCompleted?: (appointmentId: number) => void
+}
+
+export type VideoSaveStatus = 'uploading' | 'processing' | 'saving' | 'done' | 'error' | null
+export type ConsultationType = 'video' | 'chat' | null
+
+export interface ChatHeaderProps {
+  appointment: ApiAppointment
+  currentSenderType: 'user' | 'doctor'
+  otherPartyName: string
+  localStatus: string
+  isCompleted: boolean
+  isConnected: boolean
+  consultationType: ConsultationType
+  countdownParts: { days: number; hours: number; minutes: number; seconds: number; total: number } | null
+  videoCallStatus: string
+  onBack?: () => void
+  onStartConsultation: () => void
+  onStartVideoCall: () => void
+  onShowCompleteDialog: () => void
+}
+
+export interface ChatMessagesProps {
+  appointmentId: number
+  messages: Array<{
+    id: number
+    text?: string | null
+    attachment?: ApiMessageAttachment | number | null
+    sender?: ApiMessageSender
+    createdAt?: string
+    read?: boolean
+  }>
+  currentSenderType: 'user' | 'doctor'
+  currentSenderId: number
+  otherPartyName: string
+  isLoading: boolean
+  typingUser: { senderType: string } | null | undefined
+  recording?: { url?: string } | null
+}
+
+export interface ChatInputProps {
+  appointmentId: number
+  isConnected: boolean
+  canSendMessages: boolean
+  isCompleted: boolean
+  currentSenderType: 'user' | 'doctor'
+  onSendMessage: (text: string, attachmentId?: number) => void
+  onStartTyping: () => void
+  onStopTyping: () => void
+}
+
+export interface VideoSaveSidebarProps {
+  isVisible: boolean
+  progress: number
+  status: VideoSaveStatus
+}
+
+export interface ConsultationDialogsProps {
+  showCompleteDialog: boolean
+  showConsultationTypeDialog: boolean
+  isCompleting: boolean
+  onCompleteDialogChange: (open: boolean) => void
+  onConsultationTypeDialogChange: (open: boolean) => void
+  onComplete: () => void
+  onStartVideoConsultation: () => void
+  onStartChatConsultation: () => void
+}

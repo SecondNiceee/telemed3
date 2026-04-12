@@ -1,0 +1,146 @@
+'use client'
+
+import { ArrowLeft, Video, CheckCircle2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { formatCountdown } from '@/lib/utils/date'
+import type { ChatHeaderProps } from '../types'
+
+export function ChatHeader({
+  appointment,
+  currentSenderType,
+  otherPartyName,
+  localStatus,
+  isCompleted,
+  isConnected,
+  consultationType,
+  countdownParts,
+  videoCallStatus,
+  onBack,
+  onStartConsultation,
+  onStartVideoCall,
+  onShowCompleteDialog,
+}: ChatHeaderProps) {
+  return (
+    <div className="flex flex-col border-b border-border bg-card">
+      {/* Countdown banner - prominent (only show before consultation starts) */}
+      {countdownParts && !isCompleted && localStatus !== 'in_progress' && (
+        <div className="px-5 py-4 bg-green-50 border-b border-green-200">
+          <div className="flex items-center gap-2 mb-1">
+            {appointment.specialty && (
+              <span className="text-sm font-medium text-green-800">{appointment.specialty}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+            </span>
+            <span className="text-base font-semibold text-green-800">
+              Консультация начнется через{' '}
+              <span className="font-bold font-mono tabular-nums">{formatCountdown(countdownParts)}</span>
+            </span>
+          </div>
+        </div>
+      )}
+      
+      {/* In progress banner */}
+      {localStatus === 'in_progress' && !isCompleted && (
+        <div className="px-5 py-4 bg-blue-50 border-b border-blue-200">
+          {appointment.specialty && (
+            <span className="text-sm font-medium text-blue-800 block mb-1">{appointment.specialty}</span>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
+            </span>
+            <span className="text-base font-semibold text-blue-800">
+              Консультация в процессе
+              {consultationType === 'chat' && ' (чат)'}
+              {consultationType === 'video' && ' (видео)'}
+            </span>
+          </div>
+        </div>
+      )}
+      
+      {/* Completed banner */}
+      {isCompleted && (
+        <div className="px-5 py-4 bg-muted border-b border-border">
+          {appointment.specialty && (
+            <span className="text-sm font-medium text-muted-foreground block mb-1">{appointment.specialty}</span>
+          )}
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+            <span className="text-base font-semibold text-muted-foreground">Консультация завершена</span>
+          </div>
+        </div>
+      )}
+      
+      {/* Main header row */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        {onBack && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 md:hidden"
+            onClick={onBack}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        )}
+        <div className="flex-1 min-w-0">
+          <h2 className="font-semibold text-foreground truncate">{otherPartyName}</h2>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>{appointment.date}, {appointment.time}</span>
+          </div>
+        </div>
+        
+        {/* Complete button for doctor - show when consultation is in progress */}
+        {currentSenderType === 'doctor' && !isCompleted && localStatus === 'in_progress' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 text-xs gap-1.5"
+            onClick={onShowCompleteDialog}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Завершить консультацию</span>
+          </Button>
+        )}
+        
+        {/* Start consultation button - only for doctor when not started */}
+        {currentSenderType === 'doctor' && !isCompleted && localStatus !== 'in_progress' && (
+          <Button
+            variant="default"
+            size="sm"
+            className="shrink-0 gap-1.5"
+            onClick={onStartConsultation}
+            disabled={!isConnected}
+          >
+            <Video className="w-4 h-4" />
+            <span className="hidden sm:inline">Начать консультацию</span>
+          </Button>
+        )}
+        
+        {/* Video call button - for doctor when consultation is in progress */}
+        {currentSenderType === 'doctor' && !isCompleted && localStatus === 'in_progress' && videoCallStatus === 'idle' && (
+          <Button
+            variant="default"
+            size="sm"
+            className="shrink-0 gap-1.5"
+            onClick={onStartVideoCall}
+            disabled={!isConnected}
+          >
+            <Video className="w-4 h-4" />
+            <span className="hidden sm:inline">Видеозвонок</span>
+          </Button>
+        )}
+        <div className={cn(
+          'w-2 h-2 rounded-full shrink-0',
+          isConnected ? 'bg-green-500' : 'bg-muted-foreground'
+        )} />
+      </div>
+    </div>
+  )
+}
