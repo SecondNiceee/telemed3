@@ -255,7 +255,11 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       if (blob && blob.size > 0) {
         // Get doctor ID from currentUser
         const doctorId = currentUser.odooUserId
-        recording.uploadRecording(callData.appointmentId, doctorId)
+        console.log('[VideoCallProvider] Uploading recording, blob size:', blob.size)
+        // Pass blob directly and await the upload to ensure it completes
+        await recording.uploadRecording(callData.appointmentId, doctorId, blob)
+      } else {
+        console.log('[VideoCallProvider] No blob to upload or blob is empty')
       }
     }
     

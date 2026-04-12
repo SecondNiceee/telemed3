@@ -52,6 +52,14 @@ export class CallRecordingsApi {
     videoBlob: Blob,
     durationSeconds?: number
   ): Promise<ApiCallRecording | null> {
+    console.log('[CallRecordingsApi] Starting upload:', {
+      appointmentId,
+      doctorId,
+      blobSize: videoBlob.size,
+      blobType: videoBlob.type,
+      durationSeconds,
+    })
+    
     try {
       // First, upload the video to media
       const formData = new FormData()
@@ -59,26 +67,40 @@ export class CallRecordingsApi {
       formData.append('file', videoBlob, filename)
       formData.append('alt', `Запись консультации #${appointmentId}`)
 
+      console.log('[CallRecordingsApi] Uploading video to /api/media...')
       const mediaResponse = await fetch('/api/media', {
         method: 'POST',
         credentials: 'include',
         body: formData,
       })
 
+      const mediaResponseText = await mediaResponse.text()
+      console.log('[CallRecordingsApi] Media response status:', mediaResponse.status)
+      
       if (!mediaResponse.ok) {
-        console.error('[CallRecordingsApi] Failed to upload video:', await mediaResponse.text())
+        console.error('[CallRecordingsApi] Failed to upload video:', mediaResponseText)
         return null
       }
 
-      const mediaData = await mediaResponse.json()
+      let mediaData
+      try {
+        mediaData = JSON.parse(mediaResponseText)
+      } catch {
+        console.error('[CallRecordingsApi] Failed to parse media response:', mediaResponseText)
+        return null
+      }
+      
       const mediaId = mediaData.doc?.id
 
       if (!mediaId) {
-        console.error('[CallRecordingsApi] No media ID returned')
+        console.error('[CallRecordingsApi] No media ID returned:', mediaData)
         return null
       }
 
+      console.log('[CallRecordingsApi] Video uploaded, mediaId:', mediaId)
+
       // Then create the call-recording entry
+      console.log('[CallRecordingsApi] Creating call-recording entry...')
       const recordingResponse = await fetch('/api/call-recordings', {
         method: 'POST',
         credentials: 'include',
@@ -94,12 +116,23 @@ export class CallRecordingsApi {
         }),
       })
 
+      const recordingResponseText = await recordingResponse.text()
+      console.log('[CallRecordingsApi] Recording response status:', recordingResponse.status)
+
       if (!recordingResponse.ok) {
-        console.error('[CallRecordingsApi] Failed to create recording:', await recordingResponse.text())
+        console.error('[CallRecordingsApi] Failed to create recording:', recordingResponseText)
         return null
       }
 
-      const recordingData = await recordingResponse.json()
+      let recordingData
+      try {
+        recordingData = JSON.parse(recordingResponseText)
+      } catch {
+        console.error('[CallRecordingsApi] Failed to parse recording response:', recordingResponseText)
+        return null
+      }
+      
+      console.log('[CallRecordingsApi] Recording created successfully:', recordingData.doc?.id)
       return recordingData.doc
     } catch (error) {
       console.error('[CallRecordingsApi] Error uploading recording:', error)

@@ -94,9 +94,11 @@ export function useCallRecording(): UseCallRecordingReturn {
 
   const uploadRecording = useCallback(async (
     appointmentId: number,
-    doctorId: number
+    doctorId: number,
+    blobOverride?: Blob
   ): Promise<boolean> => {
-    const blob = recordingBlob
+    // Use provided blob or fall back to state
+    const blob = blobOverride || recordingBlob
     if (!blob) {
       console.log('[useCallRecording] No recording to upload')
       return false
