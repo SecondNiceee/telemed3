@@ -103,6 +103,12 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     participant: CallParticipant
     isOutgoing: boolean
   } | null>(null)
+  const callDataRef = useRef(callData)
+  
+  // Keep callDataRef in sync
+  useEffect(() => {
+    callDataRef.current = callData
+  }, [callData])
   
   // Refs for call management
   const peerRef = useRef<Peer | null>(null)
@@ -248,19 +254,19 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     connectionQuality.stopMonitoring()
     timer.pause()
 
-    // Stop recording and upload for doctor
+    // Stop recording and finalize for doctor
     if (currentUser?.role === 'doctor' && recording.isRecording && callData?.appointmentId) {
-      console.log('[VideoCallProvider] Stopping and uploading recording')
+      const doctorId = currentUser.odooUserId
+      console.log('[Recording] Call ended, stopping and finalizing:', { 
+        appointmentId: callData.appointmentId, 
+        doctorId 
+      })
+      
       const blob = await recording.stopRecording()
-      if (blob && blob.size > 0) {
-        // Get doctor ID from currentUser
-        const doctorId = currentUser.odooUserId
-        console.log('[VideoCallProvider] Uploading recording, blob size:', blob.size)
-        // Pass blob directly and await the upload to ensure it completes
-        await recording.uploadRecording(callData.appointmentId, doctorId, blob)
-      } else {
-        console.log('[VideoCallProvider] No blob to upload or blob is empty')
-      }
+      console.log('[Recording] Stopped, blob size:', blob?.size || 0)
+      
+      // Upload/finalize - this will either finalize server chunks or upload client blob
+      await recording.uploadRecording(callData.appointmentId, doctorId, blob || undefined)
     }
     
     mediaStream.stopStream()
@@ -296,15 +302,18 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
         connectionQuality.startMonitoring(peerConnection)
       }
 
-      // Start recording for doctors
-      if (currentUser?.role === 'doctor' && mediaStreamRef.current.stream) {
-        console.log('[VideoCallProvider] Starting recording for doctor')
+      // Start recording for doctors with chunk upload
+      if (currentUser?.role === 'doctor' && mediaStreamRef.current.stream && callDataRef.current?.appointmentId) {
+        const appointmentId = callDataRef.current.appointmentId
+        const doctorId = currentUser.odooUserId
+        console.log('[Recording] Starting for doctor, appointmentId:', appointmentId, 'doctorId:', doctorId)
+        
         // Combine local and remote streams for recording
         const combinedStream = new MediaStream([
           ...mediaStreamRef.current.stream.getTracks(),
           ...stream.getTracks(),
         ])
-        recording.startRecording(combinedStream)
+        recording.startRecording(combinedStream, appointmentId, doctorId)
       }
     })
     
