@@ -4,6 +4,13 @@ import config from '@payload-config'
 import { cookies } from 'next/headers'
 import fs from 'fs/promises'
 import path from 'path'
+import jwt from 'jsonwebtoken'
+
+interface DecodedToken {
+  id: number
+  email: string
+  collection: string
+}
 
 const CHUNKS_DIR = '/tmp/recording-chunks'
 
@@ -21,25 +28,33 @@ export async function POST(request: NextRequest) {
   try {
     // Check doctor authentication
     const cookieStore = await cookies()
-    const doctorToken = cookieStore.get('payload-doctor-token')?.value
+    const doctorToken = cookieStore.get('doctors-token')?.value
     
     if (!doctorToken) {
       console.log('[RecordingChunks/Finalize] No doctor token')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const payload = await getPayload({ config })
-    
-    // Verify doctor token
-    const { user: doctor } = await payload.auth({
-      collection: 'doctors',
-      headers: request.headers,
-    })
-    
-    if (!doctor) {
+    const secret = process.env.PAYLOAD_SECRET
+    if (!secret) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    let decoded: DecodedToken
+    try {
+      decoded = jwt.verify(doctorToken, secret) as DecodedToken
+    } catch {
       console.log('[RecordingChunks/Finalize] Invalid doctor token')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    if (decoded.collection !== 'doctors') {
+      console.log('[RecordingChunks/Finalize] Not a doctor token')
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const doctorIdFromToken = decoded.id
+    const payload = await getPayload({ config })
 
     const body = await request.json()
     const { appointmentId, doctorId, durationSeconds } = body
@@ -51,8 +66,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify doctor owns this recording
-    if (doctor.id !== doctorId) {
-      console.log('[RecordingChunks/Finalize] Doctor ID mismatch')
+    if (doctorIdFromToken !== doctorId) {
+      console.log('[RecordingChunks/Finalize] Doctor ID mismatch:', doctorIdFromToken, '!=', doctorId)
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -114,7 +129,7 @@ export async function POST(request: NextRequest) {
     const mediaResponse = await fetch(`${baseUrl}/api/media`, {
       method: 'POST',
       headers: {
-        Cookie: `payload-doctor-token=${doctorToken}`,
+        Cookie: `doctors-token=${doctorToken}`,
       },
       body: formData,
     })
