@@ -21,6 +21,7 @@ import { useDoctorStore } from '@/stores/doctor-store'
 import { useMediaStream } from './hooks/use-media-stream'
 import { useCallTimer } from './hooks/use-call-timer'
 import { useConnectionQuality } from './hooks/use-connection-quality'
+import { useCallRecording } from './hooks/use-call-recording'
 import { CALL_TIMEOUTS, ICE_SERVERS } from '@/lib/video-call/config'
 import type {
   CallStatus,
@@ -115,6 +116,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
   const mediaStreamRef = useRef(mediaStream)
   const timer = useCallTimer(0)
   const connectionQuality = useConnectionQuality()
+  const recording = useCallRecording()
   
   // Keep mediaStreamRef in sync
   useEffect(() => {
@@ -241,10 +243,22 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
   }, [callStore])
   
   // Handle call ended
-  const handleCallEnded = useCallback(() => {
+  const handleCallEnded = useCallback(async () => {
     clearCallTimeout()
     connectionQuality.stopMonitoring()
     timer.pause()
+
+    // Stop recording and upload for doctor
+    if (currentUser?.role === 'doctor' && recording.isRecording && callData?.appointmentId) {
+      console.log('[VideoCallProvider] Stopping and uploading recording')
+      const blob = await recording.stopRecording()
+      if (blob && blob.size > 0) {
+        // Get doctor ID from currentUser
+        const doctorId = currentUser.odooUserId
+        recording.uploadRecording(callData.appointmentId, doctorId)
+      }
+    }
+    
     mediaStream.stopStream()
     
     if (currentCallRef.current) {
@@ -262,7 +276,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       setStatus('idle')
       setViewMode('fullscreen')
     }, 1000)
-  }, [clearCallTimeout, connectionQuality, timer, mediaStream, callStore])
+  }, [clearCallTimeout, connectionQuality, timer, mediaStream, callStore, currentUser, recording, callData?.appointmentId])
   
   // Setup call handlers
   const setupCallHandlers = useCallback((call: MediaConnection) => {
@@ -277,6 +291,17 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       if (peerConnection) {
         connectionQuality.startMonitoring(peerConnection)
       }
+
+      // Start recording for doctors
+      if (currentUser?.role === 'doctor' && mediaStreamRef.current.stream) {
+        console.log('[VideoCallProvider] Starting recording for doctor')
+        // Combine local and remote streams for recording
+        const combinedStream = new MediaStream([
+          ...mediaStreamRef.current.stream.getTracks(),
+          ...stream.getTracks(),
+        ])
+        recording.startRecording(combinedStream)
+      }
     })
     
     call.on('close', () => {
@@ -289,7 +314,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       toast.error('Ошибка соединения')
       handleCallEnded()
     })
-  }, [timer, connectionQuality, handleCallEnded])
+  }, [timer, connectionQuality, handleCallEnded, currentUser?.role, recording])
   
   // Keep setupCallHandlersRef in sync
   useEffect(() => {

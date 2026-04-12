@@ -13,6 +13,7 @@ import { Media } from './collections/Media'
 import { DoctorCategories } from './collections/DoctorCategories'
 import { Appointments } from './collections/Appointments'
 import { Messages } from './collections/Messages'
+import { CallRecordings } from './collections/CallRecordings'
 import { SiteSettings } from './globals/SiteSettings'
 
 const filename = fileURLToPath(import.meta.url)
@@ -28,7 +29,7 @@ export default buildConfig({
     },
   },
 
-  collections: [Users, Doctors, Organisations, Media, DoctorCategories, Appointments, Messages],
+  collections: [Users, Doctors, Organisations, Media, DoctorCategories, Appointments, Messages, CallRecordings],
   globals: [SiteSettings],
   editor: lexicalEditor(),
   email: nodemailerAdapter({

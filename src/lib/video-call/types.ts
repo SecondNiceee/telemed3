@@ -307,8 +307,10 @@ export interface UseConnectionQualityReturn {
 export interface UseCallRecordingReturn {
   isRecording: boolean
   recordingBlob: Blob | null
+  isUploading: boolean
   startRecording: (stream: MediaStream) => void
   stopRecording: () => Promise<Blob | null>
+  uploadRecording: (appointmentId: number, doctorId: number) => Promise<boolean>
   downloadRecording: (filename?: string) => void
 }
 
