@@ -93,7 +93,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
             >
               Все
               {appointments.length > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-muted-foreground/20 text-muted-foreground">
+                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-muted-foreground/20 text-muted-foreground">
                   {appointments.length}
                 </span>
               )}
@@ -109,7 +109,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
             >
               Предстоящие
               {upcomingAppointments.length > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-blue-100 text-blue-700">
                   {upcomingAppointments.length}
                 </span>
               )}
@@ -125,7 +125,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
             >
               Активные
               {activeAppointments.length > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-green-100 text-green-700">
+                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-green-100 text-green-700">
                   {activeAppointments.length}
                 </span>
               )}
@@ -141,7 +141,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
             >
               Завершённые
               {completedAppointments.length > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-muted-foreground/20 text-muted-foreground">
+                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-muted-foreground/20 text-muted-foreground">
                   {completedAppointments.length}
                 </span>
               )}

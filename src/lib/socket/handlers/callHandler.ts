@@ -12,20 +12,28 @@ import {
   addActiveCall, 
   removeActiveCall, 
   getActiveCallsForTarget,
+  updateActiveCallTargetId,
   type ActiveCall 
 } from '../stores/activeCallsStore'
 
 /**
  * Check for pending incoming calls when a user connects
  * This handles the case where someone refreshes the page during an incoming call
+ * or connects after the call was initiated
  */
 export function checkPendingCallsForSocket(socket: AuthenticatedSocket): void {
-  const pendingCalls = getActiveCallsForTarget(socket.data.senderType)
+  // Pass both senderType and senderId to filter calls for this specific user
+  const pendingCalls = getActiveCallsForTarget(socket.data.senderType, socket.data.senderId)
   
   console.log(`[Socket] Checking pending calls for ${socket.data.senderType}:${socket.data.senderId}`)
   console.log(`[Socket] Found ${pendingCalls.length} pending calls`)
   
   for (const call of pendingCalls) {
+    // Update targetId if it was null (user wasn't connected when call was initiated)
+    if (call.targetId === null) {
+      updateActiveCallTargetId(call.appointmentId, socket.data.senderId)
+    }
+    
     console.log(`[Socket] Sending pending incoming-call for appointment ${call.appointmentId} to ${socket.id}`)
     socket.emit('incoming-call', {
       appointmentId: call.appointmentId,
@@ -54,24 +62,26 @@ export function createCallHandler(io: SocketIOServer) {
     // Determine who we need to call based on the caller type
     const targetType = socket.data.senderType === 'doctor' ? 'user' : 'doctor'
     
-    // Store the active call so new connections can receive it
-    const activeCall: ActiveCall = {
-      appointmentId,
-      callerPeerId,
-      callerName,
-      callerType: socket.data.senderType,
-      callerId: socket.data.senderId,
-      targetType,
-      createdAt: Date.now(),
-    }
-    addActiveCall(activeCall)
-    
     // First, try to send to the room (if target is already in the chat)
     const room = io.sockets.adapter.rooms.get(roomName)
     const roomSize = room ? room.size : 0
     console.log(`[Socket] Room ${roomName} has ${roomSize} clients`)
     
+    // Track target IDs we find to store in activeCall
+    const targetIds: number[] = []
+    
     // Broadcast to room (this catches the case where target is already viewing the chat)
+    // Also collect targetIds from room members
+    if (room) {
+      for (const socketId of room) {
+        if (socketId === socket.id) continue
+        const roomSocket = io.sockets.sockets.get(socketId) as AuthenticatedSocket | undefined
+        if (roomSocket && roomSocket.data.senderType === targetType) {
+          targetIds.push(roomSocket.data.senderId)
+        }
+      }
+    }
+    
     socket.to(roomName).emit('incoming-call', {
       appointmentId,
       callerPeerId,
@@ -100,6 +110,10 @@ export function createCallHandler(io: SocketIOServer) {
       console.log(`[Socket] Checking socket ${socketId}: senderType=${authSocket.data.senderType}, senderId=${authSocket.data.senderId}`)
       if (authSocket.data.senderType === targetType) {
         foundTargetSockets++
+        // Collect targetId
+        if (!targetIds.includes(authSocket.data.senderId)) {
+          targetIds.push(authSocket.data.senderId)
+        }
         console.log(`[Socket] *** MATCH! Sending incoming-call to ${targetType}:${authSocket.data.senderId} (socket: ${socketId})`)
         authSocket.emit('incoming-call', {
           appointmentId,
@@ -110,6 +124,23 @@ export function createCallHandler(io: SocketIOServer) {
         })
       }
     }
+    
+    // Store the active call so new connections can receive it
+    // Use the first targetId found (if any) - in production this should come from appointment data
+    const targetId = targetIds.length > 0 ? targetIds[0] : null
+    console.log(`[Socket] Storing active call with targetType=${targetType}, targetId=${targetId}`)
+    
+    const activeCall: ActiveCall = {
+      appointmentId,
+      callerPeerId,
+      callerName,
+      callerType: socket.data.senderType,
+      callerId: socket.data.senderId,
+      targetType,
+      targetId,
+      createdAt: Date.now(),
+    }
+    addActiveCall(activeCall)
     
     console.log(`[Socket] Found ${foundTargetSockets} ${targetType} sockets to notify`)
     console.log(`[Socket] Emitted incoming-call to room ${roomName} and all ${targetType} sockets`)
