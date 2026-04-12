@@ -113,7 +113,6 @@ export function VideoCallOverlay() {
             remainingSeconds={remainingSeconds}
             isPaused={isPaused}
             isMinimized={false}
-            role={role!}
             onToggleVideo={toggleVideo}
             onToggleAudio={toggleAudio}
             onEndCall={endCall}
