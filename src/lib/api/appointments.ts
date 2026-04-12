@@ -83,4 +83,39 @@ export class AppointmentsApi {
     )
     return data.docs
   }
+
+  /**
+   * Fetch appointments for a specific doctor (used by org dashboard)
+   * Organisation uses organisations-token cookie
+   */
+  static async fetchByDoctorServer(doctorId: number, options: ServerOptions = {}): Promise<ApiAppointment[]> {
+    const data = await serverApiFetch<PayloadListResponse<ApiAppointment>>(
+      `/api/appointments?where[doctor][equals]=${doctorId}&limit=500&depth=1&sort=-date`,
+      { ...options, cache: 'no-store' },
+    )
+    return data.docs
+  }
+
+  /**
+   * Fetch appointments for multiple doctors (used by org stats)
+   */
+  static async fetchByDoctorsServer(doctorIds: number[], options: ServerOptions = {}): Promise<ApiAppointment[]> {
+    if (doctorIds.length === 0) return []
+    const query = doctorIds.map(id => `where[doctor][in]=${id}`).join('&')
+    const data = await serverApiFetch<PayloadListResponse<ApiAppointment>>(
+      `/api/appointments?${query}&limit=500&depth=1&sort=-date`,
+      { ...options, cache: 'no-store' },
+    )
+    return data.docs
+  }
+
+  /**
+   * Fetch a single appointment by ID
+   */
+  static async fetchByIdServer(appointmentId: number, options: ServerOptions = {}): Promise<ApiAppointment> {
+    return serverApiFetch<ApiAppointment>(
+      `/api/appointments/${appointmentId}?depth=1`,
+      { ...options, cache: 'no-store' },
+    )
+  }
 }

@@ -1,4 +1,4 @@
-import { apiFetch } from './fetch'
+import { apiFetch, serverApiFetch } from './fetch'
 import type { PayloadListResponse } from './types'
 
 export interface ApiMessageAttachment {
@@ -85,5 +85,16 @@ export class MessagesApi {
       { credentials: 'include' }
     )
     return data.docs[0] || null
+  }
+
+  /**
+   * Fetch messages for a specific appointment (server-side)
+   */
+  static async fetchByAppointmentServer(appointmentId: number, options: { cookie?: string } = {}): Promise<ApiMessage[]> {
+    const data = await serverApiFetch<PayloadListResponse<ApiMessage>>(
+      `/api/messages?where[appointment][equals]=${appointmentId}&sort=createdAt&limit=500&depth=1`,
+      { ...options, cache: 'no-store' }
+    )
+    return data.docs
   }
 }
