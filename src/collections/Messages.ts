@@ -1,4 +1,6 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
+import { getPayload } from 'payload'
+import config from '@payload-config'
 import { getCallerFromRequest } from './helpers/auth'
 import { buildAppointmentAccessFilter } from '@/utils/buildAppointmentAccessFilter'
 
@@ -11,13 +13,14 @@ export const Messages: CollectionConfig = {
     group: 'Чат',
   },
   access: {
-    read: ({ req }: { req: PayloadRequest }) => {
+    read: async ({ req }: { req: PayloadRequest }) => {
       // Admin can read all
       const callerAsUser = getCallerFromRequest(req, 'users')
       if (callerAsUser?.role === 'admin') return true
 
-      // Check both tokens and build filter
+      // Check all tokens and build filter
       const callerAsDoctor = getCallerFromRequest(req, 'doctors')
+      const callerAsOrg = getCallerFromRequest(req, 'organisations')
       
       const userId = callerAsUser?.collection === 'users' && callerAsUser.id 
         ? Number(callerAsUser.id) 
@@ -26,7 +29,20 @@ export const Messages: CollectionConfig = {
         ? Number(callerAsDoctor.id) 
         : null
 
-      return buildAppointmentAccessFilter(userId, doctorId)
+      // Get doctor IDs for organisation
+      let doctorIds: number[] | null = null
+      if (callerAsOrg?.collection === 'organisations' && callerAsOrg.id) {
+        const payload = await getPayload({ config })
+        const doctors = await payload.find({
+          collection: 'doctors',
+          where: { organisation: { equals: Number(callerAsOrg.id) } },
+          limit: 1000,
+          depth: 0,
+        })
+        doctorIds = doctors.docs.map(d => d.id)
+      }
+
+      return buildAppointmentAccessFilter(userId, doctorId, doctorIds)
     },
     create: ({ req }) => {
       // Users and doctors can create messages
@@ -38,13 +54,14 @@ export const Messages: CollectionConfig = {
 
       return false
     },
-    update: ({ req }) => {
+    update: async ({ req }) => {
       // Only admin can update messages (e.g., mark as read)
       const callerAsUser = getCallerFromRequest(req, 'users')
       if (callerAsUser?.role === 'admin') return true
 
-      // Check both tokens and build filter
+      // Check all tokens and build filter
       const callerAsDoctor = getCallerFromRequest(req, 'doctors')
+      const callerAsOrg = getCallerFromRequest(req, 'organisations')
       
       const userId = callerAsUser?.collection === 'users' && callerAsUser.id 
         ? Number(callerAsUser.id) 
@@ -53,7 +70,20 @@ export const Messages: CollectionConfig = {
         ? Number(callerAsDoctor.id) 
         : null
 
-      return buildAppointmentAccessFilter(userId, doctorId)
+      // Get doctor IDs for organisation
+      let doctorIds: number[] | null = null
+      if (callerAsOrg?.collection === 'organisations' && callerAsOrg.id) {
+        const payload = await getPayload({ config })
+        const doctors = await payload.find({
+          collection: 'doctors',
+          where: { organisation: { equals: Number(callerAsOrg.id) } },
+          limit: 1000,
+          depth: 0,
+        })
+        doctorIds = doctors.docs.map(d => d.id)
+      }
+
+      return buildAppointmentAccessFilter(userId, doctorId, doctorIds)
     },
     delete: ({ req }) => {
       const caller = getCallerFromRequest(req, 'users')

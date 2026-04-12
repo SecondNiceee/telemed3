@@ -10,14 +10,16 @@ import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import type { ApiDoctor } from "@/lib/api/types"
 import { resolveImageUrl } from "@/lib/utils/image"
+import type { OrgStats } from "@/app/(frontend)/lk-org/page"
 
 interface LkOrgGateProps {
   initialOrg: { id: number; name?: string; email: string } | null
   initialDoctors?: ApiDoctor[]
+  initialStats?: OrgStats
   children?: React.ReactNode
 }
 
-export function LkOrgGate({ initialOrg, initialDoctors, children }: LkOrgGateProps) {
+export function LkOrgGate({ initialOrg, initialDoctors, initialStats, children }: LkOrgGateProps) {
   const router = useRouter()
   const { org: storeOrg, login, loading } = useOrgStore()
   const [email, setEmail] = useState("")
@@ -120,6 +122,7 @@ export function LkOrgGate({ initialOrg, initialDoctors, children }: LkOrgGatePro
       userName={org.name || org.email}
       initialDoctors={initialDoctors ?? []}
       orgId={org.id}
+      stats={initialStats ?? { total: 0, upcoming: 0, past: 0 }}
     />
   )
 }

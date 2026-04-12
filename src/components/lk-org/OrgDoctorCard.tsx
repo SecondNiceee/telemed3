@@ -28,7 +28,7 @@ export const OrgDoctorCard = memo(function OrgDoctorCard({
     <div className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-md transition-all">
       <div className="flex items-center justify-between pr-5">
         <Link
-          href={`/doctor/${doctor.id}`}
+          href={`/lk-org/doctor/${doctor.id}`}
           className="flex-1 h-full flex items-center gap-4 min-w-0"
         >
           <div className="h-[-webkit-fill-available] w-24 rounded-l-xl overflow-hidden bg-muted shrink-0">
@@ -90,7 +90,7 @@ export const OrgDoctorCard = memo(function OrgDoctorCard({
           </Button>
         </div>
 
-        <Link href={`/doctor/${doctor.id}`} className="shrink-0 ml-2">
+        <Link href={`/lk-org/doctor/${doctor.id}`} className="shrink-0 ml-2">
           <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
         </Link>
       </div>

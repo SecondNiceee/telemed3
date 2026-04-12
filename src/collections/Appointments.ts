@@ -168,13 +168,14 @@ export const Appointments: CollectionConfig = {
     ],
   },
   access: {
-    read: ({ req }: { req: PayloadRequest }) => {
+    read: async ({ req }: { req: PayloadRequest }) => {
       // Check admin via users token
       const callerAsUser = getCallerFromRequest(req, 'users')
       if (callerAsUser?.role === 'admin') return true
       
       // Check both tokens and combine conditions with OR
       const callerAsDoctor = getCallerFromRequest(req, 'doctors')
+      const callerAsOrg = getCallerFromRequest(req, 'organisations')
       
       const conditions: Where[] = []
       
@@ -186,6 +187,21 @@ export const Appointments: CollectionConfig = {
       // Doctor reads their own appointments
       if (callerAsDoctor?.collection === 'doctors' && callerAsDoctor.id) {
         conditions.push({ doctor: { equals: Number(callerAsDoctor.id) } })
+      }
+      
+      // Organisation reads appointments for their doctors
+      if (callerAsOrg?.collection === 'organisations' && callerAsOrg.id) {
+        const payload = await getPayload({ config })
+        const doctors = await payload.find({
+          collection: 'doctors',
+          where: { organisation: { equals: Number(callerAsOrg.id) } },
+          limit: 1000,
+          depth: 0,
+        })
+        const doctorIds = doctors.docs.map(d => d.id)
+        if (doctorIds.length > 0) {
+          conditions.push({ doctor: { in: doctorIds } })
+        }
       }
       
       // Return combined OR query if we have conditions
