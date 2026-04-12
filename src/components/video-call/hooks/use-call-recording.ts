@@ -2,8 +2,17 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { CallRecordingsApi } from '@/lib/api/call-recordings'
 import type { UseCallRecordingReturn } from '@/lib/video-call/types'
+
+// Интервал отправки chunks (30 секунд)
+const CHUNK_INTERVAL_MS = 30000
+
+interface ChunkUploadState {
+  appointmentId: number
+  doctorId: number
+  chunkIndex: number
+  mimeType: string
+}
 
 export function useCallRecording(): UseCallRecordingReturn {
   const [isRecording, setIsRecording] = useState(false)
@@ -13,15 +22,196 @@ export function useCallRecording(): UseCallRecordingReturn {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const recordingStartTimeRef = useRef<number | null>(null)
+  const chunkUploadStateRef = useRef<ChunkUploadState | null>(null)
+  const uploadIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const pendingChunksRef = useRef<Blob[]>([])
 
-  const startRecording = useCallback((stream: MediaStream) => {
+  // Upload a chunk to the server
+  const uploadChunk = useCallback(async (
+    chunk: Blob,
+    chunkIndex: number,
+    isLast: boolean = false
+  ): Promise<boolean> => {
+    const state = chunkUploadStateRef.current
+    if (!state) {
+      console.log('[Recording] No upload state, skipping chunk upload')
+      return false
+    }
+
+    console.log('[Recording] Uploading chunk:', {
+      chunkIndex,
+      size: chunk.size,
+      isLast,
+      appointmentId: state.appointmentId,
+      doctorId: state.doctorId,
+    })
+
+    try {
+      const formData = new FormData()
+      formData.append('chunk', chunk)
+      formData.append('appointmentId', state.appointmentId.toString())
+      formData.append('doctorId', state.doctorId.toString())
+      formData.append('chunkIndex', chunkIndex.toString())
+      formData.append('isLast', isLast.toString())
+      formData.append('mimeType', state.mimeType)
+
+      const response = await fetch('/api/recording-chunks', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('[Recording] Chunk upload failed:', response.status, errorText)
+        return false
+      }
+
+      const data = await response.json()
+      console.log('[Recording] Chunk uploaded successfully:', data)
+      return true
+    } catch (error) {
+      console.error('[Recording] Chunk upload error:', error)
+      return false
+    }
+  }, [])
+
+  // Process and upload pending chunks
+  const processPendingChunks = useCallback(async () => {
+    const state = chunkUploadStateRef.current
+    if (!state || pendingChunksRef.current.length === 0) {
+      return
+    }
+
+    // Get all pending chunks and clear the array
+    const chunksToUpload = [...pendingChunksRef.current]
+    pendingChunksRef.current = []
+
+    // Combine chunks into one blob for this interval
+    const combinedChunk = new Blob(chunksToUpload, { type: state.mimeType })
+    
+    console.log('[Recording] Processing pending chunks:', {
+      numChunks: chunksToUpload.length,
+      combinedSize: combinedChunk.size,
+      chunkIndex: state.chunkIndex,
+    })
+
+    const success = await uploadChunk(combinedChunk, state.chunkIndex, false)
+    
+    if (success) {
+      chunkUploadStateRef.current = {
+        ...state,
+        chunkIndex: state.chunkIndex + 1,
+      }
+    } else {
+      // Put chunks back for retry
+      pendingChunksRef.current = [...chunksToUpload, ...pendingChunksRef.current]
+      console.log('[Recording] Chunks queued for retry, total:', pendingChunksRef.current.length)
+    }
+  }, [uploadChunk])
+
+  // Start periodic chunk upload
+  const startChunkUpload = useCallback((appointmentId: number, doctorId: number, mimeType: string) => {
+    console.log('[Recording] Starting chunk upload for:', { appointmentId, doctorId })
+    
+    chunkUploadStateRef.current = {
+      appointmentId,
+      doctorId,
+      chunkIndex: 0,
+      mimeType,
+    }
+
+    // Upload chunks every 30 seconds
+    uploadIntervalRef.current = setInterval(() => {
+      processPendingChunks()
+    }, CHUNK_INTERVAL_MS)
+  }, [processPendingChunks])
+
+  // Stop periodic chunk upload
+  const stopChunkUpload = useCallback(() => {
+    if (uploadIntervalRef.current) {
+      clearInterval(uploadIntervalRef.current)
+      uploadIntervalRef.current = null
+    }
+  }, [])
+
+  // Finalize recording on server
+  const finalizeRecording = useCallback(async (): Promise<boolean> => {
+    const state = chunkUploadStateRef.current
+    if (!state) {
+      console.log('[Recording] No state for finalization')
+      return false
+    }
+
+    console.log('[Recording] Finalizing recording:', {
+      appointmentId: state.appointmentId,
+      doctorId: state.doctorId,
+      totalChunks: state.chunkIndex,
+    })
+
+    // First, upload any remaining pending chunks
+    if (pendingChunksRef.current.length > 0) {
+      const remainingChunks = [...pendingChunksRef.current]
+      pendingChunksRef.current = []
+      
+      const combinedChunk = new Blob(remainingChunks, { type: state.mimeType })
+      console.log('[Recording] Uploading final pending chunks:', {
+        numChunks: remainingChunks.length,
+        size: combinedChunk.size,
+      })
+      
+      await uploadChunk(combinedChunk, state.chunkIndex, true)
+    }
+
+    // Calculate duration
+    const durationSeconds = recordingStartTimeRef.current
+      ? Math.round((Date.now() - recordingStartTimeRef.current) / 1000)
+      : undefined
+
+    try {
+      const response = await fetch('/api/recording-chunks/finalize', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          appointmentId: state.appointmentId,
+          doctorId: state.doctorId,
+          durationSeconds,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('[Recording] Finalization failed:', response.status, errorText)
+        return false
+      }
+
+      const data = await response.json()
+      console.log('[Recording] Recording finalized:', data)
+      
+      chunkUploadStateRef.current = null
+      return true
+    } catch (error) {
+      console.error('[Recording] Finalization error:', error)
+      return false
+    }
+  }, [uploadChunk])
+
+  const startRecording = useCallback((
+    stream: MediaStream,
+    appointmentId?: number,
+    doctorId?: number
+  ) => {
     if (mediaRecorderRef.current?.state === 'recording') {
-      console.log('[useCallRecording] Already recording')
+      console.log('[Recording] Already recording')
       return
     }
 
     try {
       chunksRef.current = []
+      pendingChunksRef.current = []
 
       // Try to use VP9 for better quality, fall back to VP8 or default
       const mimeTypes = [
@@ -44,6 +234,7 @@ export function useCallRecording(): UseCallRecordingReturn {
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data)
+          pendingChunksRef.current.push(event.data)
         }
       }
 
@@ -51,30 +242,38 @@ export function useCallRecording(): UseCallRecordingReturn {
         const blob = new Blob(chunksRef.current, { type: selectedMimeType || 'video/webm' })
         setRecordingBlob(blob)
         setIsRecording(false)
-        console.log('[useCallRecording] Recording stopped, blob size:', blob.size)
+        console.log('[Recording] Stopped, total blob size:', blob.size)
       }
 
       recorder.onerror = (event) => {
-        console.error('[useCallRecording] Recorder error:', event)
+        console.error('[Recording] Recorder error:', event)
         setIsRecording(false)
       }
 
-      // Record in 1 second chunks
+      // Record in 1 second chunks for smooth streaming
       recorder.start(1000)
       mediaRecorderRef.current = recorder
       recordingStartTimeRef.current = Date.now()
       setIsRecording(true)
-      console.log('[useCallRecording] Recording started with mime type:', selectedMimeType)
+      
+      console.log('[Recording] Started with mime type:', selectedMimeType)
+
+      // Start chunk upload if appointmentId and doctorId provided
+      if (appointmentId && doctorId) {
+        startChunkUpload(appointmentId, doctorId, selectedMimeType || 'video/webm')
+      }
     } catch (err) {
-      console.error('[useCallRecording] Failed to start recording:', err)
+      console.error('[Recording] Failed to start:', err)
     }
-  }, [])
+  }, [startChunkUpload])
 
   const stopRecording = useCallback(async (): Promise<Blob | null> => {
+    stopChunkUpload()
+    
     return new Promise((resolve) => {
       const recorder = mediaRecorderRef.current
       if (!recorder || recorder.state !== 'recording') {
-        console.log('[useCallRecording] Not recording')
+        console.log('[Recording] Not recording')
         resolve(recordingBlob)
         return
       }
@@ -84,61 +283,110 @@ export function useCallRecording(): UseCallRecordingReturn {
         setRecordingBlob(blob)
         setIsRecording(false)
         mediaRecorderRef.current = null
-        console.log('[useCallRecording] Recording stopped, blob size:', blob.size)
+        console.log('[Recording] Stopped, blob size:', blob.size)
         resolve(blob)
       }
 
       recorder.stop()
     })
-  }, [recordingBlob])
+  }, [recordingBlob, stopChunkUpload])
 
   const uploadRecording = useCallback(async (
     appointmentId: number,
-    doctorId: number
+    doctorId: number,
+    blobOverride?: Blob
   ): Promise<boolean> => {
-    const blob = recordingBlob
-    if (!blob) {
-      console.log('[useCallRecording] No recording to upload')
-      return false
-    }
-
-    // Calculate duration
-    const durationSeconds = recordingStartTimeRef.current
-      ? Math.round((Date.now() - recordingStartTimeRef.current) / 1000)
-      : undefined
-
     setIsUploading(true)
+    
     try {
-      console.log('[useCallRecording] Uploading recording, size:', blob.size)
-      const result = await CallRecordingsApi.uploadRecording(
-        appointmentId,
-        doctorId,
-        blob,
-        durationSeconds
-      )
+      // If we were using chunk upload, finalize on server
+      if (chunkUploadStateRef.current) {
+        console.log('[Recording] Finalizing server-side recording')
+        const success = await finalizeRecording()
+        if (success) {
+          toast.success('Запись консультации сохранена')
+          return true
+        }
+        // Fall through to client-side upload if server finalization failed
+        console.log('[Recording] Server finalization failed, trying client upload')
+      }
 
-      if (result) {
-        console.log('[useCallRecording] Recording uploaded successfully:', result.id)
-        toast.success('Запись консультации сохранена')
-        return true
-      } else {
-        console.error('[useCallRecording] Failed to upload recording')
+      // Client-side upload fallback
+      const blob = blobOverride || recordingBlob
+      if (!blob) {
+        console.log('[Recording] No blob to upload')
+        return false
+      }
+
+      const durationSeconds = recordingStartTimeRef.current
+        ? Math.round((Date.now() - recordingStartTimeRef.current) / 1000)
+        : undefined
+
+      console.log('[Recording] Client-side upload, size:', blob.size)
+
+      // Upload video to media
+      const formData = new FormData()
+      const filename = `consultation-${appointmentId}-${Date.now()}.webm`
+      formData.append('file', blob, filename)
+      formData.append('alt', `Запись консультации #${appointmentId}`)
+
+      const mediaResponse = await fetch('/api/media', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      if (!mediaResponse.ok) {
+        console.error('[Recording] Media upload failed:', await mediaResponse.text())
         toast.error('Не удалось сохранить запись')
         return false
       }
+
+      const mediaData = await mediaResponse.json()
+      const mediaId = mediaData.doc?.id
+
+      if (!mediaId) {
+        console.error('[Recording] No media ID returned')
+        toast.error('Не удалось сохранить запись')
+        return false
+      }
+
+      // Create call-recording entry
+      const recordingResponse = await fetch('/api/call-recordings', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointment: appointmentId,
+          doctor: doctorId,
+          video: mediaId,
+          durationSeconds,
+          recordedAt: new Date().toISOString(),
+        }),
+      })
+
+      if (!recordingResponse.ok) {
+        console.error('[Recording] Recording creation failed:', await recordingResponse.text())
+        toast.error('Не удалось сохранить запись')
+        return false
+      }
+
+      console.log('[Recording] Upload complete')
+      toast.success('Запись консультации сохранена')
+      return true
     } catch (error) {
-      console.error('[useCallRecording] Error uploading recording:', error)
+      console.error('[Recording] Upload error:', error)
       toast.error('Ошибка при сохранении записи')
       return false
     } finally {
       setIsUploading(false)
     }
-  }, [recordingBlob])
+  }, [recordingBlob, finalizeRecording])
 
   const downloadRecording = useCallback(
     (filename: string = 'consultation-recording') => {
       if (!recordingBlob) {
-        console.log('[useCallRecording] No recording to download')
+        console.log('[Recording] No blob to download')
         return
       }
 
