@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useDoctorStore } from "@/stores/doctor-store"
 import { useDoctorAppointmentStore } from "@/stores/doctor-appointments-store"
 import { Button } from "@/components/ui/button"
-import { CalendarX, Calendar, Clock, User as UserIcon, MessageSquare, LogOut, CheckCircle2 } from "lucide-react"
+import { CalendarX, Calendar, Clock, User as UserIcon, MessageSquare, LogOut, CheckCircle2, Play } from "lucide-react"
 import Link from "next/link"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 import { formatDate, getStatusLabel, getStatusColor, getUpcomingAppointment } from "@/lib/utils/date"
@@ -28,15 +28,18 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
   const appointments = apptFetched ? storeAppointments : initialAppointments
   const upcomingAppointment = getUpcomingAppointment(appointments)
   
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
+  const [filter, setFilter] = useState<'all' | 'upcoming' | 'active' | 'completed'>('all')
   
-  const activeAppointments = appointments.filter(a => a.status === 'confirmed' || a.status === 'in_progress')
+  const upcomingAppointments = appointments.filter(a => a.status === 'confirmed')
+  const activeAppointments = appointments.filter(a => a.status === 'in_progress')
   const completedAppointments = appointments.filter(a => a.status === 'completed')
   const filteredAppointments = filter === 'all' 
     ? appointments 
-    : filter === 'active' 
-      ? activeAppointments 
-      : completedAppointments
+    : filter === 'upcoming'
+      ? upcomingAppointments
+      : filter === 'active' 
+        ? activeAppointments 
+        : completedAppointments
 
   // Sync doctor from server to store
   useEffect(() => {
@@ -85,14 +88,18 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-2 gap-3 mb-8">
+        <div className="grid grid-cols-3 gap-3 mb-8">
+          <div className="rounded-xl bg-card border border-border px-4 py-3">
+            <p className="text-2xl font-bold text-foreground">{upcomingAppointments.length}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Предстоящих</p>
+          </div>
           <div className="rounded-xl bg-card border border-border px-4 py-3">
             <p className="text-2xl font-bold text-foreground">{activeAppointments.length}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Предстоящих консультаций</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Активных</p>
           </div>
           <div className="rounded-xl bg-card border border-border px-4 py-3">
             <p className="text-2xl font-bold text-foreground">{completedAppointments.length}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Завершённых консультаций</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Завершённых</p>
           </div>
         </div>
 
@@ -130,6 +137,22 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
               )}
             </button>
             <button
+              onClick={() => setFilter('upcoming')}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                filter === 'upcoming' 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Предстоящие
+              {upcomingAppointments.length > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                  {upcomingAppointments.length}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => setFilter('active')}
               className={cn(
                 "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
@@ -138,7 +161,7 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              Предстоящие
+              Активные
               {activeAppointments.length > 0 && (
                 <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-green-100 text-green-700">
                   {activeAppointments.length}
@@ -169,6 +192,8 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
             <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
               {filter === 'completed' ? (
                 <CheckCircle2 className="w-7 h-7 text-muted-foreground" />
+              ) : filter === 'active' ? (
+                <Play className="w-7 h-7 text-muted-foreground" />
               ) : (
                 <CalendarX className="w-7 h-7 text-muted-foreground" />
               )}
@@ -176,12 +201,14 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
             <div>
               <p className="text-lg font-medium text-foreground">
                 {filter === 'all' && "Нет консультаций"}
-                {filter === 'active' && "Нет предстоящих консультаций"}
+                {filter === 'upcoming' && "Нет предстоящих консультаций"}
+                {filter === 'active' && "Нет активных консультаций"}
                 {filter === 'completed' && "Нет завершённых консультаций"}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {filter === 'all' && "Консультации появятся здесь, когда пациенты запишутся к вам"}
-                {filter === 'active' && "Предстоящие консультации появятся здесь, когда пациенты запишутся к вам"}
+                {filter === 'upcoming' && "Предстоящие консультации появятся здесь, когда пациенты запишутся к вам"}
+                {filter === 'active' && "Активные консультации появятся здесь во время приёма"}
                 {filter === 'completed' && "Завершённые консультации будут отображаться здесь"}
               </p>
             </div>

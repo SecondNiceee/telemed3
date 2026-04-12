@@ -11,12 +11,13 @@ import { AppointmentCountdownBanner } from "@/components/appointment-countdown-b
 interface UserHeroBannerProps {
   user: User
   upcomingCount: number
+  activeCount: number
   completedCount: number
   onLogout: () => void
   appointments?: ApiAppointment[]
 }
 
-export function UserHeroBanner({ user, upcomingCount, completedCount, onLogout, appointments = [] }: UserHeroBannerProps) {
+export function UserHeroBanner({ user, upcomingCount, activeCount, completedCount, onLogout, appointments = [] }: UserHeroBannerProps) {
   const upcomingAppointment = getUpcomingAppointment(appointments)
 
   return (
@@ -76,14 +77,18 @@ export function UserHeroBanner({ user, upcomingCount, completedCount, onLogout, 
         )}
 
         {/* Stats row */}
-        <div className="grid grid-cols-2 gap-3 mt-6">
+        <div className="grid grid-cols-3 gap-3 mt-6">
           <div className="rounded-xl bg-background border border-border px-4 py-3">
             <p className="text-2xl font-bold text-foreground">{upcomingCount}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Предстоящих консультаций</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Предстоящих</p>
+          </div>
+          <div className="rounded-xl bg-background border border-border px-4 py-3">
+            <p className="text-2xl font-bold text-foreground">{activeCount}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Активных</p>
           </div>
           <div className="rounded-xl bg-background border border-border px-4 py-3">
             <p className="text-2xl font-bold text-foreground">{completedCount}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Завершённых консультаций</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Завершённых</p>
           </div>
         </div>
       </div>
