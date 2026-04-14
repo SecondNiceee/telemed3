@@ -95,6 +95,17 @@ export interface ApiAppointment {
   updatedAt: string
 }
 
+export interface ApiFeedback {
+  id: number
+  user: { id: number; name?: string | null; email: string } | number
+  doctor: ApiDoctor | number
+  appointment: ApiAppointment | number
+  rating: number
+  text?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface PayloadListResponse<T> {
   docs: T[]
   totalDocs: number
