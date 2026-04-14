@@ -29,6 +29,8 @@ export interface LeaveRoomPayload {
 export interface SendMessagePayload {
   appointmentId: number
   text: string
+  preferredSenderType?: 'doctor' | 'user'
+  attachmentId?: string
 }
 
 export interface MarkReadPayload {
