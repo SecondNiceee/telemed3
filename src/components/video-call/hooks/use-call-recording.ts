@@ -5,15 +5,15 @@ import { toast } from 'sonner'
 import type { UseCallRecordingReturn } from '@/lib/video-call/types'
 import { getBasePath } from '@/lib/utils/basePath'
 
-// Интервал отправки chunks (30 секунд)
-const CHUNK_INTERVAL_MS = 30000
+// Интервал отправки chunks (5 секунд - чтобы не превышать лимит nginx)
+const CHUNK_INTERVAL_MS = 5000
 
-// Размеры canvas для записи
-const CANVAS_WIDTH = 1280
-const CANVAS_HEIGHT = 720
-const PIP_WIDTH = 240 // Размер окошка пациента
-const PIP_HEIGHT = 180
-const PIP_MARGIN = 20 // Отступ от края
+// Размеры canvas для записи (уменьшены для меньшего размера файла)
+const CANVAS_WIDTH = 854
+const CANVAS_HEIGHT = 480
+const PIP_WIDTH = 160 // Размер окошка пациента
+const PIP_HEIGHT = 120
+const PIP_MARGIN = 12 // Отступ от края
 
 interface ChunkUploadState {
   appointmentId: number
@@ -225,8 +225,8 @@ export function useCallRecording(): UseCallRecordingReturn {
       animationFrameId,
     }
     
-    // Create stream from canvas
-    const canvasStream = canvas.captureStream(30) // 30 FPS
+    // Create stream from canvas (15 FPS для меньшего размера файла)
+    const canvasStream = canvas.captureStream(15)
     
     // Combine canvas video with BOTH audio tracks
     const combinedStream = new MediaStream()
