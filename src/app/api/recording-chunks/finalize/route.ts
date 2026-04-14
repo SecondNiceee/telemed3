@@ -26,35 +26,39 @@ export async function POST(request: NextRequest) {
   console.log('[RecordingChunks/Finalize] Starting finalization')
   
   try {
+    // Get payload instance first to use its secret
+    const payload = await getPayload({ config })
+    
     // Check doctor authentication
     const cookieStore = await cookies()
     const doctorToken = cookieStore.get('doctors-token')?.value
     
     if (!doctorToken) {
       console.log('[RecordingChunks/Finalize] No doctor token')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized - no token' }, { status: 401 })
     }
 
-    const secret = process.env.PAYLOAD_SECRET
+    const secret = payload.secret
     if (!secret) {
+      console.log('[RecordingChunks/Finalize] No payload secret')
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
     }
 
     let decoded: DecodedToken
     try {
       decoded = jwt.verify(doctorToken, secret) as DecodedToken
-    } catch {
-      console.log('[RecordingChunks/Finalize] Invalid doctor token')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.log('[RecordingChunks/Finalize] Token decoded:', { id: decoded.id, collection: decoded.collection })
+    } catch (err) {
+      console.log('[RecordingChunks/Finalize] Invalid doctor token:', err)
+      return NextResponse.json({ error: 'Unauthorized - invalid token' }, { status: 401 })
     }
 
     if (decoded.collection !== 'doctors') {
-      console.log('[RecordingChunks/Finalize] Not a doctor token')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.log('[RecordingChunks/Finalize] Not a doctor token, collection:', decoded.collection)
+      return NextResponse.json({ error: 'Unauthorized - not a doctor' }, { status: 401 })
     }
 
     const doctorIdFromToken = decoded.id
-    const payload = await getPayload({ config })
 
     const body = await request.json()
     const { appointmentId, doctorId, durationSeconds } = body

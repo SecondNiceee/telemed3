@@ -21,6 +21,7 @@ webpack.config.js.tmp
 
 # Environment variables
 .env
+.env.production
 .env.local
 .env.*
 !.env.example

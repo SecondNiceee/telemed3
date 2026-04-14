@@ -253,6 +253,60 @@
 
 ---
 
+## Логика завершения консультации
+
+### Из чата врача (`/lk-med/chat`)
+
+Когда врач нажимает **"Завершить консультацию"** в чате:
+
+1. **UI взаимодействие:**
+   - Показывается `AlertDialog` с подтверждением (`ConsultationDialogs`)
+   - Текст: "После завершения консультации пациент больше не сможет отправлять сообщения в этот чат"
+
+2. **При подтверждении (`handleCompleteAppointment`):**
+   ```
+   ChatWindow → AppointmentsApi.complete(appointmentId)
+   → PATCH /api/appointments/{id}/complete
+   → Payload обновляет status на 'completed'
+   ```
+
+3. **Результат:**
+   - `localStatus` обновляется на `'completed'`
+   - Вызывается `onAppointmentCompleted?.(appointmentId)` для обновления списка чатов
+   - Пациент больше не может отправлять сообщения (проверка `canSendMessages`)
+
+### Из видеозвонка (кнопка "Завершить консультацию")
+
+Когда врач завершает звонок с записью:
+
+1. **Завершение звонка:**
+   - `VideoCallProvider.endCall()` останавливает соединение
+   - `useCallRecording.stopRecording()` останавливает запись
+
+2. **Сохранение записи:**
+   - Если использовались chunks: `finalizeRecording()` склеивает на сервере
+   - Fallback: загрузка всего blob через `/api/media`
+   - Создается `CallRecording` в БД
+
+3. **Завершение appointment:**
+   - `handleConsultationComplete(recordingBlob)` в `ChatWindow`
+   - `AppointmentsApi.complete(appointmentId)`
+   - Status меняется на `'completed'`
+   - Toast: "Консультация завершена"
+
+### Файлы логики завершения
+
+| Файл | Функция |
+|------|---------|
+| `src/components/chat/chat-window.tsx` | `handleCompleteAppointment()`, `handleConsultationComplete()` |
+| `src/components/chat/components/consultation-dialogs.tsx` | UI диалога подтверждения |
+| `src/components/chat/components/chat-header.tsx` | Кнопка "Завершить консультацию" |
+| `src/lib/api/appointments.ts` | `AppointmentsApi.complete()` |
+| `src/app/api/appointments/[id]/complete/route.ts` | API endpoint |
+| `src/components/video-call/hooks/use-call-recording.ts` | Сохранение записи |
+
+---
+
 ## Аутентификация
 
 **Токены (cookies):**
@@ -262,7 +316,7 @@
 | `doctors-token` | Doctors | Врачи |
 | `organisations-token` | Organisations | Организации |
 
-**П��оверка на сервере:**
+**Проверка на сервере:**
 - `getSessionFromCookie()` (`src/lib/auth/getSessionFromCookie.ts`)
 - `getCallerFromRequest()` (`src/collections/helpers/auth.ts`)
 

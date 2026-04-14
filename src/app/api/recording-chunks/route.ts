@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import fs from 'fs/promises'
 import path from 'path'
+import { getPayload } from 'payload'
+import config from '@payload-config'
 import jwt from 'jsonwebtoken'
 
 interface DecodedToken {
@@ -41,25 +43,30 @@ export async function POST(request: NextRequest) {
     
     if (!doctorToken) {
       console.log('[RecordingChunks] No doctor token found')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized - no token' }, { status: 401 })
     }
 
-    const secret = process.env.PAYLOAD_SECRET
+    // Get payload instance to use its secret (same as used when signing tokens)
+    const payload = await getPayload({ config })
+    const secret = payload.secret
+    
     if (!secret) {
+      console.log('[RecordingChunks] No payload secret')
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
     }
 
     let decoded: DecodedToken
     try {
       decoded = jwt.verify(doctorToken, secret) as DecodedToken
-    } catch {
-      console.log('[RecordingChunks] Invalid doctor token')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.log('[RecordingChunks] Token decoded:', { id: decoded.id, collection: decoded.collection })
+    } catch (err) {
+      console.log('[RecordingChunks] Invalid doctor token:', err)
+      return NextResponse.json({ error: 'Unauthorized - invalid token' }, { status: 401 })
     }
 
     if (decoded.collection !== 'doctors') {
-      console.log('[RecordingChunks] Not a doctor token')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.log('[RecordingChunks] Not a doctor token, collection:', decoded.collection)
+      return NextResponse.json({ error: 'Unauthorized - not a doctor' }, { status: 401 })
     }
 
     const doctorIdFromToken = decoded.id
