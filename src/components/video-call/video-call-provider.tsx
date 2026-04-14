@@ -303,17 +303,14 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       }
 
       // Start recording for doctors with chunk upload
+      // Pass both local and remote streams so the hook can create PiP composite (doctor main, patient small)
       if (currentUser?.role === 'doctor' && mediaStreamRef.current.stream && callDataRef.current?.appointmentId) {
         const appointmentId = callDataRef.current.appointmentId
         const doctorId = currentUser.odooUserId
-        console.log('[Recording] Starting for doctor, appointmentId:', appointmentId, 'doctorId:', doctorId)
+        console.log('[Recording] Starting for doctor with PiP, appointmentId:', appointmentId, 'doctorId:', doctorId)
         
-        // Combine local and remote streams for recording
-        const combinedStream = new MediaStream([
-          ...mediaStreamRef.current.stream.getTracks(),
-          ...stream.getTracks(),
-        ])
-        recording.startRecording(combinedStream, appointmentId, doctorId)
+        // Pass local (doctor) stream as main, remote (patient) stream for PiP overlay
+        recording.startRecording(mediaStreamRef.current.stream, appointmentId, doctorId, stream)
       }
     })
     
