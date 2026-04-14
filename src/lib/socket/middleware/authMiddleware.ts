@@ -52,8 +52,13 @@ export function createAuthMiddleware() {
     }
 
     // Определяем тип отправителя и его ID
-    const senderType = doctorId ? 'doctor' : 'user'
-    const senderId = doctorId || userId
+    const senderType: 'doctor' | 'user' = doctorId ? 'doctor' : 'user'
+    const senderId = doctorId ?? userId
+    
+    // Гарантируем что senderId есть (проверка выше уже это подтвердила)
+    if (!senderId) {
+      return next(new Error('Authentication required'))
+    }
 
     // 🔹 Сохраняем данные в сокет
     ;(socket as AuthenticatedSocket).data = {
