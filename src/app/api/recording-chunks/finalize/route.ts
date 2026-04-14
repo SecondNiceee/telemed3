@@ -115,43 +115,25 @@ export async function POST(request: NextRequest) {
     const combinedBuffer = Buffer.concat(chunkBuffers)
     console.log('[RecordingChunks/Finalize] Combined buffer size:', combinedBuffer.length)
 
-    // Upload to media collection
+    // Upload directly via Payload API (bypasses nginx body size limit)
     const filename = `consultation-${appointmentId}-${Date.now()}.webm`
-    const blob = new Blob([combinedBuffer], { type: meta.mimeType || 'video/webm' })
     
-    const formData = new FormData()
-    formData.append('file', blob, filename)
-    formData.append('alt', `Запись консультации #${appointmentId}`)
-
-    // Get the host from request
-    const host = request.headers.get('host') || 'localhost:3000'
-    const protocol = request.headers.get('x-forwarded-proto') || 'http'
-    const baseUrl = `${protocol}://${host}`
-
-    console.log('[RecordingChunks/Finalize] Uploading to media...')
+    console.log('[RecordingChunks/Finalize] Uploading to media via Payload...')
     
-    const mediaResponse = await fetch(`${baseUrl}/api/media`, {
-      method: 'POST',
-      headers: {
-        Cookie: `doctors-token=${doctorToken}`,
+    const mediaDoc = await payload.create({
+      collection: 'media',
+      data: {
+        alt: `Запись консультации #${appointmentId}`,
       },
-      body: formData,
+      file: {
+        data: combinedBuffer,
+        mimetype: meta.mimeType || 'video/webm',
+        name: filename,
+        size: combinedBuffer.length,
+      },
     })
-
-    if (!mediaResponse.ok) {
-      const errorText = await mediaResponse.text()
-      console.error('[RecordingChunks/Finalize] Media upload failed:', errorText)
-      return NextResponse.json({ error: 'Failed to upload video' }, { status: 500 })
-    }
-
-    const mediaData = await mediaResponse.json()
-    const mediaId = mediaData.doc?.id
-
-    if (!mediaId) {
-      console.error('[RecordingChunks/Finalize] No media ID:', mediaData)
-      return NextResponse.json({ error: 'Media upload returned no ID' }, { status: 500 })
-    }
-
+    
+    const mediaId = mediaDoc.id
     console.log('[RecordingChunks/Finalize] Media uploaded, ID:', mediaId)
 
     // Create call-recording entry
