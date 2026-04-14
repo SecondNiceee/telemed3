@@ -88,6 +88,7 @@ export interface ApiAppointment {
   time: string // HH:MM
   price?: number | null
   status: 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
+  chatBlocked?: boolean | null
   activeCall?: ApiActiveCall | null
   recording?: ApiMedia | number | null
   createdAt: string

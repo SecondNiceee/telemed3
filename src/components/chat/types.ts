@@ -22,10 +22,12 @@ export interface ChatHeaderProps {
   consultationType: ConsultationType
   countdownParts: { days: number; hours: number; minutes: number; seconds: number; total: number } | null
   videoCallStatus: string
+  isChatBlocked?: boolean
   onBack?: () => void
   onStartConsultation: () => void
   onStartVideoCall: () => void
   onShowCompleteDialog: () => void
+  onBlockChat: () => void
 }
 
 export interface ChatMessagesProps {
@@ -51,6 +53,7 @@ export interface ChatInputProps {
   isConnected: boolean
   canSendMessages: boolean
   isCompleted: boolean
+  isChatBlocked?: boolean
   currentSenderType: 'user' | 'doctor'
   onSendMessage: (text: string, attachmentId?: number) => void
   onStartTyping: () => void

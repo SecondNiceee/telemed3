@@ -311,6 +311,15 @@ export const Appointments: CollectionConfig = {
       ],
     },
     {
+      name: 'chatBlocked',
+      type: 'checkbox',
+      defaultValue: false,
+      label: 'Чат заблокирован',
+      admin: {
+        description: 'Если включено, пациент не может отправлять сообщения',
+      },
+    },
+    {
       name: 'recording',
       type: 'upload',
       relationTo: 'media',

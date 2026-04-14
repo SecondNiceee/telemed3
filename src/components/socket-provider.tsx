@@ -23,6 +23,10 @@ interface SocketContextValue {
   answerCall: (appointmentId: number, answerPeerId: string) => void
   rejectCall: (appointmentId: number) => void
   endCall: (appointmentId: number) => void
+  // Consultation management
+  startConsultation: (appointmentId: number) => void
+  endConsultation: (appointmentId: number) => void
+  blockChat: (appointmentId: number) => void
 }
 
 const SocketContext = createContext<SocketContextValue | null>(null)
@@ -218,6 +222,22 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       callStoreRef.current.endCall()
     })
 
+    // Consultation status events
+    newSocket.on('consultation-started', ({ appointmentId }) => {
+      console.log('[Socket] Consultation started:', appointmentId)
+      chatStoreRef.current.updateAppointmentStatus(appointmentId, 'in_progress')
+    })
+
+    newSocket.on('consultation-ended', ({ appointmentId }) => {
+      console.log('[Socket] Consultation ended:', appointmentId)
+      chatStoreRef.current.updateAppointmentStatus(appointmentId, 'completed')
+    })
+
+    newSocket.on('chat-blocked', ({ appointmentId }) => {
+      console.log('[Socket] Chat blocked:', appointmentId)
+      chatStoreRef.current.setChatBlocked(appointmentId, true)
+    })
+
     setSocket(newSocket)
 
     return () => {
@@ -310,6 +330,25 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     }
   }, [socket])
 
+  // Consultation management functions
+  const startConsultation = useCallback((appointmentId: number) => {
+    if (socket?.connected) {
+      socket.emit('consultation-start', { appointmentId })
+    }
+  }, [socket])
+
+  const endConsultation = useCallback((appointmentId: number) => {
+    if (socket?.connected) {
+      socket.emit('consultation-end', { appointmentId })
+    }
+  }, [socket])
+
+  const blockChat = useCallback((appointmentId: number) => {
+    if (socket?.connected) {
+      socket.emit('chat-block', { appointmentId })
+    }
+  }, [socket])
+
   const value: SocketContextValue = {
     socket,
     isConnected,
@@ -323,6 +362,9 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     answerCall,
     rejectCall,
     endCall: endCallSignal,
+    startConsultation,
+    endConsultation,
+    blockChat,
   }
 
   return (
@@ -346,6 +388,9 @@ const defaultSocketContext: SocketContextValue = {
   answerCall: () => {},
   rejectCall: () => {},
   endCall: () => {},
+  startConsultation: () => {},
+  endConsultation: () => {},
+  blockChat: () => {},
 }
 
 export function useSocket() {
