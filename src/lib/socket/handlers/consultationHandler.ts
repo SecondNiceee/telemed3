@@ -30,8 +30,8 @@ export function createConsultationStartHandler(io: SocketIOServer, payload: Payl
     }
 
     // Verify the doctor has access to this appointment
-    const hasAccess = await verifyAppointmentAccess(payload, appointmentId, senderType, senderId)
-    if (!hasAccess) {
+    const accessResult = await verifyAppointmentAccess(payload, appointmentId, undefined, senderId)
+    if (!accessResult.hasAccess) {
       socket.emit('error', { message: 'Access denied to this appointment' })
       return
     }
@@ -78,8 +78,8 @@ export function createConsultationEndHandler(io: SocketIOServer, payload: Payloa
     }
 
     // Verify the doctor has access to this appointment
-    const hasAccess = await verifyAppointmentAccess(payload, appointmentId, senderType, senderId)
-    if (!hasAccess) {
+    const accessResult = await verifyAppointmentAccess(payload, appointmentId, undefined, senderId)
+    if (!accessResult.hasAccess) {
       socket.emit('error', { message: 'Access denied to this appointment' })
       return
     }
@@ -126,8 +126,8 @@ export function createChatBlockHandler(io: SocketIOServer, payload: Payload) {
     }
 
     // Verify the doctor has access to this appointment
-    const hasAccess = await verifyAppointmentAccess(payload, appointmentId, senderType, senderId)
-    if (!hasAccess) {
+    const accessResult = await verifyAppointmentAccess(payload, appointmentId, undefined, senderId)
+    if (!accessResult.hasAccess) {
       socket.emit('error', { message: 'Access denied to this appointment' })
       return
     }
