@@ -7,7 +7,7 @@ import type {
   ChatBlockPayload,
 } from '../types'
 import isValidAppointmentId from '../utils/isValidAppointmentId'
-import { verifyAppointmentAccess } from '../utils/verifyAppointmentAccess'
+import verifyAppointmentAccess from '../utils/verifyAppointmentAccess'
 
 /**
  * Handle consultation start event
