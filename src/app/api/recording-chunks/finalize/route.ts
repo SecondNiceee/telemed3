@@ -5,6 +5,10 @@ import { cookies } from 'next/headers'
 import fs from 'fs/promises'
 import path from 'path'
 import jwt from 'jsonwebtoken'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 interface DecodedToken {
   id: number
@@ -115,9 +119,51 @@ export async function POST(request: NextRequest) {
     const combinedBuffer = Buffer.concat(chunkBuffers)
     console.log('[RecordingChunks/Finalize] Combined buffer size:', combinedBuffer.length)
 
-    // Upload directly via Payload API (bypasses nginx body size limit)
-    const filename = `consultation-${appointmentId}-${Date.now()}.webm`
+    // Convert webm to mp4 using ffmpeg
+    const timestamp = Date.now()
+    const webmPath = path.join(CHUNKS_DIR, `${sessionId}_combined.webm`)
+    const mp4Path = path.join(CHUNKS_DIR, `${sessionId}_converted.mp4`)
     
+    // Write combined webm to temp file
+    await fs.writeFile(webmPath, combinedBuffer)
+    console.log('[RecordingChunks/Finalize] Wrote combined webm:', webmPath)
+    
+    let finalBuffer: Buffer
+    let finalMimeType: string
+    let finalFilename: string
+    
+    try {
+      // Convert to mp4 using ffmpeg
+      // -y: overwrite output, -i: input, -c:v libx264: H.264 video codec
+      // -preset fast: encoding speed, -crf 23: quality (lower = better)
+      // -c:a aac: AAC audio codec, -b:a 128k: audio bitrate
+      const ffmpegCmd = `ffmpeg -y -i "${webmPath}" -c:v libx264 -preset fast -crf 23 -c:a aac -b:a 128k "${mp4Path}"`
+      console.log('[RecordingChunks/Finalize] Running ffmpeg:', ffmpegCmd)
+      
+      await execAsync(ffmpegCmd)
+      
+      finalBuffer = await fs.readFile(mp4Path)
+      finalMimeType = 'video/mp4'
+      finalFilename = `consultation-${appointmentId}-${timestamp}.mp4`
+      console.log('[RecordingChunks/Finalize] Converted to mp4, size:', finalBuffer.length)
+      
+      // Cleanup temp files
+      await fs.unlink(webmPath).catch(() => {})
+      await fs.unlink(mp4Path).catch(() => {})
+    } catch (ffmpegError) {
+      console.error('[RecordingChunks/Finalize] ffmpeg conversion failed:', ffmpegError)
+      console.log('[RecordingChunks/Finalize] Falling back to webm format')
+      
+      // Fallback to webm if ffmpeg fails
+      finalBuffer = combinedBuffer
+      finalMimeType = meta.mimeType || 'video/webm'
+      finalFilename = `consultation-${appointmentId}-${timestamp}.webm`
+      
+      // Cleanup temp webm file
+      await fs.unlink(webmPath).catch(() => {})
+    }
+
+    // Upload directly via Payload API (bypasses nginx body size limit)
     console.log('[RecordingChunks/Finalize] Uploading to media via Payload...')
     
     const mediaDoc = await payload.create({
@@ -126,10 +172,10 @@ export async function POST(request: NextRequest) {
         alt: `Запись консультации #${appointmentId}`,
       },
       file: {
-        data: combinedBuffer,
-        mimetype: meta.mimeType || 'video/webm',
-        name: filename,
-        size: combinedBuffer.length,
+        data: finalBuffer,
+        mimetype: finalMimeType,
+        name: finalFilename,
+        size: finalBuffer.length,
       },
     })
     
