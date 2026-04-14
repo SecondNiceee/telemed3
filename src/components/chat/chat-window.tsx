@@ -57,7 +57,7 @@ export function ChatWindow({
   const socketStatus = appointmentStatuses[appointment.id]
   const effectiveStatus = socketStatus || localStatus
   const isCompleted = effectiveStatus === 'completed'
-  const isChatBlocked = chatBlocked[appointment.id] || appointment.chatBlocked
+  const isChatBlocked = chatBlocked[appointment.id] || appointment.chatBlocked === true
   // User can send messages if: not blocked AND (is doctor OR consultation not completed)
   const canSendMessages = !isChatBlocked && (currentSenderType === 'doctor' || !isCompleted)
   
