@@ -92,6 +92,10 @@ export interface ChatBlockPayload {
   appointmentId: number
 }
 
+export interface ChatUnblockPayload {
+  appointmentId: number
+}
+
 /**
  * Состояние звонка
  */

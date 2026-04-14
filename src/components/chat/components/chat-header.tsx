@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, Video, CheckCircle2, Ban } from 'lucide-react'
+import { ArrowLeft, Video, CheckCircle2, Ban, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { formatCountdown } from '@/lib/utils/date'
@@ -21,7 +21,7 @@ export function ChatHeader({
   onStartConsultation,
   onStartVideoCall,
   onShowCompleteDialog,
-  onBlockChat,
+  onToggleChatBlock,
 }: ChatHeaderProps) {
   return (
     <div className="flex flex-col border-b border-border bg-card">
@@ -139,17 +139,31 @@ export function ChatHeader({
           </Button>
         )}
         
-        {/* Block chat button - for doctor after consultation is completed */}
-        {currentSenderType === 'doctor' && isCompleted && !isChatBlocked && (
+        {/* Toggle chat block button - for doctor after consultation is completed */}
+        {currentSenderType === 'doctor' && isCompleted && (
           <Button
             variant="outline"
             size="sm"
-            className="shrink-0 text-xs gap-1.5 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-            onClick={onBlockChat}
+            className={cn(
+              "shrink-0 text-xs gap-1.5",
+              isChatBlocked 
+                ? "text-green-600 border-green-600 hover:bg-green-600 hover:text-white"
+                : "text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+            )}
+            onClick={onToggleChatBlock}
             disabled={!isConnected}
           >
-            <Ban className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Запретить пациенту писать</span>
+            {isChatBlocked ? (
+              <>
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Разрешить пациенту писать</span>
+              </>
+            ) : (
+              <>
+                <Ban className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Запретить пациенту писать</span>
+              </>
+            )}
           </Button>
         )}
         <div className={cn(

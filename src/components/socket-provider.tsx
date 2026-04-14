@@ -27,6 +27,7 @@ interface SocketContextValue {
   startConsultation: (appointmentId: number) => void
   endConsultation: (appointmentId: number) => void
   blockChat: (appointmentId: number) => void
+  unblockChat: (appointmentId: number) => void
 }
 
 const SocketContext = createContext<SocketContextValue | null>(null)
@@ -238,6 +239,11 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       chatStoreRef.current.setChatBlocked(appointmentId, true)
     })
 
+    newSocket.on('chat-unblocked', ({ appointmentId }) => {
+      console.log('[Socket] Chat unblocked:', appointmentId)
+      chatStoreRef.current.setChatBlocked(appointmentId, false)
+    })
+
     setSocket(newSocket)
 
     return () => {
@@ -349,6 +355,12 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     }
   }, [socket])
 
+  const unblockChat = useCallback((appointmentId: number) => {
+    if (socket?.connected) {
+      socket.emit('chat-unblock', { appointmentId })
+    }
+  }, [socket])
+
   const value: SocketContextValue = {
     socket,
     isConnected,
@@ -365,6 +377,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     startConsultation,
     endConsultation,
     blockChat,
+    unblockChat,
   }
 
   return (
@@ -391,6 +404,7 @@ const defaultSocketContext: SocketContextValue = {
   startConsultation: () => {},
   endConsultation: () => {},
   blockChat: () => {},
+  unblockChat: () => {},
 }
 
 export function useSocket() {

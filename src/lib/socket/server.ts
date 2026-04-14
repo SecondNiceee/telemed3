@@ -14,6 +14,7 @@ import type {
   ConsultationStartPayload,
   ConsultationEndPayload,
   ChatBlockPayload,
+  ChatUnblockPayload,
 } from './types'
 import { createAuthMiddleware } from './middleware/authMiddleware'
 import { createJoinRoomHandler } from './handlers/joinRoomHandler'
@@ -36,6 +37,7 @@ import {
   createConsultationStartHandler,
   createConsultationEndHandler,
   createChatBlockHandler,
+  createChatUnblockHandler,
 } from './handlers/consultationHandler'
 import { rateLimitMap } from './config/rate-limit.config'
 
@@ -85,6 +87,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
   const consultationStartHandler = createConsultationStartHandler(io, payload)
   const consultationEndHandler = createConsultationEndHandler(io, payload)
   const chatBlockHandler = createChatBlockHandler(io, payload)
+  const chatUnblockHandler = createChatUnblockHandler(io, payload)
 
   io.on('connection', (socket: Socket) => {
     const authSocket = socket as AuthenticatedSocket
@@ -123,6 +126,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     socket.on('consultation-start', (data: ConsultationStartPayload) => consultationStartHandler(authSocket, data))
     socket.on('consultation-end', (data: ConsultationEndPayload) => consultationEndHandler(authSocket, data))
     socket.on('chat-block', (data: ChatBlockPayload) => chatBlockHandler(authSocket, data))
+    socket.on('chat-unblock', (data: ChatUnblockPayload) => chatUnblockHandler(authSocket, data))
 
     // Disconnect handler
     socket.on('disconnect', () => disconnectHandler(authSocket))
