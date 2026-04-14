@@ -6,7 +6,7 @@ import type {
   ConsultationEndPayload,
   ChatBlockPayload,
 } from '../types'
-import { isValidAppointmentId } from '../utils/isValidAppointmentId'
+import isValidAppointmentId from '../utils/isValidAppointmentId'
 import { verifyAppointmentAccess } from '../utils/verifyAppointmentAccess'
 
 /**
