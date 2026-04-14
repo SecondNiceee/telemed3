@@ -1,9 +1,9 @@
-import type { AuthenticatedSocket, JoinRoomPayload } from '../types'
+import type { AuthenticatedSocket, TypingPayload } from '../types'
 import isValidAppointmentId from '../utils/isValidAppointmentId'
 import isValidSenderType from '../utils/isValidSenderType'
 
 export function createTypingHandler() {
-  return (socket: AuthenticatedSocket, data: JoinRoomPayload) => {
+  return (socket: AuthenticatedSocket, data: TypingPayload) => {
     const { appointmentId, preferredSenderType } = data
 
     // [INPUT VALIDATION] Validate inputs
