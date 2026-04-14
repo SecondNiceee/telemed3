@@ -308,7 +308,7 @@ export interface UseCallRecordingReturn {
   isRecording: boolean
   recordingBlob: Blob | null
   isUploading: boolean
-  startRecording: (stream: MediaStream, appointmentId?: number, doctorId?: number) => void
+  startRecording: (localStream: MediaStream, appointmentId?: number, doctorId?: number, remoteStream?: MediaStream) => void
   stopRecording: () => Promise<Blob | null>
   uploadRecording: (appointmentId: number, doctorId: number, blob?: Blob) => Promise<boolean>
   downloadRecording: (filename?: string) => void
