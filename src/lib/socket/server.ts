@@ -11,6 +11,9 @@ import type {
   CallEndPayload,
   CallParticipantLeavingPayload,
   CallParticipantRejoiningPayload,
+  ConsultationStartPayload,
+  ConsultationEndPayload,
+  ChatBlockPayload,
 } from './types'
 import { createAuthMiddleware } from './middleware/authMiddleware'
 import { createJoinRoomHandler } from './handlers/joinRoomHandler'
@@ -29,6 +32,11 @@ import {
   createCallParticipantRejoiningHandler,
   checkPendingCallsForSocket,
 } from './handlers/callHandler'
+import {
+  createConsultationStartHandler,
+  createConsultationEndHandler,
+  createChatBlockHandler,
+} from './handlers/consultationHandler'
 import { rateLimitMap } from './config/rate-limit.config'
 
 /**
@@ -73,6 +81,11 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
   const callParticipantRejoiningHandler = createCallParticipantRejoiningHandler(io)
   const disconnectHandler = createDisconnectHandler(io)
 
+  // Хэндлеры консультации
+  const consultationStartHandler = createConsultationStartHandler(io, payload)
+  const consultationEndHandler = createConsultationEndHandler(io, payload)
+  const chatBlockHandler = createChatBlockHandler(io, payload)
+
   io.on('connection', (socket: Socket) => {
     const authSocket = socket as AuthenticatedSocket
     console.log(`[Socket] Client connected: ${socket.id}, type: ${authSocket.data.senderType}, id: ${authSocket.data.senderId}`)
@@ -105,6 +118,11 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     // Participant reconnection events
     socket.on('call-participant-leaving', (data: CallParticipantLeavingPayload) => callParticipantLeavingHandler(authSocket, data))
     socket.on('call-participant-rejoining', (data: CallParticipantRejoiningPayload) => callParticipantRejoiningHandler(authSocket, data))
+
+    // Consultation management events
+    socket.on('consultation-start', (data: ConsultationStartPayload) => consultationStartHandler(authSocket, data))
+    socket.on('consultation-end', (data: ConsultationEndPayload) => consultationEndHandler(authSocket, data))
+    socket.on('chat-block', (data: ChatBlockPayload) => chatBlockHandler(authSocket, data))
 
     // Disconnect handler
     socket.on('disconnect', () => disconnectHandler(authSocket))

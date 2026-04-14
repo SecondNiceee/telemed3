@@ -44,8 +44,8 @@ export function ChatWindow({
   const [videoSaveStatus, setVideoSaveStatus] = useState<VideoSaveStatus>(null)
 
   // Hooks
-  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected } = useSocket()
-  const { messages, loadMessages, loadingMessages, typingUsers, setActiveChat } = useChatStore()
+  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, startConsultation, endConsultation, blockChat } = useSocket()
+  const { messages, loadMessages, loadingMessages, typingUsers, setActiveChat, appointmentStatuses, chatBlocked } = useChatStore()
   const videoCall = useVideoCall()
   const { isDragging, handleDragOver, handleDragLeave, handleDrop, clearAttachment } = useFileUpload(appointment.id)
 
@@ -53,8 +53,13 @@ export function ChatWindow({
   const appointmentMessages = messages[appointment.id] || []
   const isLoading = loadingMessages[appointment.id]
   const typingUser = typingUsers[appointment.id]
-  const isCompleted = localStatus === 'completed'
-  const canSendMessages = currentSenderType === 'doctor' || !isCompleted
+  // Use socket-updated status if available, otherwise use local/prop status
+  const socketStatus = appointmentStatuses[appointment.id]
+  const effectiveStatus = socketStatus || localStatus
+  const isCompleted = effectiveStatus === 'completed'
+  const isChatBlocked = chatBlocked[appointment.id] || appointment.chatBlocked
+  // User can send messages if: not blocked AND (is doctor OR consultation not completed)
+  const canSendMessages = !isChatBlocked && (currentSenderType === 'doctor' || !isCompleted)
   
   const otherPartyName = currentSenderType === 'user' 
     ? appointment.doctorName || 'Врач'
@@ -76,10 +81,14 @@ export function ChatWindow({
     return () => clearInterval(timer)
   }, [appointment.date, appointment.time])
 
-  // Sync local status when appointment changes
+  // Sync local status when appointment or socket status changes
   useEffect(() => {
-    setLocalStatus(appointment.status)
-  }, [appointment.status])
+    if (socketStatus) {
+      setLocalStatus(socketStatus as typeof appointment.status)
+    } else {
+      setLocalStatus(appointment.status)
+    }
+  }, [appointment.status, socketStatus])
 
   // Track tab visibility
   useEffect(() => {
@@ -132,7 +141,8 @@ export function ChatWindow({
   const handleCompleteAppointment = async () => {
     setIsCompleting(true)
     try {
-      await AppointmentsApi.complete(appointment.id)
+      // Use socket to end consultation (real-time update for all participants)
+      endConsultation(appointment.id)
       setLocalStatus('completed')
       setShowCompleteDialog(false)
       onAppointmentCompleted?.(appointment.id)
@@ -142,6 +152,11 @@ export function ChatWindow({
     } finally {
       setIsCompleting(false)
     }
+  }
+
+  const handleBlockChat = () => {
+    blockChat(appointment.id)
+    toast.success('Чат заблокирован')
   }
 
   const handleStartConsultationClick = () => {
@@ -174,16 +189,8 @@ export function ChatWindow({
     setConsultationType('video')
     setLocalStatus('in_progress')
     
-    try {
-      await fetch(`${getBaseUrl()}/api/appointments/${appointment.id}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'in_progress' }),
-      })
-    } catch (error) {
-      console.error('Failed to update appointment status:', error)
-    }
+    // Use socket to start consultation (real-time update for all participants)
+    startConsultation(appointment.id)
     
     const calleeRole = currentSenderType === 'doctor' ? 'patient' : 'doctor'
     
@@ -210,18 +217,9 @@ export function ChatWindow({
     setConsultationType('chat')
     setLocalStatus('in_progress')
     
-    try {
-      await fetch(`${getBaseUrl()}/api/appointments/${appointment.id}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'in_progress' }),
-      })
-      toast.success('Консультация начата в чате')
-    } catch (error) {
-      console.error('Failed to update appointment status:', error)
-      toast.error('Не удалось начать консультацию')
-    }
+    // Use socket to start consultation (real-time update for all participants)
+    startConsultation(appointment.id)
+    toast.success('Консультация начата в чате')
   }
 
   const handleSendMessage = useCallback((text: string, attachmentId?: number) => {
@@ -353,10 +351,12 @@ export function ChatWindow({
         consultationType={consultationType}
         countdownParts={countdownParts}
         videoCallStatus={videoCall.status}
+        isChatBlocked={isChatBlocked}
         onBack={onBack}
         onStartConsultation={handleStartConsultationClick}
         onStartVideoCall={handleStartVideoConsultation}
         onShowCompleteDialog={() => setShowCompleteDialog(true)}
+        onBlockChat={handleBlockChat}
       />
       
       <ConsultationDialogs
@@ -386,6 +386,7 @@ export function ChatWindow({
         isConnected={isConnected}
         canSendMessages={canSendMessages}
         isCompleted={isCompleted}
+        isChatBlocked={isChatBlocked}
         currentSenderType={currentSenderType}
         onSendMessage={handleSendMessage}
         onStartTyping={handleStartTyping}

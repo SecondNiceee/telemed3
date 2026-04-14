@@ -79,6 +79,19 @@ export interface CallParticipantRejoiningPayload {
   peerId: string
 }
 
+// Consultation status events
+export interface ConsultationStartPayload {
+  appointmentId: number
+}
+
+export interface ConsultationEndPayload {
+  appointmentId: number
+}
+
+export interface ChatBlockPayload {
+  appointmentId: number
+}
+
 /**
  * Состояние звонка
  */

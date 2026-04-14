@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, Video, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Video, CheckCircle2, Ban } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { formatCountdown } from '@/lib/utils/date'
@@ -16,10 +16,12 @@ export function ChatHeader({
   consultationType,
   countdownParts,
   videoCallStatus,
+  isChatBlocked,
   onBack,
   onStartConsultation,
   onStartVideoCall,
   onShowCompleteDialog,
+  onBlockChat,
 }: ChatHeaderProps) {
   return (
     <div className="flex flex-col border-b border-border bg-card">
@@ -134,6 +136,20 @@ export function ChatHeader({
           >
             <Video className="w-4 h-4" />
             <span className="hidden sm:inline">Видеозвонок</span>
+          </Button>
+        )}
+        
+        {/* Block chat button - for doctor after consultation is completed */}
+        {currentSenderType === 'doctor' && isCompleted && !isChatBlocked && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 text-xs gap-1.5 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+            onClick={onBlockChat}
+            disabled={!isConnected}
+          >
+            <Ban className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Запретить пациенту писать</span>
           </Button>
         )}
         <div className={cn(

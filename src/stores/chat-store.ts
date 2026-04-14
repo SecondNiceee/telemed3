@@ -16,6 +16,12 @@ interface ChatState {
   
   // Typing indicator state (senderType для совместимости с socket events)
   typingUsers: Record<number, { senderType: 'user' | 'doctor'; senderId: number } | null>
+  
+  // Appointment statuses (updated via socket)
+  appointmentStatuses: Record<number, string>
+  
+  // Chat blocked state (updated via socket)
+  chatBlocked: Record<number, boolean>
 
   // Actions
   setActiveChat: (appointmentId: number | null) => void
@@ -36,6 +42,10 @@ interface ChatState {
   
   setTypingUser: (appointmentId: number, typingUser: { senderType: 'user' | 'doctor'; senderId: number } | null) => void
   
+  updateAppointmentStatus: (appointmentId: number, status: string) => void
+  
+  setChatBlocked: (appointmentId: number, blocked: boolean) => void
+  
   reset: () => void
 }
 
@@ -45,6 +55,8 @@ const initialState = {
   unreadCounts: {} as Record<number, number>,
   loadingMessages: {} as Record<number, boolean>,
   typingUsers: {} as Record<number, { senderType: 'user' | 'doctor'; senderId: number } | null>,
+  appointmentStatuses: {} as Record<number, string>,
+  chatBlocked: {} as Record<number, boolean>,
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -186,6 +198,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
       typingUsers: {
         ...state.typingUsers,
         [appointmentId]: typingUser,
+      },
+    }))
+  },
+
+  updateAppointmentStatus: (appointmentId, status) => {
+    set((state) => ({
+      appointmentStatuses: {
+        ...state.appointmentStatuses,
+        [appointmentId]: status,
+      },
+    }))
+  },
+
+  setChatBlocked: (appointmentId, blocked) => {
+    set((state) => ({
+      chatBlocked: {
+        ...state.chatBlocked,
+        [appointmentId]: blocked,
       },
     }))
   },
