@@ -45,6 +45,7 @@ export interface TypingPayload {
 
 export interface StopTypingPayload {
   appointmentId: number
+  preferredSenderType?: 'doctor' | 'user'
 }
 
 export interface CallSignalPayload {
