@@ -34,6 +34,7 @@ export interface SendMessagePayload {
 export interface MarkReadPayload {
   appointmentId: number
   messageIds: string[]
+  preferredSenderType?: 'doctor' | 'user'
 }
 
 export interface TypingPayload {
