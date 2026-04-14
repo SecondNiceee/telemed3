@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { User } from "@/payload-types"
 import { UserHeroBanner } from "@/components/user-hero-banner"
 import { UserAppointmentCard } from "@/components/user-appointment-card"
+import { FeedbackPrompt } from "@/components/feedback-prompt"
 import { cn } from "@/lib/utils"
 
 interface LkContentProps {
@@ -77,6 +78,9 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
 
       {/* Appointments list */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Feedback prompt for completed consultations */}
+        <FeedbackPrompt appointments={appointments} userId={user.id} />
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <h2 className="text-base font-semibold text-foreground">Мои записи</h2>
           

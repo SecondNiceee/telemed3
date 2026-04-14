@@ -9,6 +9,7 @@ export { CategoriesApi } from './categories'
 export { DoctorsApi } from './doctors'
 export { AppointmentsApi } from './appointments'
 export { MessagesApi } from './messages'
+export { FeedbacksApi } from './feedbacks'
 export { SiteSettingsApi } from './site-settings'
 export type { SiteSettings, FaqItem } from './site-settings'
 export type {
@@ -19,6 +20,7 @@ export type {
   ApiDoctor,
   ApiAppointment,
   ApiOrganisation,
+  ApiFeedback,
   PayloadListResponse,
 } from './types'
 export type { CreateCategoryPayload } from './categories'
