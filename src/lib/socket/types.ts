@@ -1,5 +1,78 @@
 import type Peer from 'peerjs'
 import type { MediaConnection } from 'peerjs'
+import type { Socket } from 'socket.io'
+
+/**
+ * Socket with authentication data
+ */
+export interface AuthenticatedSocket extends Socket {
+  data: {
+    senderType: 'doctor' | 'user'
+    senderId: number
+    userId?: number
+    doctorId?: number
+    typingInRooms: Set<string>
+  }
+}
+
+/**
+ * Payload types for socket events
+ */
+export interface JoinRoomPayload {
+  appointmentId: number
+}
+
+export interface LeaveRoomPayload {
+  appointmentId: number
+}
+
+export interface SendMessagePayload {
+  appointmentId: number
+  text: string
+}
+
+export interface MarkReadPayload {
+  appointmentId: number
+  messageIds: string[]
+}
+
+export interface TypingPayload {
+  appointmentId: number
+}
+
+export interface StopTypingPayload {
+  appointmentId: number
+}
+
+export interface CallSignalPayload {
+  appointmentId: number
+  callerPeerId: string
+  callerName: string
+}
+
+export interface CallAnswerPayload {
+  appointmentId: number
+  answerPeerId: string
+}
+
+export interface CallRejectPayload {
+  appointmentId: number
+}
+
+export interface CallEndPayload {
+  appointmentId: number
+}
+
+export interface CallParticipantLeavingPayload {
+  appointmentId: number
+  participantType: 'doctor' | 'user'
+}
+
+export interface CallParticipantRejoiningPayload {
+  appointmentId: number
+  participantType: 'doctor' | 'user'
+  peerId: string
+}
 
 /**
  * Состояние звонка

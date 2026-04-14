@@ -1,17 +1,9 @@
 // socket/middleware/auth.ts
 
 import type { Socket } from 'socket.io'
+import type { AuthenticatedSocket } from '../types'
 import getCookieValue from '../utils/getCookieValue'
 import decodeToken from '../utils/verifyToken'
-// 🔴 Временно меняем импорт:
-
-
-interface AuthenticatedSocket extends Socket 
-   {
-    userId?: number
-    doctorId?: number
-    typingInRooms: Set<string>
-  }
 
 
 export function createAuthMiddleware() {
