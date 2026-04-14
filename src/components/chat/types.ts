@@ -27,7 +27,7 @@ export interface ChatHeaderProps {
   onStartConsultation: () => void
   onStartVideoCall: () => void
   onShowCompleteDialog: () => void
-  onBlockChat: () => void
+  onToggleChatBlock: () => void
 }
 
 export interface ChatMessagesProps {

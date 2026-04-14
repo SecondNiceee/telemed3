@@ -55,19 +55,11 @@ export function ChatInput({
 
   return (
     <div className="p-4 border-t border-border bg-card">
-      {/* Chat blocked notice for patient */}
+      {/* Chat blocked notice for patient - cannot send messages */}
       {isChatBlocked && currentSenderType === 'user' && (
-        <div className="flex items-center gap-2 p-3 mb-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>Врач окончательно завершил консультацию. Отправка сообщений недоступна.</span>
-        </div>
-      )}
-      
-      {/* Completed notice for client (only if chat is not blocked) */}
-      {isCompleted && currentSenderType === 'user' && !isChatBlocked && (
-        <div className="flex items-center gap-2 p-3 mb-3 rounded-lg bg-muted text-muted-foreground text-sm">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>Консультация завершена. Вы можете просматривать историю переписки и приложенные материалы.</span>
         </div>
       )}
       

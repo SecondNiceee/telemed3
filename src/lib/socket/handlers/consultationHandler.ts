@@ -5,6 +5,7 @@ import type {
   ConsultationStartPayload, 
   ConsultationEndPayload,
   ChatBlockPayload,
+  ChatUnblockPayload,
 } from '../types'
 import isValidAppointmentId from '../utils/isValidAppointmentId'
 import verifyAppointmentAccess from '../utils/verifyAppointmentAccess'
@@ -161,6 +162,66 @@ export function createChatBlockHandler(io: SocketIOServer, payload: Payload) {
     } catch (error) {
       console.error('[Socket] Failed to block chat:', error)
       socket.emit('error', { message: 'Failed to block chat' })
+    }
+  }
+}
+
+/**
+ * Handle chat unblock event
+ * Only doctors can unblock chat (after consultation is completed)
+ */
+export function createChatUnblockHandler(io: SocketIOServer, payload: Payload) {
+  return async (socket: AuthenticatedSocket, data: ChatUnblockPayload) => {
+    const { appointmentId } = data
+    const { senderType, senderId } = socket.data
+
+    // Only doctors can unblock chat
+    if (senderType !== 'doctor') {
+      socket.emit('error', { message: 'Only doctors can unblock chat' })
+      return
+    }
+
+    if (!isValidAppointmentId(appointmentId)) {
+      socket.emit('error', { message: 'Invalid appointment ID' })
+      return
+    }
+
+    // Verify the doctor has access to this appointment
+    const accessResult = await verifyAppointmentAccess(payload, appointmentId, undefined, senderId)
+    if (!accessResult.hasAccess) {
+      socket.emit('error', { message: 'Access denied to this appointment' })
+      return
+    }
+
+    try {
+      // Get current appointment to check if it's completed
+      const appointment = await payload.findByID({
+        collection: 'appointments',
+        id: appointmentId,
+        overrideAccess: true,
+      })
+
+      if (appointment.status !== 'completed') {
+        socket.emit('error', { message: 'Can only unblock chat for completed consultations' })
+        return
+      }
+
+      // Update appointment to unblock chat
+      await payload.update({
+        collection: 'appointments',
+        id: appointmentId,
+        data: { chatBlocked: false },
+        overrideAccess: true,
+      })
+
+      // Emit to all clients in the room
+      const room = `appointment:${appointmentId}`
+      io.to(room).emit('chat-unblocked', { appointmentId })
+      
+      console.log(`[Socket] Chat unblocked for appointment ${appointmentId} by doctor ${senderId}`)
+    } catch (error) {
+      console.error('[Socket] Failed to unblock chat:', error)
+      socket.emit('error', { message: 'Failed to unblock chat' })
     }
   }
 }

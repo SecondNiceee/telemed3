@@ -44,7 +44,7 @@ export function ChatWindow({
   const [videoSaveStatus, setVideoSaveStatus] = useState<VideoSaveStatus>(null)
 
   // Hooks
-  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, startConsultation, endConsultation, blockChat } = useSocket()
+  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, startConsultation, endConsultation, blockChat, unblockChat } = useSocket()
   const { messages, loadMessages, loadingMessages, typingUsers, setActiveChat, appointmentStatuses, chatBlocked } = useChatStore()
   const videoCall = useVideoCall()
   const { isDragging, handleDragOver, handleDragLeave, handleDrop, clearAttachment } = useFileUpload(appointment.id)
@@ -57,9 +57,11 @@ export function ChatWindow({
   const socketStatus = appointmentStatuses[appointment.id]
   const effectiveStatus = socketStatus || localStatus
   const isCompleted = effectiveStatus === 'completed'
-  const isChatBlocked = chatBlocked[appointment.id] || appointment.chatBlocked === true
-  // User can send messages if: not blocked AND (is doctor OR consultation not completed)
-  const canSendMessages = !isChatBlocked && (currentSenderType === 'doctor' || !isCompleted)
+  const isChatBlocked = chatBlocked[appointment.id] ?? appointment.chatBlocked === true
+  // User can send messages if:
+  // - Doctor can ALWAYS send messages
+  // - Patient can send if chat is NOT blocked
+  const canSendMessages = currentSenderType === 'doctor' || !isChatBlocked
   
   const otherPartyName = currentSenderType === 'user' 
     ? appointment.doctorName || 'Врач'
@@ -154,9 +156,14 @@ export function ChatWindow({
     }
   }
 
-  const handleBlockChat = () => {
-    blockChat(appointment.id)
-    toast.success('Чат заблокирован')
+  const handleToggleChatBlock = () => {
+    if (isChatBlocked) {
+      unblockChat(appointment.id)
+      toast.success('Пациент может писать сообщения')
+    } else {
+      blockChat(appointment.id)
+      toast.success('Пациент больше не может писать сообщения')
+    }
   }
 
   const handleStartConsultationClick = () => {
@@ -356,7 +363,7 @@ export function ChatWindow({
         onStartConsultation={handleStartConsultationClick}
         onStartVideoCall={handleStartVideoConsultation}
         onShowCompleteDialog={() => setShowCompleteDialog(true)}
-        onBlockChat={handleBlockChat}
+        onToggleChatBlock={handleToggleChatBlock}
       />
       
       <ConsultationDialogs
