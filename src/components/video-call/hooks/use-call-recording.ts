@@ -8,11 +8,26 @@ import { getBasePath } from '@/lib/utils/basePath'
 // Интервал отправки chunks (30 секунд)
 const CHUNK_INTERVAL_MS = 30000
 
+// Размеры canvas для записи
+const CANVAS_WIDTH = 1280
+const CANVAS_HEIGHT = 720
+const PIP_WIDTH = 240 // Размер окошка пациента
+const PIP_HEIGHT = 180
+const PIP_MARGIN = 20 // Отступ от края
+
 interface ChunkUploadState {
   appointmentId: number
   doctorId: number
   chunkIndex: number
   mimeType: string
+}
+
+interface CompositeRecordingState {
+  canvas: HTMLCanvasElement
+  ctx: CanvasRenderingContext2D
+  localVideo: HTMLVideoElement
+  remoteVideo: HTMLVideoElement
+  animationFrameId: number
 }
 
 export function useCallRecording(): UseCallRecordingReturn {
@@ -26,6 +41,7 @@ export function useCallRecording(): UseCallRecordingReturn {
   const chunkUploadStateRef = useRef<ChunkUploadState | null>(null)
   const uploadIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const pendingChunksRef = useRef<Blob[]>([])
+  const compositeStateRef = useRef<CompositeRecordingState | null>(null)
 
   // Upload a chunk to the server
   const uploadChunk = useCallback(async (
@@ -137,6 +153,118 @@ export function useCallRecording(): UseCallRecordingReturn {
     }
   }, [])
 
+  // Create composite stream with Picture-in-Picture effect
+  // Local (doctor) video = main, Remote (patient) video = small PiP in corner
+  const createCompositeStream = useCallback((
+    localStream: MediaStream,
+    remoteStream: MediaStream
+  ): MediaStream => {
+    // Create canvas for video compositing
+    const canvas = document.createElement('canvas')
+    canvas.width = CANVAS_WIDTH
+    canvas.height = CANVAS_HEIGHT
+    const ctx = canvas.getContext('2d')!
+    
+    // Create hidden video elements for streams
+    const localVideo = document.createElement('video')
+    localVideo.srcObject = localStream
+    localVideo.muted = true
+    localVideo.playsInline = true
+    localVideo.autoplay = true
+    
+    const remoteVideo = document.createElement('video')
+    remoteVideo.srcObject = remoteStream
+    remoteVideo.muted = true
+    remoteVideo.playsInline = true
+    remoteVideo.autoplay = true
+
+    // Start playback
+    localVideo.play().catch(console.error)
+    remoteVideo.play().catch(console.error)
+    
+    // Animation loop for compositing
+    const drawFrame = () => {
+      // Draw local (doctor) video as main background
+      if (localVideo.readyState >= 2) {
+        ctx.drawImage(localVideo, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+      } else {
+        // Fill with dark background if video not ready
+        ctx.fillStyle = '#1a1a1a'
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+      }
+      
+      // Draw remote (patient) video as PiP in bottom-right corner
+      if (remoteVideo.readyState >= 2) {
+        const pipX = CANVAS_WIDTH - PIP_WIDTH - PIP_MARGIN
+        const pipY = CANVAS_HEIGHT - PIP_HEIGHT - PIP_MARGIN
+        
+        // Draw border/shadow for PiP
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+        ctx.fillRect(pipX - 2, pipY - 2, PIP_WIDTH + 4, PIP_HEIGHT + 4)
+        
+        // Draw PiP video
+        ctx.drawImage(remoteVideo, pipX, pipY, PIP_WIDTH, PIP_HEIGHT)
+        
+        // Draw thin border
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+        ctx.lineWidth = 1
+        ctx.strokeRect(pipX, pipY, PIP_WIDTH, PIP_HEIGHT)
+      }
+      
+      compositeStateRef.current!.animationFrameId = requestAnimationFrame(drawFrame)
+    }
+    
+    const animationFrameId = requestAnimationFrame(drawFrame)
+    
+    // Store state for cleanup
+    compositeStateRef.current = {
+      canvas,
+      ctx,
+      localVideo,
+      remoteVideo,
+      animationFrameId,
+    }
+    
+    // Create stream from canvas
+    const canvasStream = canvas.captureStream(30) // 30 FPS
+    
+    // Combine canvas video with BOTH audio tracks
+    const combinedStream = new MediaStream()
+    
+    // Add canvas video track
+    canvasStream.getVideoTracks().forEach(track => {
+      combinedStream.addTrack(track)
+    })
+    
+    // Add audio tracks from both streams (both doctor and patient audio)
+    localStream.getAudioTracks().forEach(track => {
+      combinedStream.addTrack(track)
+    })
+    remoteStream.getAudioTracks().forEach(track => {
+      combinedStream.addTrack(track)
+    })
+    
+    console.log('[Recording] Composite stream created:', {
+      videoTracks: combinedStream.getVideoTracks().length,
+      audioTracks: combinedStream.getAudioTracks().length,
+      canvasSize: `${CANVAS_WIDTH}x${CANVAS_HEIGHT}`,
+      pipSize: `${PIP_WIDTH}x${PIP_HEIGHT}`,
+    })
+    
+    return combinedStream
+  }, [])
+
+  // Cleanup composite recording resources
+  const cleanupCompositeState = useCallback(() => {
+    if (compositeStateRef.current) {
+      cancelAnimationFrame(compositeStateRef.current.animationFrameId)
+      compositeStateRef.current.localVideo.srcObject = null
+      compositeStateRef.current.remoteVideo.srcObject = null
+      compositeStateRef.current = null
+      console.log('[Recording] Composite state cleaned up')
+    }
+  }, [])
+
   // Finalize recording on server
   const finalizeRecording = useCallback(async (): Promise<boolean> => {
     const state = chunkUploadStateRef.current
@@ -202,10 +330,13 @@ export function useCallRecording(): UseCallRecordingReturn {
     }
   }, [uploadChunk])
 
+  // Start recording with Picture-in-Picture composite
+  // localStream = doctor's camera, remoteStream = patient's camera
   const startRecording = useCallback((
-    stream: MediaStream,
+    localStream: MediaStream,
     appointmentId?: number,
-    doctorId?: number
+    doctorId?: number,
+    remoteStream?: MediaStream
   ) => {
     if (mediaRecorderRef.current?.state === 'recording') {
       console.log('[Recording] Already recording')
@@ -215,6 +346,16 @@ export function useCallRecording(): UseCallRecordingReturn {
     try {
       chunksRef.current = []
       pendingChunksRef.current = []
+
+      // Create composite stream with PiP if we have both streams
+      let recordingStream: MediaStream
+      if (remoteStream) {
+        console.log('[Recording] Creating PiP composite stream (doctor + patient)')
+        recordingStream = createCompositeStream(localStream, remoteStream)
+      } else {
+        console.log('[Recording] Recording single stream only')
+        recordingStream = localStream
+      }
 
       // Try to use VP9 for better quality, fall back to VP8 or default
       const mimeTypes = [
@@ -232,7 +373,7 @@ export function useCallRecording(): UseCallRecordingReturn {
       }
 
       const options = selectedMimeType ? { mimeType: selectedMimeType } : undefined
-      const recorder = new MediaRecorder(stream, options)
+      const recorder = new MediaRecorder(recordingStream, options)
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -245,6 +386,7 @@ export function useCallRecording(): UseCallRecordingReturn {
         const blob = new Blob(chunksRef.current, { type: selectedMimeType || 'video/webm' })
         setRecordingBlob(blob)
         setIsRecording(false)
+        cleanupCompositeState() // Clean up canvas and videos
         console.log('[Recording] Stopped, total blob size:', blob.size)
       }
 
