@@ -41,6 +41,7 @@ export interface MarkReadPayload {
 
 export interface TypingPayload {
   appointmentId: number
+  preferredSenderType?: 'doctor' | 'user'
 }
 
 export interface StopTypingPayload {
