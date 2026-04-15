@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useSocket } from '@/components/socket-provider'
 import { useChatStore } from '@/stores/chat-store'
+import { useFeedbackStore } from '@/stores/feedback-store'
 import { useVideoCall } from '@/components/video-call'
 import { getCountdownParts } from '@/lib/utils/date'
 import { getBaseUrl } from '@/lib/api/fetch'
@@ -16,6 +17,7 @@ import { ChatInput } from './components/chat-input'
 import { VideoSaveSidebar } from './components/video-save-sidebar'
 import { ConsultationDialogs } from './components/consultation-dialogs'
 import { DragDropOverlay } from './components/drag-drop-overlay'
+import { FeedbackDialog } from '@/components/feedback-dialog'
 import { useFileUpload } from './hooks/use-file-upload'
 
 import type { ChatWindowProps, VideoSaveStatus, ConsultationType } from './types'
@@ -42,10 +44,14 @@ export function ChatWindow({
   const [isSavingVideo, setIsSavingVideo] = useState(false)
   const [videoSaveProgress, setVideoSaveProgress] = useState(0)
   const [videoSaveStatus, setVideoSaveStatus] = useState<VideoSaveStatus>(null)
+  
+  // Feedback state
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false)
 
   // Hooks
   const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, startConsultation, endConsultation, blockChat, unblockChat } = useSocket()
   const { messages, loadMessages, loadingMessages, typingUsers, setActiveChat, appointmentStatuses, chatBlocked } = useChatStore()
+  const { feedbackExistsByAppointment, checkFeedbackExists, setFeedbackExists } = useFeedbackStore()
   const videoCall = useVideoCall()
   const { isDragging, handleDragOver, handleDragLeave, handleDrop, clearAttachment } = useFileUpload(appointment.id)
 
@@ -139,6 +145,13 @@ export function ChatWindow({
     clearAttachment()
   }, [appointment.id, clearAttachment])
 
+  // Check if feedback exists for this appointment (only for completed consultations and patients)
+  useEffect(() => {
+    if (currentSenderType === 'user' && (isCompleted || appointment.status === 'completed')) {
+      checkFeedbackExists(appointment.id)
+    }
+  }, [appointment.id, appointment.status, isCompleted, currentSenderType, checkFeedbackExists])
+
   // Handlers
   const handleCompleteAppointment = async () => {
     setIsCompleting(true)
@@ -165,6 +178,16 @@ export function ChatWindow({
       toast.success('Пациент больше не может писать сообщения')
     }
   }
+
+  const handleFeedbackSuccess = () => {
+    setFeedbackExists(appointment.id, true)
+    setShowFeedbackDialog(false)
+  }
+
+  // Get doctor info for feedback dialog
+  const doctorId = typeof appointment.doctor === 'object' ? appointment.doctor.id : appointment.doctor
+  const doctorName = appointment.doctorName || (typeof appointment.doctor === 'object' ? appointment.doctor.name : null) || 'Врач'
+  const hasFeedback = feedbackExistsByAppointment[appointment.id] === true
 
   const handleStartConsultationClick = () => {
     setShowConsultationTypeDialog(true)
@@ -348,23 +371,26 @@ export function ChatWindow({
         status={videoSaveStatus}
       />
       
-      <ChatHeader
-        appointment={appointment}
-        currentSenderType={currentSenderType}
-        otherPartyName={otherPartyName}
-        localStatus={localStatus}
-        isCompleted={isCompleted}
-        isConnected={isConnected}
-        consultationType={consultationType}
-        countdownParts={countdownParts}
-        videoCallStatus={videoCall.status}
-        isChatBlocked={isChatBlocked}
-        onBack={onBack}
-        onStartConsultation={handleStartConsultationClick}
-        onStartVideoCall={handleStartVideoConsultation}
-        onShowCompleteDialog={() => setShowCompleteDialog(true)}
-        onToggleChatBlock={handleToggleChatBlock}
-      />
+<ChatHeader
+  appointment={appointment}
+  currentSenderType={currentSenderType}
+  currentSenderId={currentSenderId}
+  otherPartyName={otherPartyName}
+  localStatus={localStatus}
+  isCompleted={isCompleted}
+  isConnected={isConnected}
+  consultationType={consultationType}
+  countdownParts={countdownParts}
+  videoCallStatus={videoCall.status}
+  isChatBlocked={isChatBlocked}
+  hasFeedback={hasFeedback}
+  onBack={onBack}
+  onStartConsultation={handleStartConsultationClick}
+  onStartVideoCall={handleStartVideoConsultation}
+  onShowCompleteDialog={() => setShowCompleteDialog(true)}
+  onToggleChatBlock={handleToggleChatBlock}
+  onLeaveFeedback={() => setShowFeedbackDialog(true)}
+  />
       
       <ConsultationDialogs
         showCompleteDialog={showCompleteDialog}
@@ -388,17 +414,30 @@ export function ChatWindow({
         recording={appointment.recording as { url?: string } | null}
       />
 
-      <ChatInput
-        appointmentId={appointment.id}
-        isConnected={isConnected}
-        canSendMessages={canSendMessages}
-        isCompleted={isCompleted}
-        isChatBlocked={isChatBlocked}
-        currentSenderType={currentSenderType}
-        onSendMessage={handleSendMessage}
-        onStartTyping={handleStartTyping}
-        onStopTyping={handleStopTyping}
-      />
-    </div>
+<ChatInput
+  appointmentId={appointment.id}
+  isConnected={isConnected}
+  canSendMessages={canSendMessages}
+  isCompleted={isCompleted}
+  isChatBlocked={isChatBlocked}
+  currentSenderType={currentSenderType}
+  onSendMessage={handleSendMessage}
+  onStartTyping={handleStartTyping}
+  onStopTyping={handleStopTyping}
+  />
+  
+  {/* Feedback Dialog for patient */}
+  {currentSenderType === 'user' && (
+    <FeedbackDialog
+      open={showFeedbackDialog}
+      onOpenChange={setShowFeedbackDialog}
+      doctorName={doctorName}
+      doctorId={doctorId}
+      appointmentId={appointment.id}
+      userId={currentSenderId}
+      onSuccess={handleFeedbackSuccess}
+    />
+  )}
+  </div>
   )
-}
+  }

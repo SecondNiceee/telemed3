@@ -33,11 +33,11 @@ export const FeedbacksApi = {
   },
 
   /**
-   * Get all feedbacks for a doctor
+   * Get all feedbacks for a doctor (with user details)
    */
   async getByDoctor(doctorId: number): Promise<ApiFeedback[]> {
     const response = await apiFetch<PayloadListResponse<ApiFeedback>>(
-      `/api/feedbacks?where[doctor][equals]=${doctorId}&sort=-createdAt&depth=1`
+      `/api/feedbacks?where[doctor][equals]=${doctorId}&sort=-createdAt&depth=2`
     )
     return response.docs
   },

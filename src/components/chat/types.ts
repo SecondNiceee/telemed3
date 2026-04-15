@@ -15,6 +15,7 @@ export type ConsultationType = 'video' | 'chat' | null
 export interface ChatHeaderProps {
   appointment: ApiAppointment
   currentSenderType: 'user' | 'doctor'
+  currentSenderId: number
   otherPartyName: string
   localStatus: string
   isCompleted: boolean
@@ -23,11 +24,13 @@ export interface ChatHeaderProps {
   countdownParts: { days: number; hours: number; minutes: number; seconds: number; total: number } | null
   videoCallStatus: string
   isChatBlocked?: boolean
+  hasFeedback?: boolean
   onBack?: () => void
   onStartConsultation: () => void
   onStartVideoCall: () => void
   onShowCompleteDialog: () => void
   onToggleChatBlock: () => void
+  onLeaveFeedback?: () => void
 }
 
 export interface ChatMessagesProps {

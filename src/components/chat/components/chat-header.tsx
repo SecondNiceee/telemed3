@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, Video, CheckCircle2, Ban, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Video, CheckCircle2, Ban, MessageCircle, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { formatCountdown } from '@/lib/utils/date'
@@ -9,6 +9,7 @@ import type { ChatHeaderProps } from '../types'
 export function ChatHeader({
   appointment,
   currentSenderType,
+  currentSenderId,
   otherPartyName,
   localStatus,
   isCompleted,
@@ -17,11 +18,13 @@ export function ChatHeader({
   countdownParts,
   videoCallStatus,
   isChatBlocked,
+  hasFeedback,
   onBack,
   onStartConsultation,
   onStartVideoCall,
   onShowCompleteDialog,
   onToggleChatBlock,
+  onLeaveFeedback,
 }: ChatHeaderProps) {
   return (
     <div className="flex flex-col border-b border-border bg-card">
@@ -72,9 +75,24 @@ export function ChatHeader({
           {appointment.specialty && (
             <span className="text-sm font-medium text-muted-foreground block mb-1">{appointment.specialty}</span>
           )}
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
-            <span className="text-base font-semibold text-muted-foreground">Консультация завершена</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+              <span className="text-base font-semibold text-muted-foreground">Консультация завершена</span>
+            </div>
+            {/* Feedback button for patient when consultation is completed and no feedback exists */}
+            {currentSenderType === 'user' && !hasFeedback && onLeaveFeedback && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 text-xs gap-1.5 border-yellow-500 text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700"
+                onClick={onLeaveFeedback}
+              >
+                <Star className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Оставьте отзыв о враче</span>
+                <span className="sm:hidden">Отзыв</span>
+              </Button>
+            )}
           </div>
         </div>
       )}
