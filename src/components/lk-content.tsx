@@ -32,12 +32,13 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
     }
   }, [storeUser, user, setUser])
 
-  // Sync server-loaded appointments to store
+  // Always sync server-loaded appointments to store on initial load
+  // This ensures fresh SSR data is used even if store was populated by booking
   useEffect(() => {
-    if (serverAppointments.length > 0 && !apptFetched) {
+    if (serverAppointments.length > 0) {
       setAppointments(serverAppointments)
     }
-  }, [serverAppointments, apptFetched, setAppointments])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!userFetched || userLoading) {
     return (
