@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { Media } from "@/payload-types";
+import { DoctorReviews } from "@/components/doctor-reviews";
 
 interface DoctorPageProps {
   params: Promise<{ id: string }>;
@@ -239,13 +240,16 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                 </div>
               </CardContent>
             </Card>
-          </div>
-
-          {/* CTA */}
-          <Card className="border-2 border-primary/20 bg-primary/5">
-            <CardContent className="p-6 text-center">
-              <h3 className="text-xl font-semibold mb-2 text-foreground">
-                Готовы записаться на прием?
+  </div>
+  
+  {/* Reviews Section */}
+  <DoctorReviews doctorId={doctor.id} doctorName={doctor.name || 'Врач'} />
+  
+  {/* CTA */}
+  <Card className="border-2 border-primary/20 bg-primary/5">
+  <CardContent className="p-6 text-center">
+  <h3 className="text-xl font-semibold mb-2 text-foreground">
+  Готовы записаться на прием?
               </h3>
               <p className="text-muted-foreground mb-4">
                 Выберите удобную дату и время для консультации
