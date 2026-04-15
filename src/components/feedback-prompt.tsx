@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Star, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FeedbackDialog } from '@/components/feedback-dialog'
-import { FeedbacksApi } from '@/lib/api'
+import { FeedbacksApi } from '@/lib/api/feedbacks'
 import type { ApiAppointment, ApiDoctor } from '@/lib/api/types'
 
 interface FeedbackPromptProps {

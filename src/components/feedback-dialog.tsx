@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { FeedbacksApi } from '@/lib/api'
+import { FeedbacksApi } from '@/lib/api/feedbacks'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
