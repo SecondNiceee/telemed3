@@ -69,7 +69,7 @@ export function AppointmentCountdownBanner({
   if (!parts) return null
 
   const countdown = formatCountdown(parts)
-  const dateFormatted = appointment.date.split("-").reverse().slice(0, 2).join(".")
+  const dateFormatted = appointment.date ? appointment.date.split("-").reverse().slice(0, 2).join(".") : ""
   const resolvedChatHref = chatHref ?? `/lk/chat?appointment=${appointment.id}`
 
   // ─── Compact header variant ────────────────────────────────────────────────

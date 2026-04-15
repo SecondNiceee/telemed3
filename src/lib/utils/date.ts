@@ -2,7 +2,9 @@
  * Format date string to Russian locale (e.g., "15 марта 2024")
  */
 export function formatDate(dateStr: string): string {
+  if (!dateStr) return "Дата не указана"
   const date = new Date(dateStr + "T00:00:00")
+  if (isNaN(date.getTime())) return "Некорректная дата"
   return date.toLocaleDateString("ru-RU", {
     day: "numeric",
     month: "long",
@@ -60,12 +62,12 @@ export function getUpcomingAppointment<T extends { date: string; time: string; s
 ): T | null {
   const now = new Date()
   const upcoming = appointments
-    .filter((a) => a.status === "confirmed")
+    .filter((a) => a.status === "confirmed" && a.date && a.time)
     .map((a) => ({
       appt: a,
       dt: new Date(`${a.date}T${a.time}`),
     }))
-    .filter(({ dt }) => dt > now)
+    .filter(({ dt }) => !isNaN(dt.getTime()) && dt > now)
     .sort((a, b) => a.dt.getTime() - b.dt.getTime())
   
   
@@ -74,7 +76,7 @@ export function getUpcomingAppointment<T extends { date: string; time: string; s
 
 /**
  * Get diff string "X дней HH:MM:SS" or "HH:MM:SS" until a future datetime
- * Returns null if the date is in the past
+ * Returns null if the date is in the past or invalid
  */
 export function getCountdownParts(dateStr: string, timeStr: string): {
   days: number
@@ -83,7 +85,9 @@ export function getCountdownParts(dateStr: string, timeStr: string): {
   seconds: number
   total: number
 } | null {
+  if (!dateStr || !timeStr) return null
   const target = new Date(`${dateStr}T${timeStr}`)
+  if (isNaN(target.getTime())) return null
   const diff = target.getTime() - Date.now()
   if (diff <= 0) return null
 

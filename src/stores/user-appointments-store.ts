@@ -71,15 +71,18 @@ export const useUserAppointmentStore = create<UserAppointmentState>((set, get) =
       const { doctorData, ...payload } = data
       const appointment = await AppointmentsApi.create(payload)
       
-      // Embed full doctor object if provided, so UI has all info immediately
+      // Use the API response directly - it has the correct data
+      // Only enrich doctor object if API returned just an ID and we have doctorData
       const enrichedAppointment: ApiAppointment = {
         ...appointment,
-        doctor: doctorData ? { 
-          id: payload.doctor,
-          email: doctorData.email || '',
-          name: doctorData.name,
-          ...doctorData 
-        } as ApiDoctor : appointment.doctor,
+        doctor: (typeof appointment.doctor === 'number' && doctorData) 
+          ? { 
+              id: payload.doctor,
+              email: doctorData.email || '',
+              name: doctorData.name,
+              ...doctorData 
+            } as ApiDoctor 
+          : appointment.doctor,
       }
       
       set((state) => ({
