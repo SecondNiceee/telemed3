@@ -1,6 +1,8 @@
 import { apiFetch } from './fetch'
 import type { ApiFeedback, PayloadListResponse } from './types'
 
+// Feedbacks API for managing doctor reviews
+
 export interface CreateFeedbackData {
   appointment: number
   doctor: number
