@@ -12,6 +12,14 @@ const revalidateCategories = async () => {
   }
 }
 
+const accessChecker = ({ req } : {req : PayloadRequest  }) => {
+  const organizationCaller = getCallerFromRequest(req, 'organisations');
+  const usersCaller = getCallerFromRequest(req, "users");
+  if (organizationCaller.collection === "organisations") return true ;
+  if (usersCaller.role  === "admin") return true;
+  return false
+},
+
 /**
  * Populate req.user from the organisations cookie (organisations-token) without a DB query.
  * JWT already contains id, email, collection -- enough for all access checks.
@@ -27,18 +35,9 @@ export const DoctorCategories: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: ({ req }) => {
-      const caller = getCallerFromRequest(req, 'organisations')
-      return caller?.role === 'admin' || caller?.collection === 'organisations'
-    },
-    update: ({ req }) => {
-      const caller = getCallerFromRequest(req, 'organisations')
-      return caller?.role === 'admin'
-    },
-    delete: ({ req }) => {
-      const caller = getCallerFromRequest(req, 'organisations')
-      return caller?.role === 'admin'
-    },
+    create:  accessChecker,
+    update: accessChecker,
+    delete: accessChecker
   },
   hooks: {
     afterChange: [
