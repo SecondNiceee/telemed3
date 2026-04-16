@@ -20,7 +20,7 @@ export const SiteSettings: GlobalConfig = {
   access: {
     read: () => true,
     update: ({req}) => {
-      const user = getCallerFromRequest(req);
+      const user = getCallerFromRequest(req, "users");
       return user.role === "admin"
     },
   },
