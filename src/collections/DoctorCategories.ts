@@ -18,7 +18,7 @@ const accessChecker = ({ req } : {req : PayloadRequest  }) => {
   if (organizationCaller.collection === "organisations") return true ;
   if (usersCaller.role  === "admin") return true;
   return false
-},
+}
 
 /**
  * Populate req.user from the organisations cookie (organisations-token) without a DB query.
