@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { Calendar, Clock, CheckCircle, Search, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { Calendar, Clock, CheckCircle, Search, ChevronLeft, ChevronRight, Loader2, Video } from "lucide-react"
 import { DoctorsApi } from "@/lib/api/doctors"
 import type { ApiDoctor } from "@/lib/api/types"
 import type { OrgStats } from "@/app/(frontend)/lk-org/page"
@@ -96,7 +96,7 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
         <OrgPageHeader userName={userName} />
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -105,6 +105,17 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats.total}</p>
                 <p className="text-xs text-muted-foreground">Всего консультаций</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                <Video className="w-5 h-5 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{stats.active}</p>
+                <p className="text-xs text-muted-foreground">Текущих</p>
               </div>
             </div>
           </div>
