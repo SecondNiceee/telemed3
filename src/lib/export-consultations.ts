@@ -39,7 +39,7 @@ export function exportConsultationsToExcel(
   })
 
   // Set column widths
-  const colWidths = [20, 20, 20, 15, 15, 20, 40]
+  const colWidths = [20, 40, 20, 15, 15, 40, 80]
   ws['!cols'] = colWidths.map((width) => ({ wch: width }))
 
   const wb = XLSX.utils.book_new()
