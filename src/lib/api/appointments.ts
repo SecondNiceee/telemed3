@@ -118,4 +118,57 @@ export class AppointmentsApi {
       { ...options, cache: 'no-store' },
     )
   }
+
+  /**
+   * Fetch appointments for multiple doctors with pagination and filtering (client-side)
+   * Used by org consultations page
+   */
+  static async fetchByDoctorsPaginated(
+    doctorIds: number[],
+    options: {
+      page?: number
+      limit?: number
+      search?: string
+      sort?: 'all' | 'now' | 'future' | 'past'
+    } = {}
+  ): Promise<PayloadListResponse<ApiAppointment>> {
+    if (doctorIds.length === 0) {
+      return { docs: [], totalDocs: 0, limit: 10, totalPages: 0, page: 1, pagingCounter: 1, hasPrevPage: false, hasNextPage: false, prevPage: null, nextPage: null }
+    }
+    
+    const { page = 1, limit = 10, search, sort = 'all' } = options
+    const params = new URLSearchParams()
+    
+    // Filter by doctor IDs
+    doctorIds.forEach(id => params.append('where[doctor][in]', String(id)))
+    
+    // Exclude cancelled
+    params.append('where[status][not_equals]', 'cancelled')
+    
+    // Sort filter
+    if (sort === 'now') {
+      params.append('where[status][equals]', 'in_progress')
+    } else if (sort === 'past') {
+      params.append('where[status][equals]', 'completed')
+    } else if (sort === 'future') {
+      params.append('where[status][equals]', 'confirmed')
+    }
+    // 'all' - no additional status filter
+    
+    // Search by doctor name or user name
+    if (search) {
+      params.append('where[or][0][doctorName][contains]', search)
+      params.append('where[or][1][userName][contains]', search)
+    }
+    
+    params.append('limit', String(limit))
+    params.append('page', String(page))
+    params.append('depth', '1')
+    params.append('sort', '-date')
+    
+    return apiFetch<PayloadListResponse<ApiAppointment>>(
+      `/api/appointments?${params.toString()}`,
+      { credentials: 'include' },
+    )
+  }
 }
