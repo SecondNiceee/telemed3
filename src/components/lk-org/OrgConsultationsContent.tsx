@@ -126,8 +126,8 @@ export function OrgConsultationsContent({
       // Create a map of doctor durations (default 30 minutes if not available)
       const doctorDurations: Record<number, number> = {}
       consultations.forEach((consultation) => {
-        if (consultation.doctor) {
-          doctorDurations[consultation.doctor] = 30 // Default duration
+        if (consultation.doctor && typeof consultation.doctor === 'object' && consultation.doctor.id) {
+          doctorDurations[consultation.doctor.id] = 30 // Default duration
         }
       })
 
