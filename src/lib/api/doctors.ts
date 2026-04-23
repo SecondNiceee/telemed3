@@ -39,6 +39,25 @@ export class DoctorsApi {
   }
 
   /**
+   * Fetch doctors by organisation ID with pagination and search
+   */
+  static async fetchByOrganisationPaginated(
+    orgId: number,
+    options: { page?: number; limit?: number; search?: string } = {},
+  ): Promise<PayloadListResponse<ApiDoctor>> {
+    const { page = 1, limit = 10, search } = options
+    let url = `/api/doctors?where[organisation][equals]=${orgId}&limit=${limit}&page=${page}&depth=1&sort=name`
+    
+    if (search && search.trim()) {
+      url += `&where[name][contains]=${encodeURIComponent(search.trim())}`
+    }
+    
+    return apiFetch<PayloadListResponse<ApiDoctor>>(url, {
+      cache: 'no-store',
+    })
+  }
+
+  /**
    * Fetch doctor by ID
    */
   static async fetchById(id: number | string): Promise<ApiDoctor> {

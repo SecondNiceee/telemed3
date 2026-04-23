@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import { Calendar, Clock, CheckCircle } from "lucide-react"
+import { useState, useCallback, useEffect } from "react"
+import { Calendar, Clock, CheckCircle, Search, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { DoctorsApi } from "@/lib/api/doctors"
 import type { ApiDoctor } from "@/lib/api/types"
 import type { OrgStats } from "@/app/(frontend)/lk-org/page"
@@ -10,6 +10,8 @@ import { DoctorsListHeader } from "@/components/lk-org/DoctorsListHeader"
 import { EmptyDoctorsList } from "@/components/lk-org/EmptyDoctorsList"
 import { OrgDoctorCard } from "@/components/lk-org/OrgDoctorCard"
 import { DeleteDoctorDialog } from "@/components/lk-org/DeleteDoctorDialog"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
 interface LkOrgContentProps {
   userName: string
@@ -18,9 +20,53 @@ interface LkOrgContentProps {
   stats: OrgStats
 }
 
-export function LkOrgContent({ userName, initialDoctors, stats }: LkOrgContentProps) {
+const DOCTORS_PER_PAGE = 10
+
+export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgContentProps) {
   const [deleteDoctor, setDeleteDoctor] = useState<ApiDoctor | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  
+  // Pagination & search state
+  const [doctors, setDoctors] = useState<ApiDoctor[]>(initialDoctors)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalDocs, setTotalDocs] = useState(initialDoctors.length)
+  const [isLoading, setIsLoading] = useState(false)
+  const [refetchTrigger, setRefetchTrigger] = useState(0)
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+      setCurrentPage(1) // Reset to first page on search
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Fetch doctors when page or search changes
+  useEffect(() => {
+    async function fetchDoctors() {
+      setIsLoading(true)
+      try {
+        const response = await DoctorsApi.fetchByOrganisationPaginated(orgId, {
+          page: currentPage,
+          limit: DOCTORS_PER_PAGE,
+          search: debouncedSearch || undefined,
+        })
+        setDoctors(response.docs)
+        setTotalPages(response.totalPages)
+        setTotalDocs(response.totalDocs)
+      } catch (error) {
+        console.error("Failed to fetch doctors:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchDoctors()
+  }, [orgId, currentPage, debouncedSearch, refetchTrigger])
 
   const handleDeleteRequest = useCallback((doctor: ApiDoctor) => {
     setDeleteDoctor(doctor)
@@ -36,7 +82,7 @@ export function LkOrgContent({ userName, initialDoctors, stats }: LkOrgContentPr
     try {
       await DoctorsApi.delete(deleteDoctor.id)
       setDeleteDoctor(null)
-      window.location.reload()
+      setRefetchTrigger((t) => t + 1) // Trigger refetch
     } catch (err) {
       alert(err instanceof Error ? err.message : "Не удалось удалить врача")
     } finally {
@@ -87,19 +133,68 @@ export function LkOrgContent({ userName, initialDoctors, stats }: LkOrgContentPr
         </div>
 
         <div className="flex flex-col gap-4">
-          <DoctorsListHeader count={initialDoctors.length} />
+          <div className="flex items-center justify-between gap-4">
+            <DoctorsListHeader count={totalDocs} />
+            
+            {/* Search Input */}
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Поиск по имени..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
 
-          {initialDoctors.length === 0 ? (
-            <EmptyDoctorsList />
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : doctors.length === 0 ? (
+            debouncedSearch ? (
+              <div className="text-center py-12 text-muted-foreground">
+                По запросу &quot;{debouncedSearch}&quot; врачи не найдены
+              </div>
+            ) : (
+              <EmptyDoctorsList />
+            )
           ) : (
             <div className="flex flex-col gap-3">
-              {initialDoctors.map((doctor) => (
+              {doctors.map((doctor) => (
                 <OrgDoctorCard
                   key={doctor.id}
                   doctor={doctor}
                   onDeleteRequest={handleDeleteRequest}
                 />
               ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1 || isLoading}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-sm text-muted-foreground px-2">
+                {currentPage} из {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || isLoading}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
             </div>
           )}
         </div>
