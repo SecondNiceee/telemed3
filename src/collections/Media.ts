@@ -28,5 +28,9 @@ export const Media: CollectionConfig = {
       required: false,
     },
   ],
-  upload: true,
+  upload: {
+    staticDir: 'media',
+    mimeTypes: ['image/*', 'video/*', 'audio/*', 'application/pdf'],
+    filesRequiredOnCreate: false,
+  },
 }
