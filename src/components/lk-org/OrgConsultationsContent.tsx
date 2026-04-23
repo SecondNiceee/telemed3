@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import {
   Search,
   ChevronLeft,
@@ -53,7 +53,6 @@ export function OrgConsultationsContent({
   initialSort,
 }: OrgConsultationsContentProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   
   const [consultations, setConsultations] = useState<ApiAppointment[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -63,14 +62,9 @@ export function OrgConsultationsContent({
   const [totalDocs, setTotalDocs] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [activeSort, setActiveSort] = useState<SortType>(initialSort)
-
-  // Sync sort from URL
-  useEffect(() => {
-    const sortFromUrl = searchParams.get('sort') as SortType | null
-    if (sortFromUrl && ['all', 'now', 'future', 'past'].includes(sortFromUrl)) {
-      setActiveSort(sortFromUrl)
-    }
-  }, [searchParams])
+  
+  // Track if this is the initial mount to avoid double fetch
+  const isInitialMount = useRef(true)
 
   // Debounce search input
   useEffect(() => {
@@ -113,11 +107,13 @@ export function OrgConsultationsContent({
     fetchConsultations()
   }, [doctorIds, currentPage, debouncedSearch, activeSort])
 
-  const handleSortChange = (sort: SortType) => {
+  const handleSortChange = useCallback((sort: SortType) => {
+    if (sort === activeSort) return // Don't refetch if same sort
     setActiveSort(sort)
     setCurrentPage(1)
-    router.push(`/lk-org/consultations?sort=${sort}`, { scroll: false })
-  }
+    // Update URL without triggering navigation/refetch
+    window.history.replaceState(null, '', `/lk-org/consultations?sort=${sort}`)
+  }, [activeSort])
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
