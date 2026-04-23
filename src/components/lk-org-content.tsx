@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react"
 import { Calendar, Clock, CheckCircle, Search, ChevronLeft, ChevronRight, Loader2, Video } from "lucide-react"
+import Link from "next/link"
 import { DoctorsApi } from "@/lib/api/doctors"
 import type { ApiDoctor } from "@/lib/api/types"
 import type { OrgStats } from "@/app/(frontend)/lk-org/page"
@@ -97,7 +98,10 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <div className="rounded-xl border border-border bg-card p-4">
+          <Link
+            href="/lk-org/consultations?sort=all"
+            className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-primary/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <Calendar className="w-5 h-5 text-primary" />
@@ -107,8 +111,11 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
                 <p className="text-xs text-muted-foreground">Всего консультаций</p>
               </div>
             </div>
-          </div>
-          <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4">
+          </Link>
+          <Link
+            href="/lk-org/consultations?sort=now"
+            className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 shadow-sm hover:shadow-md hover:border-orange-500/60 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
                 <Video className="w-5 h-5 text-orange-500" />
@@ -118,8 +125,11 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
                 <p className="text-xs text-muted-foreground">Текущих</p>
               </div>
             </div>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          </Link>
+          <Link
+            href="/lk-org/consultations?sort=future"
+            className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-blue-500/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
                 <Clock className="w-5 h-5 text-blue-500" />
@@ -129,8 +139,11 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
                 <p className="text-xs text-muted-foreground">Предстоящих</p>
               </div>
             </div>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          </Link>
+          <Link
+            href="/lk-org/consultations?sort=past"
+            className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-green-500/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-green-500" />
@@ -140,7 +153,7 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
                 <p className="text-xs text-muted-foreground">Прошедших</p>
               </div>
             </div>
-          </div>
+          </Link>
         </div>
 
         <div className="flex flex-col gap-4">
