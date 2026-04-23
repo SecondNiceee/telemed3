@@ -169,6 +169,14 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (file) {
+      const MAX_SIZE_MB = 10
+      const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
+      if (file.size > MAX_SIZE_BYTES) {
+        setError("Максимальный размер фото 10мб, сожмите его или используйте другое")
+        e.target.value = ""
+        return
+      }
+      setError(null)
       setPhoto(file)
       setPhotoPreview(URL.createObjectURL(file))
     }
@@ -637,7 +645,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
                     Нажмите для загрузки фото
                   </span>
                   <span className="text-xs text-muted-foreground/60">
-                    JPG, PNG до 5 МБ
+                    JPG, PNG до 10 МБ
                   </span>
                   <input
                     id="doctor-photo"
