@@ -7,7 +7,7 @@ const nextConfig = {
     experimental: {
       
       serverActions: {
-        bodySizeLimit: '2mb',
+        bodySizeLimit: '11mb',
         allowedOrigins: ['smartcardio.ru', 'www.smartcardio.ru', 'localhost:3000']
       }
     },
