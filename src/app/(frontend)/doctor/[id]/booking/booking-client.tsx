@@ -297,9 +297,9 @@ export function BookingClient({
                       </div>
                     )}
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Цена:</span>
+                      <span className="text-muted-foreground">Стоимость цена:</span>
                       <span className="font-medium text-foreground">{doctorPrice.toLocaleString("ru-RU")} ₽</span>
-                    </div>
+                    </div>Ы
                   </div>
                 </div>
               </div>

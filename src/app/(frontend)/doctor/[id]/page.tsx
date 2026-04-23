@@ -134,7 +134,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                     )}
                     {doctor.price != null && (
                       <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-base">Цена:</span>
+                        <span className="text-muted-foreground text-base">Стоимость консультации:</span>
                         <span className="font-medium text-foreground text-base">{doctor.price.toLocaleString("ru-RU")} ₽</span>
                       </div>
                     )}

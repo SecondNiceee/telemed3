@@ -495,7 +495,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="doctor-price">
-                    Цена консультации (руб.) *
+                    Стоимость консультации (руб.) *
                   </Label>
                   <Input
                     id="doctor-price"
