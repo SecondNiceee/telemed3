@@ -14,6 +14,7 @@ export interface OrgStats {
   total: number
   upcoming: number
   past: number
+  active: number
 }
 
 export default async function LkOrgPage() {
@@ -30,7 +31,7 @@ export default async function LkOrgPage() {
   const doctors = org ? await DoctorsApi.fetchByOrganisation(org.id) : []
   
   // Calculate stats from appointments
-  let stats: OrgStats = { total: 0, upcoming: 0, past: 0 }
+  let stats: OrgStats = { total: 0, upcoming: 0, past: 0, active: 0 }
   
   if (org && doctors.length > 0) {
     const doctorIds = doctors.map(d => d.id)
@@ -40,14 +41,21 @@ export default async function LkOrgPage() {
     stats = appointments.reduce((acc, appt) => {
       if (appt.status === 'cancelled') return acc
       acc.total++
-      const apptDate = new Date(`${appt.date}T${appt.time}`)
-      if (appt.status === 'completed' || apptDate < now) {
+      
+      if (appt.status === 'in_progress') {
+        acc.active++
+      } else if (appt.status === 'completed') {
         acc.past++
       } else {
-        acc.upcoming++
+        const apptDate = new Date(`${appt.date}T${appt.time}`)
+        if (apptDate < now) {
+          acc.past++
+        } else {
+          acc.upcoming++
+        }
       }
       return acc
-    }, { total: 0, upcoming: 0, past: 0 })
+    }, { total: 0, upcoming: 0, past: 0, active: 0 })
   }
 
   return (
