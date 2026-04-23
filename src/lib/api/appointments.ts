@@ -142,18 +142,20 @@ export class AppointmentsApi {
     // Filter by doctor IDs
     doctorIds.forEach(id => params.append('where[doctor][in]', String(id)))
     
-    // Exclude cancelled
-    params.append('where[status][not_equals]', 'cancelled')
-    
-    // Sort filter
+    // Sort filter by status
     if (sort === 'now') {
+      // Only in_progress consultations
       params.append('where[status][equals]', 'in_progress')
     } else if (sort === 'past') {
+      // Only completed consultations
       params.append('where[status][equals]', 'completed')
     } else if (sort === 'future') {
+      // Only confirmed (upcoming) consultations - exclude completed and in_progress
       params.append('where[status][equals]', 'confirmed')
+    } else {
+      // 'all' - exclude only cancelled
+      params.append('where[status][not_equals]', 'cancelled')
     }
-    // 'all' - no additional status filter
     
     // Search by doctor name or user name
     if (search) {
