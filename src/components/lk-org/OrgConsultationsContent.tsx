@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import {
   Search,
   ChevronLeft,
@@ -15,8 +14,10 @@ import {
   CheckCircle,
   User,
   Stethoscope,
+  Download,
 } from "lucide-react"
 import { AppointmentsApi } from "@/lib/api/appointments"
+import { exportConsultationsToExcel } from "@/lib/export-consultations"
 import type { ApiAppointment } from "@/lib/api/types"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -62,6 +63,7 @@ export function OrgConsultationsContent({
   const [totalDocs, setTotalDocs] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [activeSort, setActiveSort] = useState<SortType>(initialSort)
+  const [isExporting, setIsExporting] = useState(false)
   
   // Track if this is the initial mount to avoid double fetch
   const isInitialMount = useRef(true)
@@ -114,6 +116,31 @@ export function OrgConsultationsContent({
     // Update URL without triggering navigation/refetch
     window.history.replaceState(null, '', `/lk-org/consultations?sort=${sort}`)
   }, [activeSort])
+
+  const handleExport = async () => {
+    if (consultations.length === 0) return
+    
+    setIsExporting(true)
+    try {
+      // Create a map of doctor durations (default 30 minutes if not available)
+      const doctorDurations: Record<number, number> = {}
+      consultations.forEach((consultation) => {
+        if (consultation.doctor) {
+          doctorDurations[consultation.doctor] = 30 // Default duration
+        }
+      })
+
+      const sortLabel = sortLabels[activeSort]
+      const timestamp = new Date().toLocaleDateString('ru-RU')
+      const filename = `consultations_${activeSort}_${timestamp}.xlsx`
+      
+      exportConsultationsToExcel(consultations, doctorDurations, filename)
+    } catch (error) {
+      console.error("Failed to export consultations:", error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -189,16 +216,30 @@ export function OrgConsultationsContent({
           ))}
         </div>
 
-        {/* Search */}
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Поиск по имени врача или пациента..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        {/* Search and Export */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Поиск по имени врача или пациента..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button
+            onClick={handleExport}
+            disabled={consultations.length === 0 || isExporting}
+            className="gap-2"
+          >
+            {isExporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            {isExporting ? 'Экспортирую...' : 'Экспорт в Excel'}
+          </Button>
         </div>
 
         {/* Results Count */}
