@@ -39,8 +39,19 @@ export function exportConsultationsToExcel(
   })
 
   // Set column widths
-  const colWidths = [20, 40, 20, 15, 15, 40, 80]
+  const colWidths = [20, 40, 20, 15, 18, 40, 56]
   ws['!cols'] = colWidths.map((width) => ({ wch: width }))
+
+  // Set left alignment for Стоимость (col 3) and Длительность (col 4)
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
+  for (let R = range.s.r + 1; R <= range.e.r; R++) {
+    for (const C of [3, 4]) {
+      const cellAddress = XLSX.utils.encode_cell({ r: R, c: C })
+      if (ws[cellAddress]) {
+        ws[cellAddress].s = { alignment: { horizontal: 'left' } }
+      }
+    }
+  }
 
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Консультации')
