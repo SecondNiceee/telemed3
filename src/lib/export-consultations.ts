@@ -44,11 +44,12 @@ export function exportConsultationsToExcel(
 
   // Set left alignment for Стоимость (col 3) and Длительность (col 4)
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
-  for (let R = range.s.r + 1; R <= range.e.r; R++) {
+  for (let R = range.s.r; R <= range.e.r; R++) {
     for (const C of [3, 4]) {
       const cellAddress = XLSX.utils.encode_cell({ r: R, c: C })
       if (ws[cellAddress]) {
-        ws[cellAddress].s = { alignment: { horizontal: 'left' } }
+        ws[cellAddress].s = ws[cellAddress].s || {}
+        ws[cellAddress].s.alignment = { horizontal: 'left', vertical: 'center' }
       }
     }
   }
