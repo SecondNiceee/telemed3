@@ -1,5 +1,4 @@
-import * as XLSX from 'xlsx'
-import * as XLSXStyle from 'xlsx-style'
+import XLSX from 'xlsx-js-style'
 import type { ApiAppointment } from './api/types'
 
 export interface ConsultationExportData {
@@ -77,7 +76,7 @@ export function exportConsultationsToExcel(
 
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Консультации')
-  XLSXStyle.writeFile(wb, filename)
+  XLSX.writeFile(wb, filename)
 }
 
 function formatDate(dateString: string): string {
