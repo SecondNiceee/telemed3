@@ -39,18 +39,20 @@ async function createAdmin() {
     if (existingUser.role === 'admin') {
       console.log('✅ Пользователь уже является администратором')
     } else {
-      // Обновляем роль на admin
+      // Обновляем роль на admin и верифицируем email
       await payload.update({
         collection: 'users',
         id: existingUser.id,
         data: {
           role: 'admin',
+          _verified: true,
         },
+        overrideAccess: true,
       })
-      console.log('✅ Роль пользователя обновлена на admin')
+      console.log('✅ Роль пользователя обновлена на admin, email верифицирован')
     }
   } else {
-    // Создаем нового пользователя-админа
+    // Создаем нового пользователя-админа с верифицированным email
     const newAdmin = await payload.create({
       collection: 'users',
       data: {
@@ -58,7 +60,9 @@ async function createAdmin() {
         password: ADMIN_PASSWORD,
         name: ADMIN_NAME,
         role: 'admin',
+        _verified: true,
       },
+      overrideAccess: true, // Обход проверок доступа для установки _verified
     })
     
     console.log(`✅ Администратор создан успешно (ID: ${newAdmin.id})`)
