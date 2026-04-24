@@ -108,11 +108,6 @@ async function createDoctors() {
         limit: 1,
       })
 
-      if (existing.docs.length > 0) {
-        console.log(`⚠️  Врач "${doctor.name}" уже существует (email: ${doctor.email})`)
-        continue
-      }
-
       // Получаем ID категории
       const categoryId = categoryMap.get(doctor.categorySlug)
       if (!categoryId) {
@@ -123,29 +118,43 @@ async function createDoctors() {
       // Генерируем расписание на неделю вперед (7 дней) с 3 консультациями в день
       const schedule = generateDoctorSchedule()
 
-      // Создаем врача
-      const created = await payload.create({
-        collection: 'doctors',
-        data: {
-          name: doctor.name,
-          email: doctor.email,
-          password: doctor.password,
-          organisation: organisationId,
-          categories: [categoryId],
-          experience: doctor.experience,
-          degree: doctor.degree,
-          price: doctor.price,
-          bio: doctor.bio,
-          education: doctor.education.map((value) => ({ value })),
-          services: doctor.services.map((value) => ({ value })),
-          slotDuration: doctor.slotDuration,
-          schedule: schedule,
-        },
-        overrideAccess: true,
-      })
+      const doctorData = {
+        name: doctor.name,
+        email: doctor.email,
+        password: doctor.password,
+        organisation: organisationId,
+        categories: [categoryId],
+        experience: doctor.experience,
+        degree: doctor.degree,
+        price: doctor.price,
+        bio: doctor.bio,
+        education: doctor.education.map((value) => ({ value })),
+        services: doctor.services.map((value) => ({ value })),
+        slotDuration: doctor.slotDuration,
+        schedule: schedule,
+      }
 
-      console.log(`✅ Создан врач: ${doctor.name} (ID: ${created.id}, категория: ${doctor.categorySlug})`)
-      console.log(`   📅 Расписание: на неделю вперед, 3 консультации в день`)
+      if (existing.docs.length > 0) {
+        // Обновляем существующего врача
+        const existingDoctor = existing.docs[0]
+        await payload.update({
+          collection: 'doctors',
+          id: existingDoctor.id,
+          data: doctorData,
+          overrideAccess: true,
+        })
+        console.log(`🔄 Обновлен врач: ${doctor.name} (ID: ${existingDoctor.id}, категория: ${doctor.categorySlug})`)
+        console.log(`   📅 Расписание: на неделю вперед, 3 консультации в день`)
+      } else {
+        // Создаем нового врача
+        const created = await payload.create({
+          collection: 'doctors',
+          data: doctorData,
+          overrideAccess: true,
+        })
+        console.log(`✅ Создан врач: ${doctor.name} (ID: ${created.id}, категория: ${doctor.categorySlug})`)
+        console.log(`   📅 Расписание: на неделю вперед, 3 консультации в день`)
+      }
     } catch (error) {
       console.error(`❌ Ошибка при создании врача "${doctor.name}":`, error)
     }
