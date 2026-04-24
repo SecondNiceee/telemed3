@@ -46,15 +46,30 @@ export function exportConsultationsToExcel(
   // Set left alignment for Стоимость (col 3) and Длительность (col 4)
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
   for (let R = range.s.r; R <= range.e.r; R++) {
-    for (const C of [3, 4]) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
       const cellAddress = XLSX.utils.encode_cell({ r: R, c: C })
       if (ws[cellAddress]) {
-        ws[cellAddress].s = {
-          alignment: {
-            horizontal: 'left',
-            vertical: 'center',
-            wrapText: true,
-          },
+        // Header row (R = 0) - bold, gray background, center alignment
+        if (R === 0) {
+          ws[cellAddress].s = {
+            font: { bold: true, color: { rgb: 'FFFFFF' } },
+            fill: { fgColor: { rgb: '4472C4' } },
+            alignment: {
+              horizontal: 'center',
+              vertical: 'center',
+              wrapText: true,
+            },
+          }
+        }
+        // Data rows for columns 3 and 4 - left alignment
+        else if ([3, 4].includes(C)) {
+          ws[cellAddress].s = {
+            alignment: {
+              horizontal: 'left',
+              vertical: 'center',
+              wrapText: true,
+            },
+          }
         }
       }
     }
