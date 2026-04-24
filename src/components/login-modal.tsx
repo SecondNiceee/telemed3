@@ -98,7 +98,8 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
       handleReset()
       onSuccess?.()
       if (result.user.role === "user" || result.user.role === "admin") {
-        router.push("/lk")
+        // Use hard navigation to ensure server gets the new cookie
+        window.location.href = "/lk"
       } else {
         router.refresh()
       }
@@ -139,7 +140,8 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
       handleReset()
       onSuccess?.()
       if (result.user.role === "user" || result.user.role === "admin") {
-        router.push("/lk")
+        // Use hard navigation to ensure server gets the new cookie
+        window.location.href = "/lk"
       } else {
         router.refresh()
       }
