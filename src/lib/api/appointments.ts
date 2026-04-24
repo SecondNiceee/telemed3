@@ -73,6 +73,18 @@ export class AppointmentsApi {
   }
 
   /**
+   * Fetch appointments for the current doctor (client-side)
+   * Uses doctors-token cookie for auth
+   */
+  static async fetchDoctorAppointments(): Promise<ApiAppointment[]> {
+    const data = await apiFetch<PayloadListResponse<ApiAppointment>>(
+      '/api/appointments?limit=100&depth=1&sort=-date',
+      { credentials: 'include' },
+    )
+    return data.docs
+  }
+
+  /**
    * Fetch appointments for the current doctor (server-side with cookie)
    * Uses doctors-token cookie for auth
    */
