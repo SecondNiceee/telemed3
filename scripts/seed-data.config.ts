@@ -38,16 +38,16 @@ export interface DoctorConfig {
 
 // Тестовые пользователи (10 штук)
 export const USERS: UserConfig[] = [
-  { name: 'Александр Волков', email: 'volkov@test.local', password: 'User123!' },
-  { name: 'Мария Соколова', email: 'sokolova@test.local', password: 'User123!' },
-  { name: 'Дмитрий Морозов', email: 'morozov@test.local', password: 'User123!' },
-  { name: 'Екатерина Лебедева', email: 'lebedeva@test.local', password: 'User123!' },
-  { name: 'Сергей Новиков', email: 'novikov@test.local', password: 'User123!' },
-  { name: 'Анастасия Козлова', email: 'kozlova@test.local', password: 'User123!' },
-  { name: 'Андрей Попов', email: 'popov@test.local', password: 'User123!' },
-  { name: 'Ольга Васильева', email: 'vasilyeva@test.local', password: 'User123!' },
-  { name: 'Павел Зайцев', email: 'zaytsev@test.local', password: 'User123!' },
-  { name: 'Наталья Михайлова', email: 'mikhaylova@test.local', password: 'User123!' },
+  { name: 'Александр Волков', email: 'volkov@smartcardio.ru', password: 'User123!' },
+  { name: 'Мария Соколова', email: 'sokolova@smartcardio.ru', password: 'User123!' },
+  { name: 'Дмитрий Морозов', email: 'morozov@smartcardio.ru', password: 'User123!' },
+  { name: 'Екатерина Лебедева', email: 'lebedeva@smartcardio.ru', password: 'User123!' },
+  { name: 'Сергей Новиков', email: 'novikov@smartcardio.ru', password: 'User123!' },
+  { name: 'Анастасия Козлова', email: 'kozlova@smartcardio.ru', password: 'User123!' },
+  { name: 'Андрей Попов', email: 'popov@smartcardio.ru', password: 'User123!' },
+  { name: 'Ольга Васильева', email: 'vasilyeva@smartcardio.ru', password: 'User123!' },
+  { name: 'Павел Зайцев', email: 'zaytsev@smartcardio.ru', password: 'User123!' },
+  { name: 'Наталья Михайлова', email: 'mikhaylova@smartcardio.ru', password: 'User123!' },
 ]
 
 // Организация по умолчанию для врачей
@@ -168,7 +168,7 @@ export const DOCTORS: DoctorConfig[] = [
     slotDuration: '30',
   },
   {
-    name: 'Николаева Ольга Игоревна',
+    name: 'Николаева Ол��га Игоревна',
     email: 'nikolaeva.therapy@telemed.local',
     password: 'Doctor123!',
     categorySlug: 'therapy',
