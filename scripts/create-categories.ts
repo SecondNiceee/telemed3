@@ -3,8 +3,9 @@
  * Запуск: pnpm tsx scripts/create-categories.ts
  */
 
+import 'dotenv/config'
 import { getPayload } from 'payload'
-import config from '@/payload.config'
+import config from '../src/payload.config'
 import { CATEGORIES } from './seed-data.config'
 
 async function createCategories() {
