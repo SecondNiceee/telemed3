@@ -56,6 +56,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.0",
     "xlsx": "^0.18.5",
+    "xlsx-style": "^0.8.13",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

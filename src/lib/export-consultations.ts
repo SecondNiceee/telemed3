@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import * as XLSXStyle from 'xlsx-style'
 import type { ApiAppointment } from './api/types'
 
 export interface ConsultationExportData {
@@ -48,15 +49,20 @@ export function exportConsultationsToExcel(
     for (const C of [3, 4]) {
       const cellAddress = XLSX.utils.encode_cell({ r: R, c: C })
       if (ws[cellAddress]) {
-        ws[cellAddress].s = ws[cellAddress].s || {}
-        ws[cellAddress].s.alignment = { horizontal: 'left', vertical: 'center' }
+        ws[cellAddress].s = {
+          alignment: {
+            horizontal: 'left',
+            vertical: 'center',
+            wrapText: true,
+          },
+        }
       }
     }
   }
 
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Консультации')
-  XLSX.writeFile(wb, filename)
+  XLSXStyle.writeFile(wb, filename)
 }
 
 function formatDate(dateString: string): string {
