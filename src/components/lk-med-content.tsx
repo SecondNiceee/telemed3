@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useDoctorStore } from "@/stores/doctor-store"
 import { useDoctorAppointmentStore } from "@/stores/doctor-appointments-store"
 import { Button } from "@/components/ui/button"
-import { CalendarX, Calendar, Clock, User as UserIcon, MessageSquare, LogOut, CheckCircle2, Play, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react"
+import { CalendarX, Calendar, Clock, User as UserIcon, MessageSquare, LogOut, CheckCircle2, Play, RefreshCw, ChevronLeft, ChevronRight, Mic, Video } from "lucide-react"
 import Link from "next/link"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 import { formatDate, getStatusLabel, getStatusColor, getUpcomingAppointment } from "@/lib/utils/date"
@@ -278,6 +278,21 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
                       <Clock className="w-3.5 h-3.5" />
                       {appt.time}
                     </span>
+                    {appt.connectionType && (
+                      <span className={cn(
+                        "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+                        appt.connectionType === 'video' && "bg-blue-100 text-blue-700",
+                        appt.connectionType === 'audio' && "bg-purple-100 text-purple-700",
+                        appt.connectionType === 'chat' && "bg-green-100 text-green-700"
+                      )}>
+                        {appt.connectionType === 'video' && <Video className="w-3 h-3" />}
+                        {appt.connectionType === 'audio' && <Mic className="w-3 h-3" />}
+                        {appt.connectionType === 'chat' && <MessageSquare className="w-3 h-3" />}
+                        {appt.connectionType === 'video' && 'Видео'}
+                        {appt.connectionType === 'audio' && 'Аудио'}
+                        {appt.connectionType === 'chat' && 'Чат'}
+                      </span>
+                    )}
                   </div>
                 </div>
 

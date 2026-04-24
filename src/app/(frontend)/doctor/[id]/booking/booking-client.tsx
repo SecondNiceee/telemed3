@@ -16,6 +16,9 @@ import {
   Loader2,
   LogIn,
   GraduationCap,
+  MessageSquare,
+  Mic,
+  Video,
 } from "lucide-react";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { useUserStore } from "@/stores/user-store";
@@ -95,6 +98,7 @@ export function BookingClient({
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [connectionType, setConnectionType] = useState<'chat' | 'audio' | 'video'>('chat');
   const [isBooked, setIsBooked] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
 
@@ -189,6 +193,7 @@ export function BookingClient({
         date: selectedDate,
         time: selectedTime,
         price: doctorPrice,
+        connectionType,
         // Pass full doctor data so the store has all info immediately
         doctorData: {
           id: doctorId,
@@ -417,6 +422,39 @@ export function BookingClient({
                   <div className="text-center py-8 text-muted-foreground">
                     <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>Выберите дату для просмотра доступного времени</p>
+                  </div>
+                )}
+
+                {/* Connection Type Selection */}
+                {selectedDate && selectedTime && (
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <p className="text-sm font-medium text-foreground mb-3">
+                      Выберите предпочтительный способ связи во время консультации
+                    </p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { value: 'chat' as const, label: 'Чат', icon: MessageSquare },
+                        { value: 'audio' as const, label: 'Аудио', icon: Mic },
+                        { value: 'video' as const, label: 'Видео', icon: Video },
+                      ].map(({ value, label, icon: Icon }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setConnectionType(value)}
+                          className={`
+                            flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all
+                            ${
+                              connectionType === value
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border bg-card text-muted-foreground hover:border-primary/50 hover:bg-secondary/50'
+                            }
+                          `}
+                        >
+                          <Icon className="w-6 h-6" />
+                          <span className="text-sm font-medium">{label}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 

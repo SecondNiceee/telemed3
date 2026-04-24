@@ -14,6 +14,7 @@ export interface CreateAppointmentPayload {
   date: string
   time: string
   price: number
+  connectionType?: 'chat' | 'audio' | 'video'
 }
 
 export class AppointmentsApi {
