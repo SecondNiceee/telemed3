@@ -3,6 +3,12 @@
  * Категории врачей и врачи
  */
 
+export interface OrganisationConfig {
+  name: string
+  email: string
+  password: string
+}
+
 export interface CategoryConfig {
   name: string
   slug: string
@@ -25,7 +31,7 @@ export interface DoctorConfig {
 }
 
 // Организация по умолчанию для врачей
-export const DEFAULT_ORGANISATION = {
+export const DEFAULT_ORGANISATION: OrganisationConfig = {
   name: 'МедЦентр "Здоровье"',
   email: 'org@telemed.local',
   password: 'OrgPassword123!',
