@@ -311,6 +311,21 @@ export const Appointments: CollectionConfig = {
       ],
     },
     {
+      name: 'connectionType',
+      type: 'select',
+      required: false,
+      defaultValue: 'chat',
+      label: 'Вид связи',
+      options: [
+        { label: 'Чат', value: 'chat' },
+        { label: 'Аудио', value: 'audio' },
+        { label: 'Видео', value: 'video' },
+      ],
+      admin: {
+        description: 'Предпочтительный способ связи пациента',
+      },
+    },
+    {
       name: 'chatBlocked',
       type: 'checkbox',
       defaultValue: false,

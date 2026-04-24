@@ -1,15 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useDoctorStore } from "@/stores/doctor-store"
 import { useDoctorAppointmentStore } from "@/stores/doctor-appointments-store"
 import { Button } from "@/components/ui/button"
-import { CalendarX, Calendar, Clock, User as UserIcon, MessageSquare, LogOut, CheckCircle2, Play } from "lucide-react"
+import { CalendarX, Calendar, Clock, User as UserIcon, MessageSquare, LogOut, CheckCircle2, Play, RefreshCw, ChevronLeft, ChevronRight, Mic, Video } from "lucide-react"
 import Link from "next/link"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 import { formatDate, getStatusLabel, getStatusColor, getUpcomingAppointment } from "@/lib/utils/date"
 import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner"
 import { cn } from "@/lib/utils"
+import { AppointmentsApi } from "@/lib/api/appointments"
 
 interface LkMedContentProps {
   initialDoctor: ApiDoctor
@@ -27,19 +28,44 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
   const doctor = storeDoctor || initialDoctor
   const appointments = apptFetched ? storeAppointments : initialAppointments
   const upcomingAppointment = getUpcomingAppointment(appointments)
-  
+
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'active' | 'completed'>('all')
-  
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const PAGE_SIZE = 10
+
   const upcomingAppointments = appointments.filter(a => a.status === 'confirmed')
   const activeAppointments = appointments.filter(a => a.status === 'in_progress')
   const completedAppointments = appointments.filter(a => a.status === 'completed')
-  const filteredAppointments = filter === 'all' 
-    ? appointments 
+  const filteredAppointments = filter === 'all'
+    ? appointments
     : filter === 'upcoming'
       ? upcomingAppointments
-      : filter === 'active' 
-        ? activeAppointments 
+      : filter === 'active'
+        ? activeAppointments
         : completedAppointments
+
+  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / PAGE_SIZE))
+  const paginatedAppointments = filteredAppointments.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true)
+    try {
+      const fresh = await AppointmentsApi.fetchDoctorAppointments()
+      setAppointments(fresh)
+      setCurrentPage(1)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [setAppointments])
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filter])
 
   // Sync doctor from server to store
   useEffect(() => {
@@ -114,9 +140,25 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
         )}
 
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">
-            Мои консультации
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold text-foreground">
+              Мои консультации
+            </h2>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Нажмите, чтобы загрузить новые консультации"
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-95",
+                "ring-2 ring-primary/30 ring-offset-1",
+                isRefreshing && "opacity-70 cursor-not-allowed"
+              )}
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
+              {isRefreshing ? "Обновление..." : "Обновить"}
+            </button>
+          </div>
           
           {/* Filter tabs */}
           <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
@@ -215,7 +257,7 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {filteredAppointments.map((appt) => (
+            {paginatedAppointments.map((appt) => (
               <div
                 key={appt.id}
                 className="rounded-xl border border-border bg-card p-5 flex flex-col sm:flex-row sm:items-center gap-4"
@@ -236,6 +278,21 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
                       <Clock className="w-3.5 h-3.5" />
                       {appt.time}
                     </span>
+                    {appt.connectionType && (
+                      <span className={cn(
+                        "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+                        appt.connectionType === 'video' && "bg-blue-100 text-blue-700",
+                        appt.connectionType === 'audio' && "bg-purple-100 text-purple-700",
+                        appt.connectionType === 'chat' && "bg-green-100 text-green-700"
+                      )}>
+                        {appt.connectionType === 'video' && <Video className="w-3 h-3" />}
+                        {appt.connectionType === 'audio' && <Mic className="w-3 h-3" />}
+                        {appt.connectionType === 'chat' && <MessageSquare className="w-3 h-3" />}
+                        {appt.connectionType === 'video' && 'Видео'}
+                        {appt.connectionType === 'audio' && 'Аудио'}
+                        {appt.connectionType === 'chat' && 'Чат'}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -262,6 +319,43 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+            <p className="text-sm text-muted-foreground">
+              Страница {currentPage} из {totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className={cn(
+                  "inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg border border-border transition-colors",
+                  currentPage === 1
+                    ? "opacity-40 cursor-not-allowed bg-card text-muted-foreground"
+                    : "bg-card text-foreground hover:bg-secondary"
+                )}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Назад
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className={cn(
+                  "inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg border border-border transition-colors",
+                  currentPage === totalPages
+                    ? "opacity-40 cursor-not-allowed bg-card text-muted-foreground"
+                    : "bg-card text-foreground hover:bg-secondary"
+                )}
+              >
+                Вперёд
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -14,6 +14,7 @@ export interface CreateAppointmentPayload {
   date: string
   time: string
   price: number
+  connectionType?: 'chat' | 'audio' | 'video'
 }
 
 export class AppointmentsApi {
@@ -67,6 +68,18 @@ export class AppointmentsApi {
   static async fetchByDoctor(doctorId: number): Promise<ApiAppointment[]> {
     const data = await apiFetch<PayloadListResponse<ApiAppointment>>(
       `/api/appointments?where[doctor][equals]=${doctorId}&where[status][not_equals]=cancelled&limit=500&depth=0`,
+      { credentials: 'include' },
+    )
+    return data.docs
+  }
+
+  /**
+   * Fetch appointments for the current doctor (client-side)
+   * Uses doctors-token cookie for auth
+   */
+  static async fetchDoctorAppointments(): Promise<ApiAppointment[]> {
+    const data = await apiFetch<PayloadListResponse<ApiAppointment>>(
+      '/api/appointments?limit=100&depth=1&sort=-date',
       { credentials: 'include' },
     )
     return data.docs
