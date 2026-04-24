@@ -16,6 +16,12 @@ export interface CategoryConfig {
   icon: string
 }
 
+export interface UserConfig {
+  name: string
+  email: string
+  password: string
+}
+
 export interface DoctorConfig {
   name: string
   email: string
@@ -29,6 +35,20 @@ export interface DoctorConfig {
   services: string[]
   slotDuration: '15' | '30' | '45' | '60' | '90'
 }
+
+// Тестовые пользователи (10 штук)
+export const USERS: UserConfig[] = [
+  { name: 'Александр Волков', email: 'volkov@test.local', password: 'User123!' },
+  { name: 'Мария Соколова', email: 'sokolova@test.local', password: 'User123!' },
+  { name: 'Дмитрий Морозов', email: 'morozov@test.local', password: 'User123!' },
+  { name: 'Екатерина Лебедева', email: 'lebedeva@test.local', password: 'User123!' },
+  { name: 'Сергей Новиков', email: 'novikov@test.local', password: 'User123!' },
+  { name: 'Анастасия Козлова', email: 'kozlova@test.local', password: 'User123!' },
+  { name: 'Андрей Попов', email: 'popov@test.local', password: 'User123!' },
+  { name: 'Ольга Васильева', email: 'vasilyeva@test.local', password: 'User123!' },
+  { name: 'Павел Зайцев', email: 'zaytsev@test.local', password: 'User123!' },
+  { name: 'Наталья Михайлова', email: 'mikhaylova@test.local', password: 'User123!' },
+]
 
 // Организация по умолчанию для врачей
 export const DEFAULT_ORGANISATION: OrganisationConfig = {
