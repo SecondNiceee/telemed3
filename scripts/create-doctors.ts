@@ -9,6 +9,35 @@ import { getPayload } from 'payload'
 import config from '../src/payload.config'
 import { DOCTORS, DEFAULT_ORGANISATION } from './seed-data.config'
 
+/**
+ * Генерирует расписание на неделю вперед (7 дней)
+ * с 3 консультациями в день
+ * Время консультаций: 09:00, 12:00, 15:00
+ */
+function generateDoctorSchedule(): Array<{ date: string; slots: Array<{ time: string }> }> {
+  const schedule = []
+  const today = new Date()
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(today)
+    date.setDate(date.getDate() + i)
+
+    // Форматируем дату в YYYY-MM-DD
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const dateStr = `${year}-${month}-${day}`
+
+    // Добавляем 3 слота в день: 09:00, 12:00, 15:00
+    schedule.push({
+      date: dateStr,
+      slots: [{ time: '09:00' }, { time: '12:00' }, { time: '15:00' }],
+    })
+  }
+
+  return schedule
+}
+
 async function createDoctors() {
   console.log('🚀 Подключение к Payload CMS...')
   
@@ -91,6 +120,9 @@ async function createDoctors() {
         continue
       }
 
+      // Генерируем расписание на неделю вперед (7 дней) с 3 консультациями в день
+      const schedule = generateDoctorSchedule()
+
       // Создаем врача
       const created = await payload.create({
         collection: 'doctors',
@@ -107,11 +139,13 @@ async function createDoctors() {
           education: doctor.education.map((value) => ({ value })),
           services: doctor.services.map((value) => ({ value })),
           slotDuration: doctor.slotDuration,
+          schedule: schedule,
         },
         overrideAccess: true,
       })
 
       console.log(`✅ Создан врач: ${doctor.name} (ID: ${created.id}, категория: ${doctor.categorySlug})`)
+      console.log(`   📅 Расписание: на неделю вперед, 3 консультации в день`)
     } catch (error) {
       console.error(`❌ Ошибка при создании врача "${doctor.name}":`, error)
     }
