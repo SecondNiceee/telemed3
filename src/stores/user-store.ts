@@ -97,10 +97,12 @@ export const useUserStore = create<UserState>((set, get) => ({
     } finally {
       set({ loading: false })
     }
-    setTimeout(() => {
-      console.log("[v0] user-store logout: triggering window.location.href redirect")
-      window.location.href = process.env.NEXT_PUBLIC_BASE_PATH || '/'
-    }, 500)
+    // Only redirect if not already on home page
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/'
+    const currentPath = window.location.pathname
+    if (currentPath !== '/' && currentPath !== basePath) {
+      window.location.href = basePath
+    }
   },
 
   reset: () => set(initialState),

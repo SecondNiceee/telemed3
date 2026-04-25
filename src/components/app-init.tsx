@@ -11,7 +11,6 @@ export function AppInit() {
   const fetchUser = useUserStore((s) => s.fetchUser);
 
   useEffect(() => {
-    console.log("[v0] AppInit: calling fetchUser()");
     fetchUser();
   }, [fetchUser]);
 
