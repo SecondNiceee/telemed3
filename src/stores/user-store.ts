@@ -97,7 +97,10 @@ export const useUserStore = create<UserState>((set, get) => ({
     } finally {
       set({ loading: false })
     }
-    setTimeout(() => { window.location.href = process.env.NEXT_PUBLIC_BASE_PATH || '/' }, 500)
+    setTimeout(() => {
+      console.log("[v0] user-store logout: triggering window.location.href redirect")
+      window.location.href = process.env.NEXT_PUBLIC_BASE_PATH || '/'
+    }, 500)
   },
 
   reset: () => set(initialState),
