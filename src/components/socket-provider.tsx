@@ -426,14 +426,8 @@ export function GlobalSocketProvider({ children }: { children: ReactNode }) {
   const currentSenderType = doctor ? 'doctor' : user ? 'user' : undefined
   const currentSenderId = doctor?.id ?? user?.id ?? undefined
   
-  console.log('[GlobalSocketProvider] Initializing with senderType:', currentSenderType, 'senderId:', currentSenderId)
-  
-  // Only render SocketProvider if we have user info
-  if (!currentSenderType || !currentSenderId) {
-    console.log('[GlobalSocketProvider] No user info yet, rendering children without socket')
-    return <>{children}</>
-  }
-  
+  // Always render SocketProvider to prevent remounting children when user state changes
+  // SocketProvider handles undefined sender type/id gracefully via refs
   return (
     <SocketProvider currentSenderType={currentSenderType} currentSenderId={currentSenderId}>
       {children}
