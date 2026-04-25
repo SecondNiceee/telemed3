@@ -21,6 +21,7 @@ import {
   Shield,
   Award,
   CheckCircle,
+  User,
 } from "lucide-react";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { Media } from "@/payload-types";
@@ -104,11 +105,17 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
             <CardContent className="py-0 px-0 ">
               <div className="flex flex-col py-0 md:flex-row gap-3 md:items-stretch">
                 <div className="w-full md:w-80 h-72 md:h-auto flex-shrink-0 relative">
-                  <img
-                    src={photoUrl}
-                    alt={doctor.name || "Врач"}
-                    className="w-full h-full object-cover absolute inset-0"
-                  />
+                  {photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt={doctor.name || "Врач"}
+                      className="w-full h-full object-cover absolute inset-0"
+                    />
+                  ) : (
+                    <div className="w-full h-full absolute inset-0 bg-muted flex items-center justify-center">
+                      <User className="w-24 h-24 text-muted-foreground/50" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 px-6 py-6 text-center md:text-left flex flex-col justify-center">
@@ -124,12 +131,6 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground text-base">Стаж:</span>
                         <span className="font-medium text-foreground text-base">{doctor.experience} лет</span>
-                      </div>
-                    )}
-                    {doctor.degree && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-base">Степень:</span>
-                        <span className="font-medium text-foreground text-base">{doctor.degree}</span>
                       </div>
                     )}
                     {doctor.price != null && (
@@ -164,21 +165,43 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
             </Card>
           )}
 
+          {/* Degree */}
+          {doctor.degree && (
+            <Card className="mb-2">
+              <CardContent className="px-6 py-0">
+                <h2 className="text-lg font-semibold text-foreground mb-0.5 flex items-center gap-2">
+                  <Award className="w-5 h-5 text-primary" />
+                  Степень :
+                </h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  {doctor.degree}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Education */}
           {education.length > 0 && (
             <Card className="mb-2">
-              <CardContent className="px-6 py-0 flex flex-row gap-4 items-center">
-                <h2 className="text-lg font-semibold text-foreground mb-0.5 flex items-center gap-2">
+              <CardContent className="px-6 py-0">
+                <h2 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
                   <GraduationCap className="w-5 h-5 text-primary" />
                   Образование :
                 </h2>
-                <div className="flex flex-wrap gap-2">
-                  {education.map((edu, index) => (
-                    <div key={index} className="flex items-center gap-1.5 px-3 py-1 bg-secondary/50 rounded-full text-sm">
-                      <span className="text-muted-foreground">{edu}</span>
-                    </div>
-                  ))}
-                </div>
+                {education.length === 1 ? (
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {education[0]}
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {education.map((edu, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <CheckCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                        <span>{edu}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </CardContent>
             </Card>
           )}

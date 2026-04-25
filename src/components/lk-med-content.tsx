@@ -140,28 +140,28 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
         )}
 
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-foreground">
-              Мои консультации
-            </h2>
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              title="Нажмите, чтобы загрузить новые консультации"
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-95",
-                "ring-2 ring-primary/30 ring-offset-1",
-                isRefreshing && "opacity-70 cursor-not-allowed"
-              )}
-            >
-              <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
-              {isRefreshing ? "Обновление..." : "Обновить"}
-            </button>
-          </div>
+          <h2 className="text-lg font-semibold text-foreground">
+            Мои консультации
+          </h2>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Нажмите, чтобы загрузить новые консультации"
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+              "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-95",
+              "ring-2 ring-primary/30 ring-offset-1",
+              isRefreshing && "opacity-70 cursor-not-allowed"
+            )}
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
+            {isRefreshing ? "Обновление..." : "Обновить"}
+          </button>
+        </div>
           
-          {/* Filter tabs */}
-          <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
+        {/* Filter tabs */}
+        <div className="mb-4">
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
             <button
               onClick={() => setFilter('all')}
               className={cn(
