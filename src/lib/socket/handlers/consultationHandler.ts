@@ -6,6 +6,7 @@ import type {
   ConsultationEndPayload,
   ChatBlockPayload,
   ChatUnblockPayload,
+  ConnectionTypeChangePayload,
 } from '../types'
 import isValidAppointmentId from '../utils/isValidAppointmentId'
 import verifyAppointmentAccess from '../utils/verifyAppointmentAccess'
@@ -222,6 +223,54 @@ export function createChatUnblockHandler(io: SocketIOServer, payload: Payload) {
     } catch (error) {
       console.error('[Socket] Failed to unblock chat:', error)
       socket.emit('error', { message: 'Failed to unblock chat' })
+    }
+  }
+}
+
+/**
+ * Handle connection type change event
+ * Only patients (users) can change preferred connection type
+ */
+export function createConnectionTypeChangeHandler(io: SocketIOServer, payload: Payload) {
+  return async (socket: AuthenticatedSocket, data: ConnectionTypeChangePayload) => {
+    const { appointmentId, connectionType } = data
+    const { senderType, senderId } = socket.data
+
+    // Only users can change connection type
+    if (senderType !== 'user') {
+      socket.emit('error', { message: 'Only patients can change connection type' })
+      return
+    }
+
+    if (!isValidAppointmentId(appointmentId)) {
+      socket.emit('error', { message: 'Invalid appointment ID' })
+      return
+    }
+
+    // Verify the user has access to this appointment
+    const accessResult = await verifyAppointmentAccess(payload, appointmentId, senderId, undefined)
+    if (!accessResult.hasAccess) {
+      socket.emit('error', { message: 'Access denied to this appointment' })
+      return
+    }
+
+    try {
+      // Update appointment connection type
+      await payload.update({
+        collection: 'appointments',
+        id: appointmentId,
+        data: { connectionType },
+        overrideAccess: true,
+      })
+
+      // Emit to all clients in the room
+      const room = `appointment:${appointmentId}`
+      io.to(room).emit('connection-type-changed', { appointmentId, connectionType })
+      
+      console.log(`[Socket] Connection type changed to ${connectionType} for appointment ${appointmentId} by user ${senderId}`)
+    } catch (error) {
+      console.error('[Socket] Failed to change connection type:', error)
+      socket.emit('error', { message: 'Failed to change connection type' })
     }
   }
 }
