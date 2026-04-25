@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock } from "lucide-react";
+import { Clock, User } from "lucide-react";
 import { ApiDoctor, getDoctorSpecialty } from "@/lib/api/index";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { Media } from "@/payload-types";
@@ -23,11 +23,17 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
         <CardContent className="p-0">
           <div className="flex flex-col sm:flex-row sm:items-stretch">
             <div className="relative w-full sm:w-50 sm:h-auto flex-shrink-0">
-              <img
-                src={resolveImageUrl((doctor?.photo as Media)?.url)}
-                alt={doctor.name || "Врач"}
-                className="w-full h-full object-cover absolute inset-0"
-              />
+              {(doctor?.photo as Media)?.url ? (
+                <img
+                  src={resolveImageUrl((doctor?.photo as Media)?.url)}
+                  alt={doctor.name || "Врач"}
+                  className="w-full h-full object-cover absolute inset-0"
+                />
+              ) : (
+                <div className="w-full h-full absolute inset-0 bg-muted flex items-center justify-center">
+                  <User className="w-16 h-16 text-muted-foreground/50" />
+                </div>
+              )}
             </div>
             
             <div className="flex-1 my-5 flex flex-col px-5 py-1 justify-center">
