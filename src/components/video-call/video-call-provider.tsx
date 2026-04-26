@@ -295,14 +295,21 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
         isAudioOnly: wasAudioOnly
       })
       
+      console.log('[Recording] Calling stopRecording...')
       const blob = await recording.stopRecording()
-      console.log('[Recording] Stopped, blob size:', blob?.size || 0)
+      console.log('[Recording] stopRecording completed, blob size:', blob?.size || 0)
       
       // Upload/finalize - this will either finalize server chunks or upload client blob
       // Pass isAudioOnly to set correct recordingType
-      await recording.uploadRecording(currentCallData.appointmentId, doctorId, blob || undefined, wasAudioOnly)
+      console.log('[Recording] Calling uploadRecording...')
+      const uploadResult = await recording.uploadRecording(currentCallData.appointmentId, doctorId, blob || undefined, wasAudioOnly)
+      console.log('[Recording] uploadRecording completed, success:', uploadResult)
     } else {
-      console.log('[VideoCallProvider] Skipping recording finalization - conditions not met')
+      console.log('[VideoCallProvider] Skipping recording finalization - conditions not met:', {
+        role: currentUser?.role,
+        isRecording: recording.isRecording,
+        hasAppointmentId: !!currentCallData?.appointmentId,
+      })
     }
     
     mediaStream.stopStream()
