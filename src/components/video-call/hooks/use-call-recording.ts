@@ -112,8 +112,18 @@ export function useCallRecording(): UseCallRecordingReturn {
   // Process and upload pending chunks
   const processPendingChunks = useCallback(async () => {
     // Check call store status directly (works even when tab is inactive)
-    const callStatus = useCallStore.getState().status
+    const callStoreState = useCallStore.getState()
+    const callStatus = callStoreState.status
+    const storeAppointmentId = callStoreState.appointmentId
     const callEnded = callStatus === 'ended' || callStatus === 'idle'
+    
+    console.log('[Recording] processPendingChunks check:', { 
+      callStatus, 
+      storeAppointmentId,
+      callEnded, 
+      isStoppedRef: isStoppedRef.current,
+      hasPendingChunks: pendingChunksRef.current.length > 0
+    })
     
     // Don't process if recording was stopped OR if call has ended
     if (isStoppedRef.current || callEnded) {
