@@ -1,6 +1,6 @@
 'use client'
 
-import { Video, MessageSquare, Loader2 } from 'lucide-react'
+import { Video, MessageSquare, Loader2, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -36,6 +36,7 @@ export function ConsultationDialogs({
   onConsultationTypeDialogChange,
   onComplete,
   onStartVideoConsultation,
+  onStartAudioConsultation,
   onStartChatConsultation,
 }: ConsultationDialogsProps) {
   return (
@@ -84,16 +85,27 @@ export function ConsultationDialogs({
               У пациента стоит предпочтительный способ связи: {connectionTypeLabels[connectionType] || connectionType}
             </p>
           )}
-          <div className="grid grid-cols-2 gap-4 py-4">
+          <div className="grid grid-cols-3 gap-4 py-4">
             <Button
               variant="outline"
               className="h-auto py-6 flex flex-col items-center gap-3 hover:bg-primary/5 hover:border-primary"
               onClick={onStartVideoConsultation}
             >
-              <Video className="w-12 h-12 text-primary" />
+              <Video className="w-10 h-10 text-primary" />
               <div className="text-center">
-                <div className="font-semibold">Видеозвонок</div>
-                <div className="text-xs text-muted-foreground">Провести видеоконсультацию</div>
+                <div className="font-semibold text-sm">Видео</div>
+                <div className="text-xs text-muted-foreground">Видеозвонок</div>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-6 flex flex-col items-center gap-3 hover:bg-primary/5 hover:border-primary"
+              onClick={onStartAudioConsultation}
+            >
+              <Phone className="w-10 h-10 text-primary" />
+              <div className="text-center">
+                <div className="font-semibold text-sm">Аудио</div>
+                <div className="text-xs text-muted-foreground">Голосовой звонок</div>
               </div>
             </Button>
             <Button
@@ -101,10 +113,10 @@ export function ConsultationDialogs({
               className="h-auto py-6 flex flex-col items-center gap-3 hover:bg-primary/5 hover:border-primary"
               onClick={onStartChatConsultation}
             >
-              <MessageSquare className="w-12 h-12 text-primary" />
+              <MessageSquare className="w-10 h-10 text-primary" />
               <div className="text-center">
-                <div className="font-semibold">В чате</div>
-                <div className="text-xs text-muted-foreground">Общение в текстовом чате</div>
+                <div className="font-semibold text-sm">Чат</div>
+                <div className="text-xs text-muted-foreground">Текстовый чат</div>
               </div>
             </Button>
           </div>

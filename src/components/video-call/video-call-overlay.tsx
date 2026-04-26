@@ -6,6 +6,7 @@ import { CallingView } from './views/calling-view'
 import { ConnectingView } from './views/connecting-view'
 import { ConnectedView } from './views/connected-view'
 import { MinimizedView } from './views/minimized-view'
+import { SavingView } from './views/saving-view'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { CallParticipant } from '@/lib/video-call/types'
@@ -26,6 +27,11 @@ import type { CallParticipant } from '@/lib/video-call/types'
  */
 export function VideoCallOverlay() {
   const videoCall = useVideoCallSafe()
+  
+  // Show saving overlay when uploading recording
+  if (videoCall?.isSavingRecording) {
+    return <SavingView isAudioOnly={videoCall.isAudioOnly} />
+  }
   
   // Don't render if not in a VideoCallProvider or if idle
   if (!videoCall || videoCall.status === 'idle') {

@@ -6,6 +6,7 @@ export interface ApiCallRecording {
   id: number
   appointment: number | { id: number }
   doctor: number | { id: number; name?: string }
+  recordingType?: 'video' | 'audio'
   video: number | Media
   durationSeconds?: number
   recordedAt?: string

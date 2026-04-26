@@ -81,11 +81,22 @@ export const CallRecordings: CollectionConfig = {
       index: true,
     },
     {
+      name: 'recordingType',
+      type: 'select',
+      label: 'Тип записи',
+      defaultValue: 'video',
+      options: [
+        { label: 'Видео', value: 'video' },
+        { label: 'Аудио', value: 'audio' },
+      ],
+      index: true,
+    },
+    {
       name: 'video',
       type: 'upload',
       relationTo: 'media',
       required: true,
-      label: 'Видеозапись',
+      label: 'Запись',
     },
     {
       name: 'durationSeconds',

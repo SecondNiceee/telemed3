@@ -61,9 +61,9 @@ export async function POST(request: NextRequest) {
     const doctorIdFromToken = decoded.id
 
     const body = await request.json()
-    const { appointmentId, doctorId, durationSeconds } = body
+    const { appointmentId, doctorId, durationSeconds, recordingType = 'video' } = body
 
-    console.log('[RecordingChunks/Finalize] Request data:', { appointmentId, doctorId, durationSeconds })
+    console.log('[RecordingChunks/Finalize] Request data:', { appointmentId, doctorId, durationSeconds, recordingType })
 
     if (!appointmentId || !doctorId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
         video: mediaId,
         durationSeconds: durationSeconds || Math.round(combinedBuffer.length / 50000), // Rough estimate if not provided
         recordedAt: new Date().toISOString(),
+        recordingType: recordingType as 'video' | 'audio',
       },
     })
 
