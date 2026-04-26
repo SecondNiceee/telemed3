@@ -78,7 +78,7 @@ export function ConsultationDialogs({
               className="h-auto py-6 flex flex-col items-center gap-3 hover:bg-primary/5 hover:border-primary"
               onClick={onStartVideoConsultation}
             >
-              <Video className="w-8 h-8 text-primary" />
+              <Video className="w-12 h-12 text-primary" />
               <div className="text-center">
                 <div className="font-semibold">Видеозвонок</div>
                 <div className="text-xs text-muted-foreground">Провести видеоконсультацию</div>
@@ -89,7 +89,7 @@ export function ConsultationDialogs({
               className="h-auto py-6 flex flex-col items-center gap-3 hover:bg-primary/5 hover:border-primary"
               onClick={onStartChatConsultation}
             >
-              <MessageSquare className="w-8 h-8 text-primary" />
+              <MessageSquare className="w-12 h-12 text-primary" />
               <div className="text-center">
                 <div className="font-semibold">В чате</div>
                 <div className="text-xs text-muted-foreground">Общение в текстовом чате</div>
