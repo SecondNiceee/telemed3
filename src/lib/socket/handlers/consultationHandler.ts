@@ -151,7 +151,7 @@ export function createChatBlockHandler(io: SocketIOServer, payload: Payload) {
       await payload.update({
         collection: 'appointments',
         id: appointmentId,
-        data: { chatBlocked: true },
+        data: { chatBlocked: true } as Record<string, unknown>,
         overrideAccess: true,
       })
 
@@ -211,7 +211,7 @@ export function createChatUnblockHandler(io: SocketIOServer, payload: Payload) {
       await payload.update({
         collection: 'appointments',
         id: appointmentId,
-        data: { chatBlocked: false },
+        data: { chatBlocked: false } as Record<string, unknown>,
         overrideAccess: true,
       })
 
@@ -266,7 +266,7 @@ export function createChangeConnectionTypeHandler(io: SocketIOServer, payload: P
         collection: 'appointments',
         id: appointmentId,
         overrideAccess: true,
-      })
+      }) as { connectionType?: string }
 
       // Skip if same connection type
       if (appointment.connectionType === connectionType) {
@@ -277,7 +277,7 @@ export function createChangeConnectionTypeHandler(io: SocketIOServer, payload: P
       await payload.update({
         collection: 'appointments',
         id: appointmentId,
-        data: { connectionType },
+        data: { connectionType } as Record<string, unknown>,
         overrideAccess: true,
       })
 
@@ -288,7 +288,8 @@ export function createChangeConnectionTypeHandler(io: SocketIOServer, payload: P
         video: 'Видео',
       }
       
-      const systemMessage = await payload.create({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const systemMessage = await (payload.create as any)({
         collection: 'messages',
         data: {
           appointment: appointmentId,
