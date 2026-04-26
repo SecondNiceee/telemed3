@@ -1,10 +1,22 @@
 'use client'
 
-import { ArrowLeft, Video, CheckCircle2, Ban, MessageCircle, Star } from 'lucide-react'
+import { ArrowLeft, Video, CheckCircle2, Ban, MessageCircle, Star, Phone, MessageSquare, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { formatCountdown } from '@/lib/utils/date'
 import type { ChatHeaderProps } from '../types'
+
+const connectionTypeLabels: Record<string, { label: string; icon: React.ReactNode }> = {
+  chat: { label: 'Чат', icon: <MessageSquare className="w-3.5 h-3.5" /> },
+  audio: { label: 'Аудио', icon: <Phone className="w-3.5 h-3.5" /> },
+  video: { label: 'Видео', icon: <Video className="w-3.5 h-3.5" /> },
+}
 
 export function ChatHeader({
   appointment,
@@ -19,13 +31,17 @@ export function ChatHeader({
   videoCallStatus,
   isChatBlocked,
   hasFeedback,
+  connectionType,
   onBack,
   onStartConsultation,
   onStartVideoCall,
   onShowCompleteDialog,
   onToggleChatBlock,
   onLeaveFeedback,
+  onChangeConnectionType,
 }: ChatHeaderProps) {
+  const currentConnectionType = connectionType || appointment.connectionType || 'chat'
+  const connectionInfo = connectionTypeLabels[currentConnectionType]
   return (
     <div className="flex flex-col border-b border-border bg-card">
       {/* Countdown banner - prominent (only show before consultation starts) */}
@@ -113,6 +129,39 @@ export function ChatHeader({
           <h2 className="font-semibold text-foreground truncate">{otherPartyName}</h2>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{appointment.date}, {appointment.time}</span>
+            <span className="text-muted-foreground/50">|</span>
+            {/* Connection type display/selector */}
+            {currentSenderType === 'user' && onChangeConnectionType ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    {connectionInfo.icon}
+                    <span>{connectionInfo.label}</span>
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {Object.entries(connectionTypeLabels).map(([type, { label, icon }]) => (
+                    <DropdownMenuItem
+                      key={type}
+                      onClick={() => onChangeConnectionType(type as 'chat' | 'audio' | 'video')}
+                      className={cn(
+                        "flex items-center gap-2",
+                        currentConnectionType === type && "bg-accent"
+                      )}
+                    >
+                      {icon}
+                      <span>{label}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <span className="flex items-center gap-1">
+                {connectionInfo.icon}
+                <span>{connectionInfo.label}</span>
+              </span>
+            )}
           </div>
         </div>
         

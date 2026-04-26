@@ -25,12 +25,14 @@ export interface ChatHeaderProps {
   videoCallStatus: string
   isChatBlocked?: boolean
   hasFeedback?: boolean
+  connectionType?: 'chat' | 'audio' | 'video' | null
   onBack?: () => void
   onStartConsultation: () => void
   onStartVideoCall: () => void
   onShowCompleteDialog: () => void
   onToggleChatBlock: () => void
   onLeaveFeedback?: () => void
+  onChangeConnectionType?: (connectionType: 'chat' | 'audio' | 'video') => void
 }
 
 export interface ChatMessagesProps {
@@ -39,9 +41,10 @@ export interface ChatMessagesProps {
     id: number
     text?: string | null
     attachment?: ApiMessageAttachment | number | null
-    sender?: ApiMessageSender
+    sender?: ApiMessageSender | null
     createdAt?: string
     read?: boolean
+    isSystemMessage?: boolean
   }>
   currentSenderType: 'user' | 'doctor'
   currentSenderId: number

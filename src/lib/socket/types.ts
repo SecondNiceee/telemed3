@@ -96,6 +96,11 @@ export interface ChatUnblockPayload {
   appointmentId: number
 }
 
+export interface ChangeConnectionTypePayload {
+  appointmentId: number
+  connectionType: 'chat' | 'audio' | 'video'
+}
+
 /**
  * Состояние звонка
  */

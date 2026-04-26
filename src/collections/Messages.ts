@@ -105,11 +105,20 @@ export const Messages: CollectionConfig = {
       name: 'sender',
       type: 'relationship',
       relationTo: ['users', 'doctors'],
-      required: true,
+      required: false,
       label: 'Отправитель',
       index: true,
       admin: {
-        description: 'Полиморфная связь: может быть пользователем или врачом',
+        description: 'Полиморфная связь: может быть пользователем или врачом. Для системных сообщений = null',
+      },
+    },
+    {
+      name: 'isSystemMessage',
+      type: 'checkbox',
+      defaultValue: false,
+      label: 'Системное сообщение',
+      admin: {
+        description: 'Если включено, сообщение отображается как системное уведомление',
       },
     },
     {

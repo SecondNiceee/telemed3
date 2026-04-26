@@ -49,8 +49,8 @@ export function ChatWindow({
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false)
 
   // Hooks
-  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, startConsultation, endConsultation, blockChat, unblockChat } = useSocket()
-  const { messages, loadMessages, loadingMessages, typingUsers, setActiveChat, appointmentStatuses, chatBlocked } = useChatStore()
+  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, startConsultation, endConsultation, blockChat, unblockChat, changeConnectionType } = useSocket()
+  const { messages, loadMessages, loadingMessages, typingUsers, setActiveChat, appointmentStatuses, chatBlocked, connectionTypes } = useChatStore()
   const { feedbackExistsByAppointment, checkFeedbackExists, setFeedbackExists } = useFeedbackStore()
   const videoCall = useVideoCall()
   const { isDragging, handleDragOver, handleDragLeave, handleDrop, clearAttachment } = useFileUpload(appointment.id)
@@ -68,6 +68,8 @@ export function ChatWindow({
   // - Doctor can ALWAYS send messages
   // - Patient can send if chat is NOT blocked
   const canSendMessages = currentSenderType === 'doctor' || !isChatBlocked
+  // Use socket-updated connection type if available, otherwise use appointment prop
+  const effectiveConnectionType = connectionTypes[appointment.id] || appointment.connectionType || 'chat'
   
   const otherPartyName = currentSenderType === 'user' 
     ? appointment.doctorName || 'Врач'
@@ -182,6 +184,12 @@ export function ChatWindow({
   const handleFeedbackSuccess = () => {
     setFeedbackExists(appointment.id, true)
     setShowFeedbackDialog(false)
+  }
+
+  const handleChangeConnectionType = (newConnectionType: 'chat' | 'audio' | 'video') => {
+    if (currentSenderType === 'user' && newConnectionType !== effectiveConnectionType) {
+      changeConnectionType(appointment.id, newConnectionType)
+    }
   }
 
   // Get doctor info for feedback dialog
@@ -384,12 +392,14 @@ export function ChatWindow({
   videoCallStatus={videoCall.status}
   isChatBlocked={isChatBlocked}
   hasFeedback={hasFeedback}
+  connectionType={effectiveConnectionType}
   onBack={onBack}
   onStartConsultation={handleStartConsultationClick}
   onStartVideoCall={handleStartVideoConsultation}
   onShowCompleteDialog={() => setShowCompleteDialog(true)}
   onToggleChatBlock={handleToggleChatBlock}
   onLeaveFeedback={() => setShowFeedbackDialog(true)}
+  onChangeConnectionType={handleChangeConnectionType}
   />
       
       <ConsultationDialogs
