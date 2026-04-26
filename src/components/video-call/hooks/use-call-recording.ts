@@ -54,13 +54,13 @@ export function useCallRecording(): UseCallRecordingReturn {
   ): Promise<boolean> => {
     // Don't upload if recording was stopped (unless this is the last chunk during finalization)
     if (isStoppedRef.current && !isLast) {
-      console.log('[Recording] Recording stopped, skipping chunk upload')
+      console.log('[Recording] Recording stopped (isStoppedRef=true, isLast=false), skipping chunk upload')
       return false
     }
     
     const state = chunkUploadStateRef.current
     if (!state) {
-      console.log('[Recording] No upload state, skipping chunk upload')
+      console.log('[Recording] No upload state (chunkUploadStateRef=null), skipping chunk upload')
       return false
     }
 
@@ -70,6 +70,7 @@ export function useCallRecording(): UseCallRecordingReturn {
       isLast,
       appointmentId: state.appointmentId,
       doctorId: state.doctorId,
+      isStoppedRef: isStoppedRef.current,
     })
 
     try {
@@ -105,9 +106,9 @@ export function useCallRecording(): UseCallRecordingReturn {
 
   // Process and upload pending chunks
   const processPendingChunks = useCallback(async () => {
-    // Don't process if recording was stopped
+    // Don't process if recording was stopped - check FIRST
     if (isStoppedRef.current) {
-      console.log('[Recording] Recording stopped, skipping pending chunks processing')
+      console.log('[Recording] Recording stopped (isStoppedRef=true), skipping pending chunks processing')
       return
     }
     
@@ -127,17 +128,25 @@ export function useCallRecording(): UseCallRecordingReturn {
       numChunks: chunksToUpload.length,
       combinedSize: combinedChunk.size,
       chunkIndex: state.chunkIndex,
+      isStoppedRef: isStoppedRef.current,
     })
+
+    // Double-check AGAIN before upload (in case stopRecording was called while we prepared chunks)
+    if (isStoppedRef.current) {
+      console.log('[Recording] Recording stopped before upload, aborting chunk processing')
+      return
+    }
 
     const success = await uploadChunk(combinedChunk, state.chunkIndex, false)
     
-    if (success) {
+    if (success && !isStoppedRef.current) {
+      // Only update state if we're still recording
       chunkUploadStateRef.current = {
         ...state,
         chunkIndex: state.chunkIndex + 1,
       }
-    } else {
-      // Put chunks back for retry
+    } else if (!success && !isStoppedRef.current) {
+      // Put chunks back for retry only if still recording
       pendingChunksRef.current = [...chunksToUpload, ...pendingChunksRef.current]
       console.log('[Recording] Chunks queued for retry, total:', pendingChunksRef.current.length)
     }
@@ -471,16 +480,31 @@ export function useCallRecording(): UseCallRecordingReturn {
   }, [startChunkUpload, createCompositeStream, cleanupCompositeState])
 
 const stopRecording = useCallback(async (): Promise<Blob | null> => {
+  // Check if already stopped - prevent multiple calls
+  if (isStoppedRef.current) {
+    console.log('[Recording] Already stopped (isStoppedRef=true), returning existing blob')
+    return recordingBlob
+  }
+  
   // Mark recording as stopped immediately to prevent further chunk uploads
   isStoppedRef.current = true
   console.log('[Recording] Stopping recording, isStoppedRef set to true')
   
+  // Stop interval FIRST
   stopChunkUpload()
+  
+  // Clear pending chunks immediately to prevent any in-flight uploads
+  pendingChunksRef.current = []
+  console.log('[Recording] Cleared pending chunks')
+  
+  // Also clear the upload state to prevent any new uploads
+  const savedState = chunkUploadStateRef.current // Save for finalization
+  console.log('[Recording] Saved chunkUploadState for finalization:', savedState ? 'yes' : 'no')
   
   return new Promise((resolve) => {
   const recorder = mediaRecorderRef.current
   if (!recorder || recorder.state !== 'recording') {
-  console.log('[Recording] Not recording')
+  console.log('[Recording] Not recording or already stopped')
   resolve(recordingBlob)
   return
   }
