@@ -45,6 +45,8 @@ export function useCallRecording(): UseCallRecordingReturn {
   const compositeStateRef = useRef<CompositeRecordingState | null>(null)
   // Flag to prevent chunk uploads after recording is stopped
   const isStoppedRef = useRef<boolean>(false)
+  // Ref for isRecording to use in async callbacks (avoids stale closure)
+  const isRecordingRef = useRef<boolean>(false)
 
   // Upload a chunk to the server
   const uploadChunk = useCallback(async (
@@ -457,22 +459,26 @@ export function useCallRecording(): UseCallRecordingReturn {
         const blob = new Blob(chunksRef.current, { type: selectedMimeType || defaultMimeType })
         setRecordingBlob(blob)
         setIsRecording(false)
+        isRecordingRef.current = false
         if (!isAudioOnly) {
           cleanupCompositeState() // Clean up canvas and videos (only for video)
         }
+      }
         console.log('[Recording] Stopped, total blob size:', blob.size, 'isAudioOnly:', isAudioOnly)
       }
 
       recorder.onerror = (event) => {
         console.error('[Recording] Recorder error:', event)
         setIsRecording(false)
+        isRecordingRef.current = false
       }
 
-      // Record in 1 second chunks for smooth streaming
-      recorder.start(1000)
-      mediaRecorderRef.current = recorder
-      recordingStartTimeRef.current = Date.now()
-      setIsRecording(true)
+    // Record in 1 second chunks for smooth streaming
+    recorder.start(1000)
+    mediaRecorderRef.current = recorder
+    recordingStartTimeRef.current = Date.now()
+    setIsRecording(true)
+    isRecordingRef.current = true
       
       console.log('[Recording] Started with mime type:', selectedMimeType, 'isAudioOnly:', isAudioOnly)
 
@@ -513,14 +519,15 @@ const stopRecording = useCallback(async (): Promise<Blob | null> => {
       return
     }
 
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
-      setRecordingBlob(blob)
-      setIsRecording(false)
-      mediaRecorderRef.current = null
-      console.log('[Recording] Stopped, blob size:', blob.size)
-      resolve(blob)
-    }
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
+        setRecordingBlob(blob)
+        setIsRecording(false)
+        isRecordingRef.current = false
+        mediaRecorderRef.current = null
+        console.log('[Recording] Stopped, blob size:', blob.size)
+        resolve(blob)
+      }
 
     recorder.stop()
   })
@@ -653,6 +660,7 @@ const stopRecording = useCallback(async (): Promise<Blob | null> => {
 
   return {
     isRecording,
+    isRecordingRef, // Ref for checking recording status in async callbacks
     recordingBlob,
     isUploading,
     startRecording,

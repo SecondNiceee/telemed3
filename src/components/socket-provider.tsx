@@ -24,7 +24,8 @@ interface SocketContextValue {
   rejectCall: (appointmentId: number) => void
   endCall: (appointmentId: number) => void
   // Callback for when remote party ends call (before store is updated)
-  onRemoteCallEnded: (callback: (appointmentId: number) => void) => () => void
+  // Callback can be async - socket-provider will await it before updating store
+  onRemoteCallEnded: (callback: (appointmentId: number) => void | Promise<void>) => () => void
   // Consultation management
   startConsultation: (appointmentId: number) => void
   endConsultation: (appointmentId: number) => void
@@ -75,7 +76,8 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   const callStoreRef = useRef(useCallStore.getState())
   
   // Callbacks for remote call ended - allows VideoCallProvider to handle recording before store updates
-  const remoteCallEndedCallbacksRef = useRef<Set<(appointmentId: number) => void>>(new Set())
+  // Callbacks can be async - we will await them before updating the store
+  const remoteCallEndedCallbacksRef = useRef<Set<(appointmentId: number) => void | Promise<void>>>(new Set())
   
   // Subscribe to store updates via refs (not dependencies)
   useEffect(() => {
@@ -224,18 +226,33 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       callStoreRef.current.endCall()
     })
 
-    newSocket.on('call-ended', ({ appointmentId }) => {
-      console.log('[Socket] Call ended by remote, appointmentId:', appointmentId)
+    newSocket.on('call-ended', async ({ appointmentId }) => {
+      console.log('[Socket] Call ended by remote, appointmentId:', appointmentId, 'callbacks count:', remoteCallEndedCallbacksRef.current.size)
       
       // IMPORTANT: Call all registered callbacks BEFORE updating the store
       // This allows VideoCallProvider to stop recording and save video before store resets data
+      // We MUST await all callbacks to ensure recording is saved before store is cleared
+      const callbackPromises: Promise<void>[] = []
       remoteCallEndedCallbacksRef.current.forEach(callback => {
         try {
-          callback(appointmentId)
+          const result = callback(appointmentId)
+          // If callback returns a promise, track it
+          if (result instanceof Promise) {
+            callbackPromises.push(result.catch(err => {
+              console.error('[Socket] Error in async remoteCallEnded callback:', err)
+            }))
+          }
         } catch (err) {
           console.error('[Socket] Error in remoteCallEnded callback:', err)
         }
       })
+      
+      // Wait for all async callbacks to complete (e.g., recording finalization)
+      if (callbackPromises.length > 0) {
+        console.log('[Socket] Waiting for', callbackPromises.length, 'async callbacks to complete...')
+        await Promise.all(callbackPromises)
+        console.log('[Socket] All async callbacks completed')
+      }
       
       // Now update the store (this will reset appointmentId, streams, etc.)
       callStoreRef.current.endCall()
@@ -381,8 +398,9 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   }, [socket])
   
   // Register a callback to be called when remote party ends the call
+  // Callback can be async - it will be awaited before store is updated
   // Returns unsubscribe function
-  const onRemoteCallEnded = useCallback((callback: (appointmentId: number) => void) => {
+  const onRemoteCallEnded = useCallback((callback: (appointmentId: number) => void | Promise<void>) => {
     remoteCallEndedCallbacksRef.current.add(callback)
     return () => {
       remoteCallEndedCallbacksRef.current.delete(callback)
