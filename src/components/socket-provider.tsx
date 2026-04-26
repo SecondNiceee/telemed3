@@ -28,6 +28,7 @@ interface SocketContextValue {
   endConsultation: (appointmentId: number) => void
   blockChat: (appointmentId: number) => void
   unblockChat: (appointmentId: number) => void
+  changeConnectionType: (appointmentId: number, connectionType: 'chat' | 'audio' | 'video') => void
 }
 
 const SocketContext = createContext<SocketContextValue | null>(null)
@@ -244,6 +245,22 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       chatStoreRef.current.setChatBlocked(appointmentId, false)
     })
 
+    // Connection type change events
+    newSocket.on('connection-type-changed', ({ appointmentId, connectionType, message }) => {
+      console.log('[Socket] Connection type changed:', appointmentId, connectionType)
+      chatStoreRef.current.setConnectionType(appointmentId, connectionType)
+      
+      // Add system message to chat
+      if (message) {
+        chatStoreRef.current.addMessage(message)
+      }
+      
+      // Play notification sound for doctors
+      if (currentSenderTypeRef.current === 'doctor') {
+        playNotificationSound()
+      }
+    })
+
     setSocket(newSocket)
 
     return () => {
@@ -361,6 +378,12 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     }
   }, [socket])
 
+  const changeConnectionType = useCallback((appointmentId: number, connectionType: 'chat' | 'audio' | 'video') => {
+    if (socket?.connected) {
+      socket.emit('change-connection-type', { appointmentId, connectionType })
+    }
+  }, [socket])
+
   const value: SocketContextValue = {
     socket,
     isConnected,
@@ -378,6 +401,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     endConsultation,
     blockChat,
     unblockChat,
+    changeConnectionType,
   }
 
   return (
@@ -405,6 +429,7 @@ const defaultSocketContext: SocketContextValue = {
   endConsultation: () => {},
   blockChat: () => {},
   unblockChat: () => {},
+  changeConnectionType: () => {},
 }
 
 export function useSocket() {

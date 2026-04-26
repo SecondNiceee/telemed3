@@ -25,12 +25,14 @@ export interface ChatHeaderProps {
   videoCallStatus: string
   isChatBlocked?: boolean
   hasFeedback?: boolean
+  connectionType?: 'chat' | 'audio' | 'video' | null
   onBack?: () => void
   onStartConsultation: () => void
   onStartVideoCall: () => void
   onShowCompleteDialog: () => void
   onToggleChatBlock: () => void
   onLeaveFeedback?: () => void
+  onChangeConnectionType?: (connectionType: 'chat' | 'audio' | 'video') => void
 }
 
 export interface ChatMessagesProps {

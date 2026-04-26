@@ -21,10 +21,11 @@ export interface ApiMessageSender {
 export interface ApiMessage {
   id: number
   appointment: number | { id: number }
-  sender: ApiMessageSender
+  sender?: ApiMessageSender | null
   text?: string
   attachment?: ApiMessageAttachment | number
   read: boolean
+  isSystemMessage?: boolean
   createdAt: string
   updatedAt: string
 }

@@ -22,6 +22,9 @@ interface ChatState {
   
   // Chat blocked state (updated via socket)
   chatBlocked: Record<number, boolean>
+  
+  // Connection type state (updated via socket)
+  connectionTypes: Record<number, 'chat' | 'audio' | 'video'>
 
   // Actions
   setActiveChat: (appointmentId: number | null) => void
@@ -46,6 +49,8 @@ interface ChatState {
   
   setChatBlocked: (appointmentId: number, blocked: boolean) => void
   
+  setConnectionType: (appointmentId: number, connectionType: 'chat' | 'audio' | 'video') => void
+  
   reset: () => void
 }
 
@@ -57,6 +62,7 @@ const initialState = {
   typingUsers: {} as Record<number, { senderType: 'user' | 'doctor'; senderId: number } | null>,
   appointmentStatuses: {} as Record<number, string>,
   chatBlocked: {} as Record<number, boolean>,
+  connectionTypes: {} as Record<number, 'chat' | 'audio' | 'video'>,
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -216,6 +222,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
       chatBlocked: {
         ...state.chatBlocked,
         [appointmentId]: blocked,
+      },
+    }))
+  },
+
+  setConnectionType: (appointmentId, connectionType) => {
+    set((state) => ({
+      connectionTypes: {
+        ...state.connectionTypes,
+        [appointmentId]: connectionType,
       },
     }))
   },

@@ -12,11 +12,26 @@ interface SimplifiedMessage {
   attachment?: ApiMessageAttachment | number | null
   createdAt?: string
   read?: boolean
+  isSystemMessage?: boolean
 }
 
 interface MessageBubbleProps {
   message: SimplifiedMessage
   isOwn: boolean
+}
+
+function SystemMessageBubble({ message }: { message: SimplifiedMessage }) {
+  return (
+    <div className="flex w-full justify-center my-3">
+      <div className="flex items-center gap-3 w-full max-w-[85%]">
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-xs text-muted-foreground px-2 text-center whitespace-nowrap">
+          {message.text}
+        </span>
+        <div className="flex-1 h-px bg-border" />
+      </div>
+    </div>
+  )
 }
 
 function formatMessageTime(dateString: string): string {
@@ -127,6 +142,11 @@ function AttachmentPreview({
 }
 
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
+  // Handle system messages
+  if (message.isSystemMessage) {
+    return <SystemMessageBubble message={message} />
+  }
+
   // Parse attachment - can be object or number (ID only)
   const attachment = message.attachment && typeof message.attachment === 'object' 
     ? message.attachment as ApiMessageAttachment
