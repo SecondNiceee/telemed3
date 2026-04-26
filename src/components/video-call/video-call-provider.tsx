@@ -256,8 +256,20 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
   // callStore is stable (zustand store), so this callback won't change
   }, [callStore])
   
+  // Ref to prevent multiple calls to handleCallEnded
+  const isHandlingCallEndedRef = useRef(false)
+  
   // Handle call ended
   const handleCallEnded = useCallback(async () => {
+    // Prevent multiple simultaneous calls
+    if (isHandlingCallEndedRef.current) {
+      console.log('[VideoCallProvider] handleCallEnded already in progress, skipping')
+      return
+    }
+    isHandlingCallEndedRef.current = true
+    
+    console.log('[VideoCallProvider] handleCallEnded started')
+    
     clearCallTimeout()
     connectionQuality.stopMonitoring()
     timer.pause()
@@ -268,6 +280,12 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
 
     // Stop recording and finalize for doctor
     // This runs on doctor's side regardless of who ended the call
+    console.log('[VideoCallProvider] Checking recording conditions:', {
+      role: currentUser?.role,
+      isRecording: recording.isRecording,
+      appointmentId: currentCallData?.appointmentId,
+    })
+    
     if (currentUser?.role === 'doctor' && recording.isRecording && currentCallData?.appointmentId) {
       const doctorId = currentUser.odooUserId
       console.log('[Recording] Call ended, stopping and finalizing:', { 
@@ -283,6 +301,8 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       // Upload/finalize - this will either finalize server chunks or upload client blob
       // Pass isAudioOnly to set correct recordingType
       await recording.uploadRecording(currentCallData.appointmentId, doctorId, blob || undefined, wasAudioOnly)
+    } else {
+      console.log('[VideoCallProvider] Skipping recording finalization - conditions not met')
     }
     
     mediaStream.stopStream()
@@ -302,7 +322,10 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       setStatus('idle')
       setViewMode('fullscreen')
       setIsAudioOnly(false)
+      isHandlingCallEndedRef.current = false // Reset flag for next call
     }, 1000)
+    
+    console.log('[VideoCallProvider] handleCallEnded completed')
   // Note: Using callDataRef.current instead of callData to avoid stale closure issues
   }, [clearCallTimeout, connectionQuality, timer, mediaStream, callStore, currentUser, recording])
   
@@ -629,21 +652,34 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
   // This effect watches the store status and triggers handleCallEnded when the remote party ends the call
   // We need to use a ref to track if we already handled this to avoid double handling
   const remoteEndedHandledRef = useRef(false)
+  // Track previous store status to detect transition to 'ended'
+  const prevStoreStatusRef = useRef<string>(callStore.status)
   
   useEffect(() => {
     const storeStatus = callStore.status
+    const prevStatus = prevStoreStatusRef.current
+    prevStoreStatusRef.current = storeStatus
     
-    // If store status became 'ended' but our local status is still 'connected' or 'connecting',
+    // Detect when store status TRANSITIONS to 'ended' (from connected/connecting)
+    // This catches the moment when remote party ends the call via socket
+    const storeJustEnded = (storeStatus === 'ended' || storeStatus === 'idle') && 
+                           (prevStatus === 'connected' || prevStatus === 'connecting' || prevStatus === 'calling')
+    
+    // If store status just became 'ended'/'idle' AND our local status is still 'connected' or 'connecting',
     // it means the call was ended by the remote party via socket, not by us
     // We need to properly stop recording and cleanup
-    if (storeStatus === 'ended' && (status === 'connected' || status === 'connecting') && !remoteEndedHandledRef.current) {
-      console.log('[VideoCallProvider] Call ended by remote party, triggering handleCallEnded')
+    if (storeJustEnded && (status === 'connected' || status === 'connecting') && !remoteEndedHandledRef.current) {
+      console.log('[VideoCallProvider] Call ended by remote party, triggering handleCallEnded', {
+        storeStatus,
+        prevStatus,
+        localStatus: status,
+      })
       remoteEndedHandledRef.current = true
       handleCallEnded()
     }
     
-    // Reset the flag when we go back to idle or start a new call
-    if (storeStatus === 'idle' || storeStatus === 'calling' || storeStatus === 'incoming') {
+    // Reset the flag when we start a new call
+    if (storeStatus === 'calling' || storeStatus === 'incoming') {
       remoteEndedHandledRef.current = false
     }
   }, [callStore.status, status, handleCallEnded])
