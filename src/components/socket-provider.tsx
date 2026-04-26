@@ -23,6 +23,8 @@ interface SocketContextValue {
   answerCall: (appointmentId: number, answerPeerId: string) => void
   rejectCall: (appointmentId: number) => void
   endCall: (appointmentId: number) => void
+  // Callback for when remote party ends call (before store is updated)
+  onRemoteCallEnded: (callback: (appointmentId: number) => void) => () => void
   // Consultation management
   startConsultation: (appointmentId: number) => void
   endConsultation: (appointmentId: number) => void
@@ -71,6 +73,9 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   // Use refs for store functions to avoid reconnection on store changes
   const chatStoreRef = useRef(useChatStore.getState())
   const callStoreRef = useRef(useCallStore.getState())
+  
+  // Callbacks for remote call ended - allows VideoCallProvider to handle recording before store updates
+  const remoteCallEndedCallbacksRef = useRef<Set<(appointmentId: number) => void>>(new Set())
   
   // Subscribe to store updates via refs (not dependencies)
   useEffect(() => {
@@ -220,7 +225,19 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     })
 
     newSocket.on('call-ended', ({ appointmentId }) => {
-      console.log('[Socket] Call ended by remote')
+      console.log('[Socket] Call ended by remote, appointmentId:', appointmentId)
+      
+      // IMPORTANT: Call all registered callbacks BEFORE updating the store
+      // This allows VideoCallProvider to stop recording and save video before store resets data
+      remoteCallEndedCallbacksRef.current.forEach(callback => {
+        try {
+          callback(appointmentId)
+        } catch (err) {
+          console.error('[Socket] Error in remoteCallEnded callback:', err)
+        }
+      })
+      
+      // Now update the store (this will reset appointmentId, streams, etc.)
       callStoreRef.current.endCall()
     })
 
@@ -362,6 +379,15 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       socket.emit('call-end', { appointmentId })
     }
   }, [socket])
+  
+  // Register a callback to be called when remote party ends the call
+  // Returns unsubscribe function
+  const onRemoteCallEnded = useCallback((callback: (appointmentId: number) => void) => {
+    remoteCallEndedCallbacksRef.current.add(callback)
+    return () => {
+      remoteCallEndedCallbacksRef.current.delete(callback)
+    }
+  }, [])
 
   // Consultation management functions
   const startConsultation = useCallback((appointmentId: number) => {
@@ -407,6 +433,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     answerCall,
     rejectCall,
     endCall: endCallSignal,
+    onRemoteCallEnded,
     startConsultation,
     endConsultation,
     blockChat,
@@ -435,6 +462,7 @@ const defaultSocketContext: SocketContextValue = {
   answerCall: () => {},
   rejectCall: () => {},
   endCall: () => {},
+  onRemoteCallEnded: () => () => {},
   startConsultation: () => {},
   endConsultation: () => {},
   blockChat: () => {},
