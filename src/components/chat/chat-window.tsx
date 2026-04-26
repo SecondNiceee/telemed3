@@ -186,6 +186,12 @@ export function ChatWindow({
     setShowFeedbackDialog(false)
   }
 
+  const handleChangeConnectionType = (newConnectionType: 'chat' | 'audio' | 'video') => {
+    if (currentSenderType === 'user' && newConnectionType !== effectiveConnectionType) {
+      changeConnectionType(appointment.id, newConnectionType)
+    }
+  }
+
   // Get doctor info for feedback dialog
   const doctorId = typeof appointment.doctor === 'object' ? appointment.doctor.id : appointment.doctor
   const doctorName = appointment.doctorName || (typeof appointment.doctor === 'object' ? appointment.doctor.name : null) || 'Врач'
@@ -386,12 +392,14 @@ export function ChatWindow({
   videoCallStatus={videoCall.status}
   isChatBlocked={isChatBlocked}
   hasFeedback={hasFeedback}
+  connectionType={effectiveConnectionType}
   onBack={onBack}
   onStartConsultation={handleStartConsultationClick}
   onStartVideoCall={handleStartVideoConsultation}
   onShowCompleteDialog={() => setShowCompleteDialog(true)}
   onToggleChatBlock={handleToggleChatBlock}
   onLeaveFeedback={() => setShowFeedbackDialog(true)}
+  onChangeConnectionType={handleChangeConnectionType}
   />
       
       <ConsultationDialogs

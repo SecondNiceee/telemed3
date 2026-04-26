@@ -56,6 +56,16 @@ export function ChatMessages({
         </div>
       ) : (
         messages.map((message) => {
+          // System messages don't have a sender
+          if (message.isSystemMessage) {
+            return (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                isOwn={false}
+              />
+            )
+          }
           const senderType = getMessageSenderType(message)
           const senderId = getMessageSenderId(message)
           const isOwn = senderType === currentSenderType && senderId === currentSenderId
