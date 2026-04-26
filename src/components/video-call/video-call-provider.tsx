@@ -256,19 +256,24 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     connectionQuality.stopMonitoring()
     timer.pause()
 
+    // Use ref to get current callData value (avoids stale closure when patient ends the call)
+    const currentCallData = callDataRef.current
+
     // Stop recording and finalize for doctor
-    if (currentUser?.role === 'doctor' && recording.isRecording && callData?.appointmentId) {
+    // This runs on doctor's side regardless of who ended the call
+    if (currentUser?.role === 'doctor' && recording.isRecording && currentCallData?.appointmentId) {
       const doctorId = currentUser.odooUserId
       console.log('[Recording] Call ended, stopping and finalizing:', { 
-        appointmentId: callData.appointmentId, 
-        doctorId 
+        appointmentId: currentCallData.appointmentId, 
+        doctorId,
+        whoEndedCall: 'handling on doctor side'
       })
       
       const blob = await recording.stopRecording()
       console.log('[Recording] Stopped, blob size:', blob?.size || 0)
       
       // Upload/finalize - this will either finalize server chunks or upload client blob
-      await recording.uploadRecording(callData.appointmentId, doctorId, blob || undefined)
+      await recording.uploadRecording(currentCallData.appointmentId, doctorId, blob || undefined)
     }
     
     mediaStream.stopStream()
@@ -288,7 +293,8 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       setStatus('idle')
       setViewMode('fullscreen')
     }, 1000)
-  }, [clearCallTimeout, connectionQuality, timer, mediaStream, callStore, currentUser, recording, callData?.appointmentId])
+  // Note: Using callDataRef.current instead of callData to avoid stale closure issues
+  }, [clearCallTimeout, connectionQuality, timer, mediaStream, callStore, currentUser, recording])
   
   // Setup call handlers
   const setupCallHandlers = useCallback((call: MediaConnection) => {
