@@ -47,9 +47,25 @@ export function createConsultationStartHandler(io: SocketIOServer, payload: Payl
         overrideAccess: true,
       })
 
+      // Create system message for consultation start
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const systemMessage = await (payload.create as any)({
+        collection: 'messages',
+        data: {
+          appointment: appointmentId,
+          text: 'Врач начал консультацию',
+          isSystemMessage: true,
+          read: false,
+        },
+        overrideAccess: true,
+      })
+
       // Emit to all clients in the room
       const room = `appointment:${appointmentId}`
-      io.to(room).emit('consultation-started', { appointmentId })
+      io.to(room).emit('consultation-started', { 
+        appointmentId,
+        message: systemMessage,
+      })
       
       console.log(`[Socket] Consultation started for appointment ${appointmentId} by doctor ${senderId}`)
     } catch (error) {
@@ -95,9 +111,25 @@ export function createConsultationEndHandler(io: SocketIOServer, payload: Payloa
         overrideAccess: true,
       })
 
+      // Create system message for consultation end
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const systemMessage = await (payload.create as any)({
+        collection: 'messages',
+        data: {
+          appointment: appointmentId,
+          text: 'Врач завершил консультацию',
+          isSystemMessage: true,
+          read: false,
+        },
+        overrideAccess: true,
+      })
+
       // Emit to all clients in the room
       const room = `appointment:${appointmentId}`
-      io.to(room).emit('consultation-ended', { appointmentId })
+      io.to(room).emit('consultation-ended', { 
+        appointmentId,
+        message: systemMessage,
+      })
       
       console.log(`[Socket] Consultation ended for appointment ${appointmentId} by doctor ${senderId}`)
     } catch (error) {

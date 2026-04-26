@@ -20,15 +20,45 @@ interface MessageBubbleProps {
   isOwn: boolean
 }
 
+function formatSystemMessageTime(dateString?: string): string {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const now = new Date()
+  const isToday = date.toDateString() === now.toDateString()
+  
+  const time = date.toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  if (isToday) {
+    return `Сегодня, ${time}`
+  }
+
+  const dateStr = date.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+  })
+
+  return `${dateStr}, ${time}`
+}
+
 function SystemMessageBubble({ message }: { message: SimplifiedMessage }) {
   return (
     <div className="flex w-full justify-center my-3">
-      <div className="flex items-center gap-3 w-full max-w-[85%]">
-        <div className="flex-1 h-px bg-border" />
-        <span className="text-xs text-muted-foreground px-2 text-center whitespace-nowrap">
-          {message.text}
-        </span>
-        <div className="flex-1 h-px bg-border" />
+      <div className="flex flex-col items-center gap-1 w-full max-w-[85%]">
+        {message.createdAt && (
+          <span className="text-[10px] text-muted-foreground/70">
+            {formatSystemMessageTime(message.createdAt)}
+          </span>
+        )}
+        <div className="flex items-center gap-3 w-full">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground px-2 text-center">
+            {message.text}
+          </span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
       </div>
     </div>
   )
