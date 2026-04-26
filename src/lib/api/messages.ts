@@ -33,8 +33,8 @@ export interface ApiMessage {
 // Хелперы для работы с полиморфной связью
 export function getSenderType(message: ApiMessage): 'user' | 'doctor' | null {
   // Защита от старых сообщений без sender или с неполными данными
+  // Системные сообщения могут не иметь sender - это нормально
   if (!message.sender || !message.sender.relationTo) {
-    console.warn('[v0] Message has invalid sender:', message.id, message.sender)
     return null
   }
   return message.sender.relationTo === 'users' ? 'user' : 'doctor'
@@ -42,8 +42,8 @@ export function getSenderType(message: ApiMessage): 'user' | 'doctor' | null {
 
 export function getSenderId(message: ApiMessage): number | null {
   // Защита от старых сообщений без sender
+  // Системные сообщения могут не иметь sender - это нормально
   if (!message.sender || message.sender.value === undefined) {
-    console.warn('[v0] Message has invalid sender value:', message.id, message.sender)
     return null
   }
   return typeof message.sender.value === 'object' 
