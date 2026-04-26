@@ -76,6 +76,7 @@ export interface ConsultationDialogsProps {
   showCompleteDialog: boolean
   showConsultationTypeDialog: boolean
   isCompleting: boolean
+  connectionType?: 'chat' | 'audio' | 'video' | null
   onCompleteDialogChange: (open: boolean) => void
   onConsultationTypeDialogChange: (open: boolean) => void
   onComplete: () => void

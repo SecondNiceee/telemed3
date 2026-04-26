@@ -406,6 +406,7 @@ export function ChatWindow({
         showCompleteDialog={showCompleteDialog}
         showConsultationTypeDialog={showConsultationTypeDialog}
         isCompleting={isCompleting}
+        connectionType={connectionType}
         onCompleteDialogChange={setShowCompleteDialog}
         onConsultationTypeDialogChange={setShowConsultationTypeDialog}
         onComplete={handleCompleteAppointment}

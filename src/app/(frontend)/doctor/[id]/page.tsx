@@ -81,7 +81,8 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
     );
   }
 
-  const photoUrl = resolveImageUrl((doctor.photo as Media)?.url);
+  const doctorPhotoUrl = (doctor.photo as Media)?.url;
+  const photoUrl = doctorPhotoUrl ? resolveImageUrl(doctorPhotoUrl) : null;
   const specialty = getDoctorSpecialty(doctor);
   const education = getDoctorEducation(doctor);
   const services = getDoctorServices(doctor);
