@@ -1,5 +1,6 @@
 import type Peer from 'peerjs'
 import type { MediaConnection } from 'peerjs'
+import type React from 'react'
 
 /**
  * Состояние звонка
@@ -309,6 +310,7 @@ export interface UseConnectionQualityReturn {
  */
 export interface UseCallRecordingReturn {
   isRecording: boolean
+  isRecordingRef: React.RefObject<boolean> // Ref for checking in async callbacks
   recordingBlob: Blob | null
   isUploading: boolean
   startRecording: (localStream: MediaStream, appointmentId?: number, doctorId?: number, remoteStream?: MediaStream, isAudioOnly?: boolean) => void

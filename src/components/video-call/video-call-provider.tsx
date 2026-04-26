@@ -280,13 +280,17 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
 
     // Stop recording and finalize for doctor
     // This runs on doctor's side regardless of who ended the call
+    // Use isRecordingRef to get CURRENT value (not stale closure from state)
+    const wasRecording = recording.isRecordingRef.current
     console.log('[VideoCallProvider] Checking recording conditions:', {
       role: currentUser?.role,
       isRecording: recording.isRecording,
+      isRecordingRef: wasRecording,
       appointmentId: currentCallData?.appointmentId,
     })
     
-    if (currentUser?.role === 'doctor' && recording.isRecording && currentCallData?.appointmentId) {
+    // Use isRecordingRef to check if recording was active (avoids stale closure issues)
+    if (currentUser?.role === 'doctor' && wasRecording && currentCallData?.appointmentId) {
       const doctorId = currentUser.odooUserId
       console.log('[Recording] Call ended, stopping and finalizing:', { 
         appointmentId: currentCallData.appointmentId, 
@@ -308,6 +312,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       console.log('[VideoCallProvider] Skipping recording finalization - conditions not met:', {
         role: currentUser?.role,
         isRecording: recording.isRecording,
+        isRecordingRef: wasRecording,
         hasAppointmentId: !!currentCallData?.appointmentId,
       })
     }
@@ -657,19 +662,26 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
   
   // Handle call ended from remote side (e.g., patient ends the call)
   // Using socket callback to handle recording BEFORE store is updated (which clears appointmentId, streams, etc.)
+  // IMPORTANT: This callback is async and socket-provider will await it before clearing the store
   useEffect(() => {
-    const unsubscribe = socket.onRemoteCallEnded((appointmentId) => {
-      console.log('[VideoCallProvider] Remote party ended call via socket callback, appointmentId:', appointmentId)
+    const unsubscribe = socket.onRemoteCallEnded(async (appointmentId) => {
+      // Use statusRef to get the CURRENT status value (not stale closure value)
+      const currentStatus = statusRef.current
+      console.log('[VideoCallProvider] Remote party ended call via socket callback, appointmentId:', appointmentId, 'status:', currentStatus)
       
       // Only handle if we are in an active call state
-      if (status === 'connected' || status === 'connecting' || status === 'calling') {
-        console.log('[VideoCallProvider] Triggering handleCallEnded from socket callback')
-        handleCallEnded()
+      if (currentStatus === 'connected' || currentStatus === 'connecting' || currentStatus === 'calling') {
+        console.log('[VideoCallProvider] Triggering handleCallEnded from socket callback (async)')
+        // IMPORTANT: We must await handleCallEnded to ensure recording is saved before store is cleared
+        await handleCallEnded()
+        console.log('[VideoCallProvider] handleCallEnded completed')
+      } else {
+        console.log('[VideoCallProvider] Skipping handleCallEnded - not in active call state, currentStatus:', currentStatus)
       }
     })
     
     return unsubscribe
-  }, [socket, status, handleCallEnded])
+  }, [socket, handleCallEnded])
   
   // Handle call answered (for outgoing calls only)
   // This effect triggers when the remote peer ACTUALLY answers our outgoing call
