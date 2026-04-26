@@ -43,6 +43,8 @@ export function useCallRecording(): UseCallRecordingReturn {
   const uploadIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const pendingChunksRef = useRef<Blob[]>([])
   const compositeStateRef = useRef<CompositeRecordingState | null>(null)
+  // Flag to prevent chunk uploads after recording is stopped
+  const isStoppedRef = useRef<boolean>(false)
 
   // Upload a chunk to the server
   const uploadChunk = useCallback(async (
@@ -50,6 +52,12 @@ export function useCallRecording(): UseCallRecordingReturn {
     chunkIndex: number,
     isLast: boolean = false
   ): Promise<boolean> => {
+    // Don't upload if recording was stopped (unless this is the last chunk during finalization)
+    if (isStoppedRef.current && !isLast) {
+      console.log('[Recording] Recording stopped, skipping chunk upload')
+      return false
+    }
+    
     const state = chunkUploadStateRef.current
     if (!state) {
       console.log('[Recording] No upload state, skipping chunk upload')
@@ -97,6 +105,12 @@ export function useCallRecording(): UseCallRecordingReturn {
 
   // Process and upload pending chunks
   const processPendingChunks = useCallback(async () => {
+    // Don't process if recording was stopped
+    if (isStoppedRef.current) {
+      console.log('[Recording] Recording stopped, skipping pending chunks processing')
+      return
+    }
+    
     const state = chunkUploadStateRef.current
     if (!state || pendingChunksRef.current.length === 0) {
       return
@@ -324,11 +338,14 @@ export function useCallRecording(): UseCallRecordingReturn {
         return false
       }
 
-      const data = await response.json()
-      console.log('[Recording] Recording finalized:', data)
-      
-      chunkUploadStateRef.current = null
-      return true
+  const data = await response.json()
+  console.log('[Recording] Recording finalized:', data)
+  
+  // Clear all state to prevent any further uploads
+  chunkUploadStateRef.current = null
+  pendingChunksRef.current = []
+  chunksRef.current = []
+  return true
     } catch (error) {
       console.error('[Recording] Finalization error:', error)
       return false
@@ -353,6 +370,7 @@ export function useCallRecording(): UseCallRecordingReturn {
     try {
       chunksRef.current = []
       pendingChunksRef.current = []
+      isStoppedRef.current = false // Reset stopped flag for new recording
 
       let recordingStream: MediaStream
 
@@ -452,16 +470,20 @@ export function useCallRecording(): UseCallRecordingReturn {
     }
   }, [startChunkUpload, createCompositeStream, cleanupCompositeState])
 
-  const stopRecording = useCallback(async (): Promise<Blob | null> => {
-    stopChunkUpload()
-    
-    return new Promise((resolve) => {
-      const recorder = mediaRecorderRef.current
-      if (!recorder || recorder.state !== 'recording') {
-        console.log('[Recording] Not recording')
-        resolve(recordingBlob)
-        return
-      }
+const stopRecording = useCallback(async (): Promise<Blob | null> => {
+  // Mark recording as stopped immediately to prevent further chunk uploads
+  isStoppedRef.current = true
+  console.log('[Recording] Stopping recording, isStoppedRef set to true')
+  
+  stopChunkUpload()
+  
+  return new Promise((resolve) => {
+  const recorder = mediaRecorderRef.current
+  if (!recorder || recorder.state !== 'recording') {
+  console.log('[Recording] Not recording')
+  resolve(recordingBlob)
+  return
+  }
 
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType })

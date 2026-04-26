@@ -625,6 +625,29 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     handleIncomingCall()
   }, [callStore, currentUser, status])
   
+  // Handle call ended from remote side (e.g., patient ends the call)
+  // This effect watches the store status and triggers handleCallEnded when the remote party ends the call
+  // We need to use a ref to track if we already handled this to avoid double handling
+  const remoteEndedHandledRef = useRef(false)
+  
+  useEffect(() => {
+    const storeStatus = callStore.status
+    
+    // If store status became 'ended' but our local status is still 'connected' or 'connecting',
+    // it means the call was ended by the remote party via socket, not by us
+    // We need to properly stop recording and cleanup
+    if (storeStatus === 'ended' && (status === 'connected' || status === 'connecting') && !remoteEndedHandledRef.current) {
+      console.log('[VideoCallProvider] Call ended by remote party, triggering handleCallEnded')
+      remoteEndedHandledRef.current = true
+      handleCallEnded()
+    }
+    
+    // Reset the flag when we go back to idle or start a new call
+    if (storeStatus === 'idle' || storeStatus === 'calling' || storeStatus === 'incoming') {
+      remoteEndedHandledRef.current = false
+    }
+  }, [callStore.status, status, handleCallEnded])
+  
   // Handle call answered (for outgoing calls only)
   // This effect triggers when the remote peer ACTUALLY answers our outgoing call
   useEffect(() => {
