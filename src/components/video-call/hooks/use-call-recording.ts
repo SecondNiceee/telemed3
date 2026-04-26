@@ -294,7 +294,7 @@ export function useCallRecording(): UseCallRecordingReturn {
   const finalizeRecording = useCallback(async (isAudioOnlyOverride?: boolean): Promise<boolean> => {
     const state = chunkUploadStateRef.current
     if (!state) {
-      console.log('[Recording] No state for finalization')
+      console.log('[Recording] No state for finalization (chunkUploadStateRef is null)')
       return false
     }
 
@@ -302,22 +302,28 @@ export function useCallRecording(): UseCallRecordingReturn {
     console.log('[Recording] Finalizing recording:', {
       appointmentId: state.appointmentId,
       doctorId: state.doctorId,
-      totalChunks: state.chunkIndex,
+      totalChunksUploaded: state.chunkIndex,
+      pendingChunksCount: pendingChunksRef.current.length,
       isAudioOnly,
+      isStoppedRef: isStoppedRef.current,
     })
 
-    // First, upload any remaining pending chunks
+    // First, upload any remaining pending chunks (this includes chunks that were being recorded when call ended)
     if (pendingChunksRef.current.length > 0) {
       const remainingChunks = [...pendingChunksRef.current]
       pendingChunksRef.current = []
       
       const combinedChunk = new Blob(remainingChunks, { type: state.mimeType })
-      console.log('[Recording] Uploading final pending chunks:', {
+      console.log('[Recording] Uploading final pending chunks (this is the remaining recorded data):', {
         numChunks: remainingChunks.length,
         size: combinedChunk.size,
+        chunkIndex: state.chunkIndex,
       })
       
-      await uploadChunk(combinedChunk, state.chunkIndex, true)
+      const uploadSuccess = await uploadChunk(combinedChunk, state.chunkIndex, true)
+      console.log('[Recording] Final chunks upload result:', uploadSuccess)
+    } else {
+      console.log('[Recording] No pending chunks to upload, proceeding to finalize')
     }
 
     // Calculate duration
@@ -486,41 +492,39 @@ const stopRecording = useCallback(async (): Promise<Blob | null> => {
     return recordingBlob
   }
   
-  // Mark recording as stopped immediately to prevent further chunk uploads
+  // Mark recording as stopped immediately to prevent further periodic chunk uploads
   isStoppedRef.current = true
   console.log('[Recording] Stopping recording, isStoppedRef set to true')
   
-  // Stop interval FIRST
+  // Stop the periodic upload interval FIRST
   stopChunkUpload()
   
-  // Clear pending chunks immediately to prevent any in-flight uploads
-  pendingChunksRef.current = []
-  console.log('[Recording] Cleared pending chunks')
-  
-  // Also clear the upload state to prevent any new uploads
-  const savedState = chunkUploadStateRef.current // Save for finalization
-  console.log('[Recording] Saved chunkUploadState for finalization:', savedState ? 'yes' : 'no')
+  // IMPORTANT: Do NOT clear pendingChunksRef here!
+  // The pending chunks will be uploaded during finalizeRecording
+  // This ensures all recorded data is saved even when the patient ends the call
+  console.log('[Recording] Pending chunks preserved for finalization:', pendingChunksRef.current.length)
+  console.log('[Recording] chunkUploadState preserved:', chunkUploadStateRef.current ? 'yes' : 'no')
   
   return new Promise((resolve) => {
-  const recorder = mediaRecorderRef.current
-  if (!recorder || recorder.state !== 'recording') {
-  console.log('[Recording] Not recording or already stopped')
-  resolve(recordingBlob)
-  return
-  }
+    const recorder = mediaRecorderRef.current
+    if (!recorder || recorder.state !== 'recording') {
+      console.log('[Recording] Not recording or already stopped')
+      resolve(recordingBlob)
+      return
+    }
 
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
-        setRecordingBlob(blob)
-        setIsRecording(false)
-        mediaRecorderRef.current = null
-        console.log('[Recording] Stopped, blob size:', blob.size)
-        resolve(blob)
-      }
+    recorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
+      setRecordingBlob(blob)
+      setIsRecording(false)
+      mediaRecorderRef.current = null
+      console.log('[Recording] Stopped, blob size:', blob.size)
+      resolve(blob)
+    }
 
-      recorder.stop()
-    })
-  }, [recordingBlob, stopChunkUpload])
+    recorder.stop()
+  })
+}, [recordingBlob, stopChunkUpload])
 
   const uploadRecording = useCallback(async (
     appointmentId: number,
@@ -528,12 +532,21 @@ const stopRecording = useCallback(async (): Promise<Blob | null> => {
     blobOverride?: Blob,
     isAudioOnly: boolean = false
   ): Promise<boolean> => {
+    console.log('[Recording] uploadRecording called:', {
+      appointmentId,
+      doctorId,
+      isAudioOnly,
+      hasChunkUploadState: !!chunkUploadStateRef.current,
+      pendingChunksCount: pendingChunksRef.current.length,
+      isStoppedRef: isStoppedRef.current,
+    })
+    
     setIsUploading(true)
     
     try {
       // If we were using chunk upload, finalize on server
       if (chunkUploadStateRef.current) {
-        console.log('[Recording] Finalizing server-side recording, isAudioOnly:', isAudioOnly)
+        console.log('[Recording] Finalizing server-side recording, isAudioOnly:', isAudioOnly, 'pendingChunks:', pendingChunksRef.current.length)
         const success = await finalizeRecording(isAudioOnly)
         if (success) {
           toast.success('Запись консультации сохранена')
@@ -541,6 +554,8 @@ const stopRecording = useCallback(async (): Promise<Blob | null> => {
         }
         // Fall through to client-side upload if server finalization failed
         console.log('[Recording] Server finalization failed, trying client upload')
+      } else {
+        console.log('[Recording] No chunkUploadState, will try client-side upload')
       }
 
       // Client-side upload fallback

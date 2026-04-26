@@ -79,16 +79,17 @@ export async function POST(request: NextRequest) {
     const metaPath = path.join(CHUNKS_DIR, `${sessionId}_meta.json`)
 
     // Read metadata
-    let meta: { chunks: number[]; mimeType: string }
+    let meta: { chunks: number[]; mimeType: string; updatedAt?: string }
     try {
       const metaContent = await fs.readFile(metaPath, 'utf-8')
       meta = JSON.parse(metaContent)
-    } catch {
-      console.log('[RecordingChunks/Finalize] No chunks found for session:', sessionId)
+      console.log('[RecordingChunks/Finalize] Meta file content:', meta)
+    } catch (err) {
+      console.log('[RecordingChunks/Finalize] No chunks found for session:', sessionId, 'error:', err)
       return NextResponse.json({ error: 'No chunks found' }, { status: 404 })
     }
 
-    console.log('[RecordingChunks/Finalize] Found chunks:', meta.chunks.length)
+    console.log('[RecordingChunks/Finalize] Found chunks:', meta.chunks.length, 'lastUpdated:', meta.updatedAt)
 
     if (meta.chunks.length === 0) {
       return NextResponse.json({ error: 'No chunks to finalize' }, { status: 400 })
