@@ -21,10 +21,17 @@ import {
 } from '@/components/ui/dialog'
 import type { ConsultationDialogsProps } from '../types'
 
+const connectionTypeLabels: Record<string, string> = {
+  chat: 'Чат',
+  audio: 'Аудио',
+  video: 'Видео',
+}
+
 export function ConsultationDialogs({
   showCompleteDialog,
   showConsultationTypeDialog,
   isCompleting,
+  connectionType,
   onCompleteDialogChange,
   onConsultationTypeDialogChange,
   onComplete,
@@ -72,6 +79,11 @@ export function ConsultationDialogs({
               Выберите способ проведения консультации
             </DialogDescription>
           </DialogHeader>
+          {connectionType && (
+            <p className="text-sm text-green-600 font-medium">
+              У пациента стоит предпочтительный способ связи: {connectionTypeLabels[connectionType] || connectionType}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-4 py-4">
             <Button
               variant="outline"
