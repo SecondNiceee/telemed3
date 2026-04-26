@@ -58,8 +58,8 @@
 
 | Событие | Описание | Данные |
 |---------|----------|--------|
-| `consultation-started` | Консультация началась | `{ appointmentId }` |
-| `consultation-ended` | Консультация завершена | `{ appointmentId }` |
+| `consultation-started` | Консультация началась | `{ appointmentId, message }` (message - системное сообщение) |
+| `consultation-ended` | Консультация завершена | `{ appointmentId, message }` (message - системное сообщение) |
 | `chat-blocked` | Чат заблокирован | `{ appointmentId }` |
 | `chat-unblocked` | Чат разблокирован | `{ appointmentId }` |
 
@@ -262,17 +262,114 @@ setChatBlocked(appointmentId, blocked)
 
 ---
 
+## Системные сообщения (isSystemMessage)
+
+В коллекции `Messages` есть поле `isSystemMessage`:
+
+```typescript
+{
+  name: 'isSystemMessage',
+  type: 'checkbox',
+  defaultValue: false,
+  label: 'Системное сообщение',
+  admin: {
+    description: 'Если включено, сообщение отображается как системное уведомление',
+  },
+}
+```
+
+**Логика:**
+- Системные сообщения создаются автоматически при определённых событиях (например, смена типа связи)
+- У системных сообщений `sender = null` (не привязаны к пользователю или врачу)
+- В UI отображаются по центру с горизонтальными линиями по бокам (не как пузырёк сообщения)
+- Используются для информирования обеих сторон о важных изменениях в консультации
+
+**Когда создаются:**
+- При начале консультации врачом → "Врач начал консультацию"
+- При завершении консультации врачом → "Врач завершил консультацию"
+- При изменении пациентом предпочтительного способа связи → "Пациент изменил предпочтительный способ связи на {тип}"
+
+**Отображение в UI:**
+- Системные сообщения отображаются по центру с горизонтальными линиями по бокам
+- Сверху отображается дата/время сообщения (формат: "Сегодня, 14:30" или "25 апреля, 14:30")
+- Компонент: `SystemMessageBubble` в `src/components/chat/message-bubble.tsx`
+
+---
+
+## Предпочтительный тип связи (connectionType)
+
+В коллекции `Appointments` есть поле `connectionType`:
+
+```typescript
+{
+  name: 'connectionType',
+  type: 'select',
+  required: false,
+  defaultValue: 'chat',
+  label: 'Вид связи',
+  options: [
+    { label: 'Чат', value: 'chat' },
+    { label: 'Аудио', value: 'audio' },
+    { label: 'Видео', value: 'video' },
+  ],
+  admin: {
+    description: 'Предпочтительный способ связи пациента',
+  },
+}
+```
+
+**Логика:**
+- Пациент выбирает предпочтительный способ связи при записи на консультацию
+- По умолчанию `'chat'` (текстовый чат)
+- Значение можно изменить после записи (пока консультация не завершена)
+- Врач видит выбранный тип связи в хедере чата
+- При изменении типа связи создаётся системное сообщение для информирования врача
+
+### Где можно установить/изменить connectionType
+
+| Место | Путь | Кто может изменять |
+|-------|------|-------------------|
+| Запись на консультацию | `/doctor/[id]/booking` | Пациент (при создании записи) |
+| Чат пациента | `/lk/chat?appointment={id}` | Пациент (dropdown в хедере) |
+
+### UI для пациента
+
+В `ChatHeader` для пациента отображается dropdown:
+- Иконка текущего типа связи + название + стрелка
+- При клике — выпадающее меню с тремя опциями (Чат, Аудио, Видео)
+- При выборе → отправляется socket событие `connection-type-change`
+- Создаётся системное сообщение в чате
+
+### UI для врача
+
+Врач видит только текущий тип связи (без возможности изменения):
+- Иконка + название типа связи в хедере чата
+
+### Socket события
+
+| Событие | Описание | Кто отправляет |
+|---------|----------|----------------|
+| `connection-type-change` | Изменение типа связи | Пациент |
+| `connection-type-changed` | Уведомление об изменении | Сервер → всем в комнате |
+
+**Серверный хэндлер:** `createConnectionTypeChangeHandler()` в `src/lib/socket/handlers/consultationHandler.ts`
+
+---
+
 ## Файлы
 
 | Файл | Описание |
 |------|----------|
-| `src/collections/Appointments.ts` | Поле chatBlocked |
+| `src/collections/Appointments.ts` | Поля chatBlocked, connectionType |
+| `src/collections/Messages.ts` | Поле isSystemMessage |
 | `src/lib/socket/types.ts` | Типы событий консультации |
-| `src/lib/socket/handlers/consultationHandler.ts` | Серверные хэндлеры |
+| `src/lib/socket/handlers/consultationHandler.ts` | Серверные хэндлеры (включая connection-type-change) |
 | `src/lib/socket/server.ts` | Регистрация событий |
 | `src/components/socket-provider.tsx` | Клиентские методы и слушатели |
-| `src/stores/chat-store.ts` | Состояние чата |
+| `src/stores/chat-store.ts` | Состояние чата, connectionTypes |
 | `src/components/chat/chat-window.tsx` | Основной компонент чата |
-| `src/components/chat/components/chat-header.tsx` | Хедер с кнопками |
+| `src/components/chat/components/chat-header.tsx` | Хедер с dropdown для смены типа связи |
 | `src/components/chat/components/chat-input.tsx` | Поле ввода |
-| `src/lib/api/types.ts` | Тип ApiAppointment |
+| `src/components/chat/message-bubble.tsx` | Отображение сообщений (включая системные) |
+| `src/app/(frontend)/doctor/[id]/booking/booking-client.tsx` | Выбор типа связи при записи |
+| `src/lib/api/types.ts` | Тип ApiAppointment

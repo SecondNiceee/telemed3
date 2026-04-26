@@ -225,14 +225,24 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     })
 
     // Consultation status events
-    newSocket.on('consultation-started', ({ appointmentId }) => {
+    newSocket.on('consultation-started', ({ appointmentId, message }) => {
       console.log('[Socket] Consultation started:', appointmentId)
       chatStoreRef.current.updateAppointmentStatus(appointmentId, 'in_progress')
+      
+      // Add system message to chat
+      if (message) {
+        chatStoreRef.current.addMessage(message)
+      }
     })
 
-    newSocket.on('consultation-ended', ({ appointmentId }) => {
+    newSocket.on('consultation-ended', ({ appointmentId, message }) => {
       console.log('[Socket] Consultation ended:', appointmentId)
       chatStoreRef.current.updateAppointmentStatus(appointmentId, 'completed')
+      
+      // Add system message to chat
+      if (message) {
+        chatStoreRef.current.addMessage(message)
+      }
     })
 
     newSocket.on('chat-blocked', ({ appointmentId }) => {

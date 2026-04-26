@@ -16,8 +16,8 @@
 | `Users` | `src/collections/Users.ts` | Пациенты (email, password, role) |
 | `Doctors` | `src/collections/Doctors.ts` | Врачи (ФИО, специализация, расписание, organisation) |
 | `Organisations` | `src/collections/Organisations.ts` | Организации (name, email) |
-| `Appointments` | `src/collections/Appointments.ts` | Консультации (user, doctor, date, time, status) |
-| `Messages` | `src/collections/Messages.ts` | Сообщения чата (appointment, sender, content) |
+| `Appointments` | `src/collections/Appointments.ts` | Консультации (user, doctor, date, time, status, connectionType) |
+| `Messages` | `src/collections/Messages.ts` | Сообщения чата (appointment, sender, content, isSystemMessage) |
 | `CallRecordings` | `src/collections/CallRecordings.ts` | Записи видеозвонков (appointment, doctor, video, duration) |
 | `DoctorCategories` | `src/collections/DoctorCategories.ts` | Категории врачей |
 | `Media` | `src/collections/Media.ts` | Медиа-файлы (изображения, видео) |
@@ -163,14 +163,24 @@
 | `ChatPage` | `src/components/chat/chat-page.tsx` | Страница чата |
 | `ChatSidebar` | `src/components/chat/chat-sidebar.tsx` | Боковая панель со списком чатов |
 | `ChatWindow` | `src/components/chat/chat-window.tsx` | Окно чата |
-| `ChatHeader` | `src/components/chat/components/chat-header.tsx` | Заголовок чата |
+| `ChatHeader` | `src/components/chat/components/chat-header.tsx` | Заголовок чата (смена типа связи) |
 | `ChatInput` | `src/components/chat/components/chat-input.tsx` | Ввод сообщения |
 | `ChatMessages` | `src/components/chat/components/chat-messages.tsx` | Список сообщений |
-| `MessageBubble` | `src/components/chat/message-bubble.tsx` | Пузырек сообщения |
+| `MessageBubble` | `src/components/chat/message-bubble.tsx` | Пузырек сообщения (включая системные) |
 | `ConsultationDialogs` | `src/components/chat/components/consultation-dialogs.tsx` | Диалоги консультации |
 | `DragDropOverlay` | `src/components/chat/components/drag-drop-overlay.tsx` | Drag & drop файлов |
 | `VideoSaveSidebar` | `src/components/chat/components/video-save-sidebar.tsx` | Сайдбар сохранения видео |
 | `DoctorChatWrapper` | `src/components/chat/doctor-chat-wrapper.tsx` | Обертка чата врача |
+
+**Типы сообщений:**
+- **Обычные** - сообщения от пациента или врача (пузырек слева/справа)
+- **Системные** (`isSystemMessage: true`) - уведомления по центру с горизонтальными линиями
+
+**Предпочтительный тип связи (`connectionType`):**
+- Устанавливается пациентом при записи на консультацию (`/doctor/[id]/booking`)
+- Можно изменить в чате пациента (`/lk/chat?appointment={id}`) через dropdown в хедере
+- При изменении создаётся системное сообщение для информирования врача
+- Варианты: `chat` (Чат), `audio` (Аудио), `video` (Видео)
 
 ---
 
@@ -273,7 +283,7 @@
    - `localStatus` обновляется на `'completed'`
    - Вызывается `onAppointmentCompleted?.(appointmentId)` для обновления списка чатов
    - **Чат остается открытым** - пациент может продолжать писать
-   - Появляется кнопка "Запретить пациенту писать"
+   - Появляется кнопка "Запретить пациенту пи��ать"
 
 ### Блокировка/Разблокировка чата
 
