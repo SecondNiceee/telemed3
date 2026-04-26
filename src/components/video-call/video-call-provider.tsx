@@ -172,14 +172,16 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       const peerHost = process.env.NEXT_PUBLIC_PEER_HOST || 'smartcardio.ru'
       const peerPort = parseInt(process.env.NEXT_PUBLIC_PEER_PORT || '443', 10)
       const peerPath = process.env.NEXT_PUBLIC_PEER_PATH || '/telemed-dev/peerjs'
+      // Use secure connection only for non-localhost hosts
+      const isSecure = peerHost !== 'localhost' && peerHost !== '127.0.0.1'
       
-      console.log('[VideoCallProvider] Connecting to PeerJS:', { peerHost, peerPort, peerPath, peerId: currentPeerId })
+      console.log('[VideoCallProvider] Connecting to PeerJS:', { peerHost, peerPort, peerPath, peerId: currentPeerId, secure: isSecure })
       
       const peer = new PeerJS(currentPeerId, {
         host: peerHost,
         port: peerPort,
         path: peerPath,
-        secure: true,
+        secure: isSecure,
         key: 'peerjs', // Должен совпадать с ключом на сервере
         debug: 2, // Всегда включаем debug для диагностики
         config: {
