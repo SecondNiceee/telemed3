@@ -682,8 +682,24 @@ API `/api/recording-chunks` и `/api/recording-chunks/finalize` использу
 ### Звонок не устанавливается
 
 1. Проверьте, что PeerJS сервер запущен на порту 3002
-2. Проверьте, что STUN/TURN серверы д��ступны
+2. Проверьте, что STUN/TURN серверы доступны
 3. Проверьте права доступа к камере/микрофону
+
+### WebSocket connection to 'wss://localhost:...' failed (в dev режиме)
+
+**Проблема:** PeerJS пытается подключиться к `wss://localhost:3002` вместо `ws://localhost:3002`.
+
+**Причина:** Локальный PeerJS сервер работает без SSL, но клиент использовал `secure: true` для всех подключений.
+
+**Решение (исправлено в коде):** В `video-call-provider.tsx` параметр `secure` теперь определяется динамически:
+
+```typescript
+// Use secure connection only for non-localhost hosts
+const isSecure = peerHost !== 'localhost' && peerHost !== '127.0.0.1'
+```
+
+- Для `localhost` / `127.0.0.1` -> `secure: false` (использует `ws://`)
+- Для production хостов (например `smartcardio.ru`) -> `secure: true` (использует `wss://`)
 
 ### Нет видео/аудио
 
