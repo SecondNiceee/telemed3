@@ -664,6 +664,27 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     return unsubscribe
   }, [socket, status, handleCallEnded])
   
+  // Handle tab visibility change - when user returns to tab, check if call ended while away
+  // This is important because callbacks may not fire properly when tab is inactive
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // User returned to tab - check if call store shows call ended but we're still in active state
+        const storeStatus = callStore.status
+        const localStatusIsActive = status === 'connected' || status === 'connecting' || status === 'calling'
+        const storeStatusIsEnded = storeStatus === 'ended' || storeStatus === 'idle'
+        
+        if (localStatusIsActive && storeStatusIsEnded) {
+          console.log('[VideoCallProvider] Tab became visible - detected missed call end, triggering handleCallEnded')
+          handleCallEnded()
+        }
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [callStore.status, status, handleCallEnded])
+  
   // Handle call answered (for outgoing calls only)
   // This effect triggers when the remote peer ACTUALLY answers our outgoing call
   useEffect(() => {

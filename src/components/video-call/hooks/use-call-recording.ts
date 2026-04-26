@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { UseCallRecordingReturn } from '@/lib/video-call/types'
 import { getBasePath } from '@/lib/utils/basePath'
+import { useCallStore } from '@/stores/call-store'
 
 // Интервал отправки chunks (30 секунд)
 const CHUNK_INTERVAL_MS = 30000
@@ -52,9 +53,13 @@ export function useCallRecording(): UseCallRecordingReturn {
     chunkIndex: number,
     isLast: boolean = false
   ): Promise<boolean> => {
-    // Don't upload if recording was stopped (unless this is the last chunk during finalization)
-    if (isStoppedRef.current && !isLast) {
-      console.log('[Recording] Recording stopped (isStoppedRef=true, isLast=false), skipping chunk upload')
+    // Check call store status directly (works even when tab is inactive)
+    const callStatus = useCallStore.getState().status
+    const callEnded = callStatus === 'ended' || callStatus === 'idle'
+    
+    // Don't upload if recording was stopped OR if call has ended (unless this is the last chunk during finalization)
+    if ((isStoppedRef.current || callEnded) && !isLast) {
+      console.log('[Recording] Skipping chunk upload - isStoppedRef:', isStoppedRef.current, ', callStatus:', callStatus, ', isLast:', isLast)
       return false
     }
     
@@ -106,9 +111,24 @@ export function useCallRecording(): UseCallRecordingReturn {
 
   // Process and upload pending chunks
   const processPendingChunks = useCallback(async () => {
-    // Don't process if recording was stopped - check FIRST
-    if (isStoppedRef.current) {
-      console.log('[Recording] Recording stopped (isStoppedRef=true), skipping pending chunks processing')
+    // Check call store status directly (works even when tab is inactive)
+    const callStatus = useCallStore.getState().status
+    const callEnded = callStatus === 'ended' || callStatus === 'idle'
+    
+    // Don't process if recording was stopped OR if call has ended
+    if (isStoppedRef.current || callEnded) {
+      if (!isStoppedRef.current && callEnded) {
+        // Call ended but isStoppedRef wasn't set - this means callback didn't fire (inactive tab)
+        // Set it now to prevent further uploads
+        console.log('[Recording] Call ended (store status:', callStatus, '), stopping chunk uploads')
+        isStoppedRef.current = true
+        // Clear interval directly (stopChunkUpload not available here)
+        if (uploadIntervalRef.current) {
+          clearInterval(uploadIntervalRef.current)
+          uploadIntervalRef.current = null
+        }
+        pendingChunksRef.current = []
+      }
       return
     }
     
