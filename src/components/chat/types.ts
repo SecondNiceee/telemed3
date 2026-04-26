@@ -81,5 +81,6 @@ export interface ConsultationDialogsProps {
   onConsultationTypeDialogChange: (open: boolean) => void
   onComplete: () => void
   onStartVideoConsultation: () => void
+  onStartAudioConsultation: () => void
   onStartChatConsultation: () => void
 }

@@ -219,6 +219,24 @@ export function ChatWindow({
     }
   }
 
+  const checkAudioPermissions = async (): Promise<boolean> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(track => track.stop())
+      return true
+    } catch (error) {
+      const err = error as DOMException
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        toast.error('Выдайте доступ к микрофону для аудиозвонка')
+      } else if (err.name === 'NotFoundError') {
+        toast.error('Микрофон не найден на устройстве')
+      } else {
+        toast.error('Не удалось получить доступ к микрофону')
+      }
+      return false
+    }
+  }
+
   const handleStartVideoConsultation = async () => {
     const hasPermissions = await checkMediaPermissions()
     if (!hasPermissions) return
@@ -248,6 +266,38 @@ export function ChatWindow({
       role: calleeRole as 'doctor' | 'patient',
     }
     videoCall.startCall(callee, appointment.id, getDurationMinutes())
+  }
+
+  const handleStartAudioConsultation = async () => {
+    const hasPermissions = await checkAudioPermissions()
+    if (!hasPermissions) return
+    
+    setShowConsultationTypeDialog(false)
+    setConsultationType('video') // Reuse video state for audio call UI
+    setLocalStatus('in_progress')
+    
+    // Use socket to start consultation (real-time update for all participants)
+    startConsultation(appointment.id)
+    
+    const calleeRole = currentSenderType === 'doctor' ? 'patient' : 'doctor'
+    
+    // Extract numeric IDs from user/doctor (can be number or object with id)
+    const getUserId = (value: number | { id: number; name?: string | null; email: string }): number => 
+      typeof value === 'object' ? value.id : value
+    
+    const calleeId = currentSenderType === 'doctor' 
+      ? getUserId(appointment.user) 
+      : getUserId(appointment.doctor)
+    
+    const callee = {
+      odooUserId: calleeId,
+      odooPartnerId: calleeId,
+      odooPartnerName: otherPartyName,
+      peerId: `${calleeRole}_${calleeId}`,
+      role: calleeRole as 'doctor' | 'patient',
+    }
+    // Use startAudioCall for audio-only calls
+    videoCall.startAudioCall(callee, appointment.id, getDurationMinutes())
   }
 
   const handleStartChatConsultation = async () => {
@@ -411,6 +461,7 @@ export function ChatWindow({
         onConsultationTypeDialogChange={setShowConsultationTypeDialog}
         onComplete={handleCompleteAppointment}
         onStartVideoConsultation={handleStartVideoConsultation}
+        onStartAudioConsultation={handleStartAudioConsultation}
         onStartChatConsultation={handleStartChatConsultation}
       />
 

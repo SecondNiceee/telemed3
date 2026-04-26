@@ -20,6 +20,7 @@ interface ChunkUploadState {
   doctorId: number
   chunkIndex: number
   mimeType: string
+  isAudioOnly: boolean
 }
 
 interface CompositeRecordingState {
@@ -129,14 +130,15 @@ export function useCallRecording(): UseCallRecordingReturn {
   }, [uploadChunk])
 
   // Start periodic chunk upload
-  const startChunkUpload = useCallback((appointmentId: number, doctorId: number, mimeType: string) => {
-    console.log('[Recording] Starting chunk upload for:', { appointmentId, doctorId })
+  const startChunkUpload = useCallback((appointmentId: number, doctorId: number, mimeType: string, isAudioOnly: boolean = false) => {
+    console.log('[Recording] Starting chunk upload for:', { appointmentId, doctorId, isAudioOnly })
     
     chunkUploadStateRef.current = {
       appointmentId,
       doctorId,
       chunkIndex: 0,
       mimeType,
+      isAudioOnly,
     }
 
     // Upload chunks every 30 seconds
@@ -266,17 +268,19 @@ export function useCallRecording(): UseCallRecordingReturn {
   }, [])
 
   // Finalize recording on server
-  const finalizeRecording = useCallback(async (): Promise<boolean> => {
+  const finalizeRecording = useCallback(async (isAudioOnlyOverride?: boolean): Promise<boolean> => {
     const state = chunkUploadStateRef.current
     if (!state) {
       console.log('[Recording] No state for finalization')
       return false
     }
 
+    const isAudioOnly = isAudioOnlyOverride ?? state.isAudioOnly
     console.log('[Recording] Finalizing recording:', {
       appointmentId: state.appointmentId,
       doctorId: state.doctorId,
       totalChunks: state.chunkIndex,
+      isAudioOnly,
     })
 
     // First, upload any remaining pending chunks
@@ -310,6 +314,7 @@ export function useCallRecording(): UseCallRecordingReturn {
           appointmentId: state.appointmentId,
           doctorId: state.doctorId,
           durationSeconds,
+          recordingType: isAudioOnly ? 'audio' : 'video',
         }),
       })
 
@@ -331,12 +336,14 @@ export function useCallRecording(): UseCallRecordingReturn {
   }, [uploadChunk])
 
   // Start recording with Picture-in-Picture composite
-  // localStream = doctor's camera, remoteStream = patient's camera
+  // localStream = doctor's camera/mic, remoteStream = patient's camera/mic
+  // isAudioOnly = true for audio-only calls (no video)
   const startRecording = useCallback((
     localStream: MediaStream,
     appointmentId?: number,
     doctorId?: number,
-    remoteStream?: MediaStream
+    remoteStream?: MediaStream,
+    isAudioOnly: boolean = false
   ) => {
     if (mediaRecorderRef.current?.state === 'recording') {
       console.log('[Recording] Already recording')
@@ -347,34 +354,65 @@ export function useCallRecording(): UseCallRecordingReturn {
       chunksRef.current = []
       pendingChunksRef.current = []
 
-      // Create composite stream with PiP if we have both streams
       let recordingStream: MediaStream
-      if (remoteStream) {
+
+      if (isAudioOnly) {
+        // Audio-only recording: combine audio tracks from both streams
+        console.log('[Recording] Creating audio-only stream')
+        recordingStream = new MediaStream()
+        localStream.getAudioTracks().forEach(track => {
+          recordingStream.addTrack(track)
+        })
+        if (remoteStream) {
+          remoteStream.getAudioTracks().forEach(track => {
+            recordingStream.addTrack(track)
+          })
+        }
+      } else if (remoteStream) {
+        // Video call: create composite stream with PiP
         console.log('[Recording] Creating PiP composite stream (doctor + patient)')
         recordingStream = createCompositeStream(localStream, remoteStream)
       } else {
+        // Single stream video
         console.log('[Recording] Recording single stream only')
         recordingStream = localStream
       }
 
-      // Try to use VP9 for better quality, fall back to VP8 or default
-      const mimeTypes = [
-        'video/webm;codecs=vp9,opus',
-        'video/webm;codecs=vp8,opus',
-        'video/webm',
-      ]
-
+      // Select appropriate mime type based on call type
       let selectedMimeType = ''
-      for (const mimeType of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(mimeType)) {
-          selectedMimeType = mimeType
-          break
+      if (isAudioOnly) {
+        // Audio-only mime types
+        const audioMimeTypes = [
+          'audio/webm;codecs=opus',
+          'audio/webm',
+          'audio/ogg;codecs=opus',
+        ]
+        for (const mimeType of audioMimeTypes) {
+          if (MediaRecorder.isTypeSupported(mimeType)) {
+            selectedMimeType = mimeType
+            break
+          }
+        }
+      } else {
+        // Video mime types
+        const videoMimeTypes = [
+          'video/webm;codecs=vp9,opus',
+          'video/webm;codecs=vp8,opus',
+          'video/webm',
+        ]
+        for (const mimeType of videoMimeTypes) {
+          if (MediaRecorder.isTypeSupported(mimeType)) {
+            selectedMimeType = mimeType
+            break
+          }
         }
       }
 
       const options = selectedMimeType ? { mimeType: selectedMimeType } : undefined
       const recorder = new MediaRecorder(recordingStream, options)
 
+      const defaultMimeType = isAudioOnly ? 'audio/webm' : 'video/webm'
+      
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data)
@@ -383,11 +421,13 @@ export function useCallRecording(): UseCallRecordingReturn {
       }
 
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: selectedMimeType || 'video/webm' })
+        const blob = new Blob(chunksRef.current, { type: selectedMimeType || defaultMimeType })
         setRecordingBlob(blob)
         setIsRecording(false)
-        cleanupCompositeState() // Clean up canvas and videos
-        console.log('[Recording] Stopped, total blob size:', blob.size)
+        if (!isAudioOnly) {
+          cleanupCompositeState() // Clean up canvas and videos (only for video)
+        }
+        console.log('[Recording] Stopped, total blob size:', blob.size, 'isAudioOnly:', isAudioOnly)
       }
 
       recorder.onerror = (event) => {
@@ -401,16 +441,16 @@ export function useCallRecording(): UseCallRecordingReturn {
       recordingStartTimeRef.current = Date.now()
       setIsRecording(true)
       
-      console.log('[Recording] Started with mime type:', selectedMimeType)
+      console.log('[Recording] Started with mime type:', selectedMimeType, 'isAudioOnly:', isAudioOnly)
 
       // Start chunk upload if appointmentId and doctorId provided
       if (appointmentId && doctorId) {
-        startChunkUpload(appointmentId, doctorId, selectedMimeType || 'video/webm')
+        startChunkUpload(appointmentId, doctorId, selectedMimeType || defaultMimeType, isAudioOnly)
       }
     } catch (err) {
       console.error('[Recording] Failed to start:', err)
     }
-  }, [startChunkUpload])
+  }, [startChunkUpload, createCompositeStream, cleanupCompositeState])
 
   const stopRecording = useCallback(async (): Promise<Blob | null> => {
     stopChunkUpload()
@@ -439,15 +479,16 @@ export function useCallRecording(): UseCallRecordingReturn {
   const uploadRecording = useCallback(async (
     appointmentId: number,
     doctorId: number,
-    blobOverride?: Blob
+    blobOverride?: Blob,
+    isAudioOnly: boolean = false
   ): Promise<boolean> => {
     setIsUploading(true)
     
     try {
       // If we were using chunk upload, finalize on server
       if (chunkUploadStateRef.current) {
-        console.log('[Recording] Finalizing server-side recording')
-        const success = await finalizeRecording()
+        console.log('[Recording] Finalizing server-side recording, isAudioOnly:', isAudioOnly)
+        const success = await finalizeRecording(isAudioOnly)
         if (success) {
           toast.success('Запись консультации сохранена')
           return true
@@ -467,7 +508,7 @@ export function useCallRecording(): UseCallRecordingReturn {
         ? Math.round((Date.now() - recordingStartTimeRef.current) / 1000)
         : undefined
 
-      console.log('[Recording] Client-side upload, size:', blob.size)
+      console.log('[Recording] Client-side upload, size:', blob.size, 'isAudioOnly:', isAudioOnly)
 
       // Upload video to media
       const basePath = getBasePath()
@@ -508,6 +549,7 @@ export function useCallRecording(): UseCallRecordingReturn {
           video: mediaId,
           durationSeconds,
           recordedAt: new Date().toISOString(),
+          recordingType: isAudioOnly ? 'audio' : 'video',
         }),
       })
 

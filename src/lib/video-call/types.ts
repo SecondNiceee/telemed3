@@ -206,9 +206,12 @@ export interface VideoCallContextValue {
   isPaused: boolean
   peer: Peer | null
   currentCall: MediaConnection | null
+  isSavingRecording: boolean
+  isAudioOnly: boolean
   
   // Действия
   startCall: (callee: CallParticipant, appointmentId: number, durationMinutes: number) => Promise<void>
+  startAudioCall: (callee: CallParticipant, appointmentId: number, durationMinutes: number) => Promise<void>
   answerCall: () => Promise<void>
   rejectCall: () => void
   endCall: () => void
@@ -308,9 +311,9 @@ export interface UseCallRecordingReturn {
   isRecording: boolean
   recordingBlob: Blob | null
   isUploading: boolean
-  startRecording: (localStream: MediaStream, appointmentId?: number, doctorId?: number, remoteStream?: MediaStream) => void
+  startRecording: (localStream: MediaStream, appointmentId?: number, doctorId?: number, remoteStream?: MediaStream, isAudioOnly?: boolean) => void
   stopRecording: () => Promise<Blob | null>
-  uploadRecording: (appointmentId: number, doctorId: number, blob?: Blob) => Promise<boolean>
+  uploadRecording: (appointmentId: number, doctorId: number, blob?: Blob, isAudioOnly?: boolean) => Promise<boolean>
   downloadRecording: (filename?: string) => void
 }
 

@@ -90,11 +90,17 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
   // Local state
   const [status, setStatus] = useState<CallStatus>('idle')
   const statusRef = useRef<CallStatus>('idle')
+  const [isAudioOnly, setIsAudioOnly] = useState(false)
+  const isAudioOnlyRef = useRef(false)
   
   // Keep statusRef in sync
   useEffect(() => {
     statusRef.current = status
   }, [status])
+  // Keep isAudioOnlyRef in sync
+  useEffect(() => {
+    isAudioOnlyRef.current = isAudioOnly
+  }, [isAudioOnly])
   const [viewMode, setViewMode] = useState<CallViewMode>('fullscreen')
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
   const [callData, setCallData] = useState<{
@@ -258,6 +264,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
 
     // Use ref to get current callData value (avoids stale closure when patient ends the call)
     const currentCallData = callDataRef.current
+    const wasAudioOnly = isAudioOnlyRef.current
 
     // Stop recording and finalize for doctor
     // This runs on doctor's side regardless of who ended the call
@@ -266,14 +273,16 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       console.log('[Recording] Call ended, stopping and finalizing:', { 
         appointmentId: currentCallData.appointmentId, 
         doctorId,
-        whoEndedCall: 'handling on doctor side'
+        whoEndedCall: 'handling on doctor side',
+        isAudioOnly: wasAudioOnly
       })
       
       const blob = await recording.stopRecording()
       console.log('[Recording] Stopped, blob size:', blob?.size || 0)
       
       // Upload/finalize - this will either finalize server chunks or upload client blob
-      await recording.uploadRecording(currentCallData.appointmentId, doctorId, blob || undefined)
+      // Pass isAudioOnly to set correct recordingType
+      await recording.uploadRecording(currentCallData.appointmentId, doctorId, blob || undefined, wasAudioOnly)
     }
     
     mediaStream.stopStream()
@@ -292,6 +301,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     setTimeout(() => {
       setStatus('idle')
       setViewMode('fullscreen')
+      setIsAudioOnly(false)
     }, 1000)
   // Note: Using callDataRef.current instead of callData to avoid stale closure issues
   }, [clearCallTimeout, connectionQuality, timer, mediaStream, callStore, currentUser, recording])
@@ -312,13 +322,15 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
 
       // Start recording for doctors with chunk upload
       // Pass both local and remote streams so the hook can create PiP composite (doctor main, patient small)
+      // For audio-only calls, pass isAudioOnly flag to record audio only
       if (currentUser?.role === 'doctor' && mediaStreamRef.current.stream && callDataRef.current?.appointmentId) {
         const appointmentId = callDataRef.current.appointmentId
         const doctorId = currentUser.odooUserId
-        console.log('[Recording] Starting for doctor with PiP, appointmentId:', appointmentId, 'doctorId:', doctorId)
+        const audioOnly = isAudioOnlyRef.current
+        console.log('[Recording] Starting for doctor, appointmentId:', appointmentId, 'doctorId:', doctorId, 'isAudioOnly:', audioOnly)
         
-        // Pass local (doctor) stream as main, remote (patient) stream for PiP overlay
-        recording.startRecording(mediaStreamRef.current.stream, appointmentId, doctorId, stream)
+        // Pass local (doctor) stream as main, remote (patient) stream for PiP overlay (video) or just audio
+        recording.startRecording(mediaStreamRef.current.stream, appointmentId, doctorId, stream, audioOnly)
       }
     })
     
@@ -339,7 +351,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     setupCallHandlersRef.current = setupCallHandlers
   }, [setupCallHandlers])
   
-  // Start outgoing call
+  // Start outgoing video call
   const startCall = useCallback(async (
     callee: CallParticipant,
     appointmentId: number,
@@ -350,6 +362,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       return
     }
     
+    setIsAudioOnly(false)
     setStatus('calling')
     setCallData({
       appointmentId,
@@ -368,7 +381,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       return
     }
     
-    // Get media stream
+    // Get media stream (video + audio)
     const stream = await mediaStream.getStream(true, true)
     if (!stream) {
       toast.error('Нет доступа к камере/микрофону')
@@ -380,7 +393,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     callStore.setLocalStream(stream)
     
     // Signal call via socket
-    console.log('[v0] ======= STARTING CALL =======')
+    console.log('[v0] ======= STARTING VIDEO CALL =======')
     console.log('[v0] socket.isConnected:', socket.isConnected)
     console.log('[v0] socket.socket?.connected:', socket.socket?.connected)
     console.log('[v0] appointmentId:', appointmentId)
@@ -404,6 +417,74 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     
   }, [currentUser, peerId, initPeer, mediaStream, socket, callStore, timer, handleCallEnded])
   
+  // Start outgoing audio-only call
+  const startAudioCall = useCallback(async (
+    callee: CallParticipant,
+    appointmentId: number,
+    durationMinutes: number
+  ) => {
+    if (!currentUser || !peerId) {
+      toast.error('Не удалось начать звонок')
+      return
+    }
+    
+    setIsAudioOnly(true)
+    setStatus('calling')
+    setCallData({
+      appointmentId,
+      durationMinutes,
+      participant: callee,
+      isOutgoing: true,
+    })
+    timer.reset(durationMinutes)
+    
+    // Initialize peer
+    const peer = await initPeer()
+    if (!peer) {
+      toast.error('Не удалось подключиться к серверу')
+      setStatus('idle')
+      setCallData(null)
+      setIsAudioOnly(false)
+      return
+    }
+    
+    // Get media stream (audio only, no video)
+    const stream = await mediaStream.getStream(false, true)
+    if (!stream) {
+      toast.error('Нет доступа к микрофону')
+      setStatus('idle')
+      setCallData(null)
+      setIsAudioOnly(false)
+      return
+    }
+    
+    callStore.setLocalStream(stream)
+    
+    // Signal call via socket
+    console.log('[v0] ======= STARTING AUDIO CALL =======')
+    console.log('[v0] socket.isConnected:', socket.isConnected)
+    console.log('[v0] socket.socket?.connected:', socket.socket?.connected)
+    console.log('[v0] appointmentId:', appointmentId)
+    console.log('[v0] peerId (my peer):', peerId)
+    console.log('[v0] callee.peerId (remote peer):', callee.peerId)
+    console.log('[v0] currentUser.odooPartnerName:', currentUser.odooPartnerName)
+    
+    socket.initiateCall(appointmentId, peerId, currentUser.odooPartnerName)
+    console.log('[v0] initiateCall emitted')
+    
+    callStore.startCall(appointmentId, callee.peerId)
+    
+    // Set call timeout
+    callTimeoutRef.current = setTimeout(() => {
+      console.log('[VideoCallProvider] Audio call timeout check, status:', statusRef.current)
+      if (statusRef.current === 'calling') {
+        toast.error('Нет ответа')
+        handleCallEnded()
+      }
+    }, CALL_TIMEOUTS.CALL_TIMEOUT)
+    
+  }, [currentUser, peerId, initPeer, mediaStream, socket, callStore, timer, handleCallEnded])
+  
   // Answer incoming call
   const answerCall = useCallback(async () => {
     if (!callData || !peerId) return
@@ -418,10 +499,11 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       return
     }
     
-    // Get media stream
-    const stream = await mediaStream.getStream(true, true)
+    // Get media stream based on call type (audio-only or video)
+    const useVideo = !isAudioOnlyRef.current
+    const stream = await mediaStream.getStream(useVideo, true)
     if (!stream) {
-      toast.error('Нет доступа к камере/микрофону')
+      toast.error(useVideo ? 'Нет доступа к камере/микрофону' : 'Нет доступа к микрофону')
       handleCallEnded()
       return
     }
@@ -619,9 +701,12 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     isPaused: timer.isPaused,
     peer: peerRef.current,
     currentCall: currentCallRef.current,
+    isSavingRecording: recording.isUploading,
+    isAudioOnly,
     
     // Actions
     startCall,
+    startAudioCall,
     answerCall,
     rejectCall,
     endCall,

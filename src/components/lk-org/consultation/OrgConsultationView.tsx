@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, User, RefreshCw, Video, MessageSquare, Play, Clock, Download } from "lucide-react"
+import { ArrowLeft, User, RefreshCw, Video, MessageSquare, Play, Clock, Download, Mic } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { resolveImageUrl } from "@/lib/utils/image"
@@ -34,6 +34,16 @@ export function OrgConsultationView({
   const [messages, setMessages] = useState(initialMessages)
   const [recordings] = useState(initialRecordings)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Filter recordings by type
+  const videoRecordings = useMemo(() => 
+    recordings.filter(r => !r.recordingType || r.recordingType === 'video'), 
+    [recordings]
+  )
+  const audioRecordings = useMemo(() => 
+    recordings.filter(r => r.recordingType === 'audio'), 
+    [recordings]
+  )
 
   const specialty = DoctorsApi.getSpecialty(doctor)
   
@@ -126,7 +136,11 @@ export function OrgConsultationView({
             </TabsTrigger>
             <TabsTrigger value="recordings" className="gap-2">
               <Video className="w-4 h-4" />
-              Записи звонков
+              Видеозаписи
+            </TabsTrigger>
+            <TabsTrigger value="audio-recordings" className="gap-2">
+              <Mic className="w-4 h-4" />
+              Аудиозаписи
             </TabsTrigger>
           </TabsList>
 
@@ -175,17 +189,17 @@ export function OrgConsultationView({
 
           <TabsContent value="recordings">
             <div className="rounded-xl border border-border bg-card min-h-[400px] p-4">
-              {recordings.length === 0 ? (
+              {videoRecordings.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full py-12 text-center">
                   <Video className="w-12 h-12 text-muted-foreground/50 mb-3" />
-                  <p className="text-muted-foreground">Пока что нет записей звонков</p>
+                  <p className="text-muted-foreground">Пока что нет видеозаписей</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Записи видеоконсультаций будут отображаться здесь
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {recordings.map((recording) => {
+                  {videoRecordings.map((recording) => {
                     const videoUrl = CallRecordingsApi.getVideoUrl(recording)
                     const recordedDate = recording.recordedAt 
                       ? new Date(recording.recordedAt).toLocaleString('ru-RU', {
@@ -250,6 +264,98 @@ export function OrgConsultationView({
                             >
                               <a
                                 href={resolveImageUrl(videoUrl)}
+                                download
+                              >
+                                <Download className="w-4 h-4" />
+                              </a>
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="audio-recordings">
+            <div className="rounded-xl border border-border bg-card min-h-[400px] p-4">
+              {audioRecordings.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+                  <Mic className="w-12 h-12 text-muted-foreground/50 mb-3" />
+                  <p className="text-muted-foreground">Пока что нет аудиозаписей</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Записи аудиоконсультаций будут отображаться здесь
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {audioRecordings.map((recording) => {
+                    const audioUrl = CallRecordingsApi.getVideoUrl(recording)
+                    const recordedDate = recording.recordedAt 
+                      ? new Date(recording.recordedAt).toLocaleString('ru-RU', {
+                          day: '2-digit',
+                          month: '2-digit', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : 'Неизвестно'
+                    const durationMin = recording.durationSeconds 
+                      ? Math.floor(recording.durationSeconds / 60)
+                      : 0
+                    const durationSec = recording.durationSeconds 
+                      ? recording.durationSeconds % 60
+                      : 0
+
+                    return (
+                      <div
+                        key={recording.id}
+                        className="rounded-lg border border-border bg-background p-4 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Mic className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">
+                              Аудиозапись консультации
+                            </p>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                              <span>{recordedDate}</span>
+                              {recording.durationSeconds && recording.durationSeconds > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {durationMin}:{durationSec.toString().padStart(2, '0')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {audioUrl && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              asChild
+                            >
+                              <a
+                                href={resolveImageUrl(audioUrl)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Play className="w-4 h-4 mr-2" />
+                                Слушать
+                              </a>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              asChild
+                            >
+                              <a
+                                href={resolveImageUrl(audioUrl)}
                                 download
                               >
                                 <Download className="w-4 h-4" />
