@@ -1,0 +1,396 @@
+# План миграции: PeerJS → MediaSoup
+
+> **Статус:** Фаза 1-2 завершены, Фаза 3 в процессе  
+> **Дата создания:** 27.04.2026  
+> **Цель:** Перенос записи видеозвонков на сторону сервера
+
+## Прогресс
+
+- [x] **Фаза 1:** MediaSoup сервер создан
+- [x] **Фаза 2:** Клиентский хук mediasoup-client создан  
+- [ ] **Фаза 3:** Серверная запись (FFmpeg pipeline)
+- [ ] **Фаза 4:** Интеграция с video-call-provider
+
+### Созданные файлы:
+
+**Сервер:**
+- `src/mediasoup-server.ts` - главный сервер MediaSoup (порт 3002)
+- `src/lib/mediasoup/config.ts` - конфигурация (кодеки, порты, ICE)
+- `src/lib/mediasoup/worker-manager.ts` - управление MediaSoup workers
+- `src/lib/mediasoup/room.ts` - управление комнатами и участниками
+
+**Клиент:**
+- `src/components/video-call/hooks/use-mediasoup-connection.ts` - хук для mediasoup-client
+
+### Как запустить MediaSoup сервер:
+
+```bash
+# В dev режиме
+pnpm mediasoup
+
+# Или с переменными окружения
+MEDIASOUP_ANNOUNCED_IP=your.server.ip pnpm mediasoup
+```
+
+---
+
+## Почему MediaSoup?
+
+### Сравнение PeerJS vs MediaSoup
+
+| Критерий | PeerJS | MediaSoup |
+|----------|--------|-----------|
+| **Архитектура** | P2P (Mesh) | SFU (Selective Forwarding Unit) |
+| **Медиа проходит через сервер** | Нет | Да |
+| **Серверная запись** | Невозможно | Нативная поддержка |
+| **Масштабируемость** | 2-4 участника | 100+ участников |
+| **Качество записи** | Зависит от клиента | Контролируется сервером |
+| **Надежность записи** | Теряется при обрыве | Сохраняется на сервере |
+| **CPU нагрузка на сервер** | Минимальная | Средняя-высокая |
+| **Сложность реализации** | Простая | Средняя-сложная |
+| **Контроль над битрейтом** | Ограниченный | Полный (Simulcast/SVC) |
+
+### Ключевые преимущества MediaSoup для телемедицины
+
+1. **Гарантированная запись** - медиа проходит через сервер, запись не зависит от клиента
+2. **Устойчивость к обрывам** - если пациент закрыл вкладку, запись уже на сервере
+3. **Качество записи** - сервер выбирает лучший слой качества для записи
+4. **Аудит** - полный контроль над тем, что записывается
+5. **Масштабирование** - возможность добавить групповые консультации в будущем
+
+---
+
+## Текущая архитектура (PeerJS)
+
+```
+Пациент ◄────── P2P (WebRTC) ──────► Врач
+                    │
+             PeerJS Server (3002)
+                    │
+            Только сигналинг!
+            Медиа идёт напрямую
+            между браузерами
+                    │
+            Запись на клиенте
+            (теряется при обрыве)
+```
+
+## Целевая архитектура (MediaSoup)
+
+```
+┌─────────────┐                              ┌─────────────┐
+│   Пациент   │                              │    Врач     │
+│  (Producer) │                              │  (Producer) │
+└──────┬──────┘                              └──────┬──────┘
+       │                                            │
+       │  WebRTC Transport                          │  WebRTC Transport
+       │  (аудио + видео)                           │  (аудио + видео)
+       │                                            │
+       ▼                                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     MediaSoup Server                         │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │                      Router                              ││
+│  │  ┌──────────────┐              ┌──────────────┐         ││
+│  │  │  Producer    │              │  Producer    │         ││
+│  │  │  (Пациент)   │              │  (Врач)      │         ││
+│  │  └──────┬───────┘              └──────┬───────┘         ││
+│  │         │                             │                  ││
+│  │         ▼                             ▼                  ││
+│  │  ┌──────────────┐              ┌──────────────┐         ││
+│  │  │  Consumer    │◄────────────►│  Consumer    │         ││
+│  │  │  (для врача) │              │(для пациента)│         ││
+│  │  └──────────────┘              └──────────────┘         ││
+│  │                                                          ││
+│  │         │                             │                  ││
+│  │         └──────────────┬──────────────┘                  ││
+│  │                        ▼                                 ││
+│  │              ┌──────────────────┐                        ││
+│  │              │  PlainTransport  │                        ││
+│  │              │  (RTP → FFmpeg)  │                        ││
+│  │              └────────┬─────────┘                        ││
+│  └───────────────────────┼──────────────────────────────────┘│
+│                          ▼                                   │
+│                 ┌──────────────────┐                         │
+│                 │     FFmpeg       │                         │
+│                 │  (серверная      │                         │
+│                 │   запись)        │                         │
+│                 └────────┬─────────┘                         │
+│                          ▼                                   │
+│                 ┌──────────────────┐                         │
+│                 │   recordings/    │                         │
+│                 │   {appointmentId}│                         │
+│                 │   .webm          │                         │
+│                 └──────────────────┘                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Требования к серверу
+
+### Минимальные требования
+
+| Ресурс | Минимум | Рекомендуется |
+|--------|---------|---------------|
+| **OS** | Ubuntu 20.04+ | Ubuntu 22.04 LTS |
+| **CPU** | 2 ядра | 4+ ядра |
+| **RAM** | 2 GB | 4+ GB |
+| **Диск** | 20 GB SSD | 50+ GB SSD |
+| **Сеть** | 100 Mbps | 1 Gbps |
+| **Node.js** | 18+ | 20 LTS |
+| **Python** | 3.6+ | 3.10+ |
+| **GCC/G++** | 8+ | 11+ |
+| **FFmpeg** | 4.0+ | 5.0+ |
+
+### Необходимые порты
+
+| Пор�� | Протокол | Назначение |
+|------|----------|------------|
+| 3003 | TCP | MediaSoup Signaling API |
+| 40000-49999 | UDP | WebRTC Media (RTP/RTCP) |
+| 3478 | UDP/TCP | TURN Server |
+
+---
+
+## Фазы реализации
+
+### Фаза 1: Подготовка сервера (1-2 дня)
+- [ ] Установка зависимостей на сервере (build-essential, python3, etc.)
+- [ ] Установка FFmpeg
+- [ ] Настройка портов и firewall
+- [ ] Тестовая установка MediaSoup
+
+**Команды для сервера:**
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install -y build-essential python3 python3-pip ffmpeg
+
+# Установка Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Открытие портов
+sudo ufw allow 3003/tcp
+sudo ufw allow 40000:49999/udp
+```
+
+---
+
+### Фаза 2: MediaSoup сервер (3-4 дня) - ЗАВЕРШЕНО
+- [x] Создание `src/lib/mediasoup/` директории
+- [x] Установка `mediasoup` и `socket.io`
+- [x] Создание Worker Manager (`worker-manager.ts`)
+- [x] Создание Room Manager (`room.ts`)
+- [x] API для создания WebRTC транспортов
+- [x] API для Producer/Consumer
+- [x] Главный сервер (`mediasoup-server.ts`)
+
+**Структура сервера:**
+```
+mediasoup-server/
+├── package.json
+├── tsconfig.json
+├── src/
+│   ├── index.ts              # Точка входа
+│   ├── config.ts             # Конфигурация MediaSoup
+│   ├── mediasoup/
+│   │   ├── worker.ts         # MediaSoup Worker
+│   │   ├── router.ts         # Router для комнат
+│   │   └── transport.ts      # WebRTC транспорты
+│   ├── rooms/
+│   │   ├── room-manager.ts   # Управление комнатами
+│   │   └── room.ts           # Логика комнаты
+│   ├── recording/
+│   │   ├── recorder.ts       # FFmpeg интеграция
+│   │   └── storage.ts        # Сохранение записей
+│   └── signaling/
+│       └── socket-handler.ts # Socket.IO события
+└── recordings/               # Папка для записей
+```
+
+**Ключевые события Socket.IO:**
+```typescript
+// Клиент → Сервер
+'joinRoom'              // Присоединиться к комнате
+'createTransport'       // Создать WebRTC транспорт
+'connectTransport'      // Подключить транспорт
+'produce'               // Начать отправку медиа
+'consume'               // Начать получение медиа
+'startRecording'        // Начать запись
+'stopRecording'         // Остановить запись
+
+// Сервер → Клиент
+'roomJoined'            // Успешное присоединение
+'newProducer'           // Новый участник начал стриминг
+'producerClosed'        // Участник закончил стриминг
+'recordingStarted'      // Запись началась
+'recordingStopped'      // Запись завершена
+```
+
+---
+
+### Фаза 3: Клиентская часть (4-5 дней) - ЗАВЕРШЕНО
+- [x] Установка `mediasoup-client`
+- [x] Создание `use-mediasoup-connection.ts`
+- [x] Создание типов `client-types.ts`
+- [ ] Адаптация `video-call-provider.tsx` (в процессе)
+- [ ] Обновление UI компонентов
+- [ ] Удаление PeerJS зависимостей
+
+**Новые файлы:**
+```
+src/
+├── lib/
+│   └── mediasoup/
+│       ├── client.ts         # MediaSoup клиент
+│       ├── device.ts         # Device initialization
+│       └── types.ts          # TypeScript типы
+└── components/
+    └── video-call/
+        └── hooks/
+            └── use-mediasoup-connection.ts  # Новый хук
+```
+
+**Основной флоу клиента:**
+```typescript
+// 1. Получить RTP capabilities от сервера
+const rtpCapabilities = await socket.request('getRouterRtpCapabilities')
+
+// 2. Создать Device
+const device = new mediasoupClient.Device()
+await device.load({ routerRtpCapabilities: rtpCapabilities })
+
+// 3. Создать Send Transport
+const sendTransport = await createSendTransport()
+
+// 4. Создать Receive Transport
+const recvTransport = await createRecvTransport()
+
+// 5. Produce (отправить свой поток)
+const videoProducer = await sendTransport.produce({ track: videoTrack })
+const audioProducer = await sendTransport.produce({ track: audioTrack })
+
+// 6. Consume (получить поток другого участника)
+const consumer = await recvTransport.consume({ ... })
+```
+
+---
+
+### Фаза 4: Серверная запись (3-4 дня)
+- [ ] Создание PlainTransport для RTP
+- [ ] Настройка FFmpeg pipeline
+- [ ] Запись обоих потоков в один файл
+- [ ] Сохранение метаданных (appointmentId, timestamps)
+- [ ] Интеграция с Payload CMS (сохранение записи)
+
+**FFmpeg команда для записи:**
+```bash
+ffmpeg -protocol_whitelist file,rtp,udp \
+  -i rtp://127.0.0.1:VIDEO_PORT \
+  -i rtp://127.0.0.1:AUDIO_PORT \
+  -c:v libvpx-vp9 -c:a libopus \
+  -f webm recordings/{appointmentId}.webm
+```
+
+**Структура записи:**
+```typescript
+interface Recording {
+  id: string
+  appointmentId: string
+  startedAt: Date
+  endedAt: Date
+  duration: number
+  filePath: string
+  fileSize: number
+  participants: string[]
+  status: 'recording' | 'processing' | 'ready' | 'failed'
+}
+```
+
+---
+
+### Фаза 5: Интеграция и тестирование (2-3 дня)
+- [ ] Интеграция с существующей системой записей
+- [ ] Тестирование различных сценариев обрыва
+- [ ] Нагрузочное тестирование
+- [ ] Тестирование на мобильных устройствах
+- [ ] Документация
+
+**Тестовые сценарии:**
+1. Нормальный звонок с записью
+2. Обрыв соединения пациента во время записи
+3. Обрыв соединения врача во время записи
+4. Потеря интернета на 10-30 секунд
+5. Закрытие вкладки без завершения звонка
+6. Одновременные звонки (нагрузка)
+
+---
+
+### Фаза 6: Деплой и миграция (1-2 дня)
+- [ ] Деплой MediaSoup сервера
+- [ ] Feature flag для постепенного перехода
+- [ ] Мониторинг и логирование
+- [ ] Откат на PeerJS если нужно
+
+**Стратегия миграции:**
+```typescript
+// Feature flag
+const USE_MEDIASOUP = process.env.NEXT_PUBLIC_USE_MEDIASOUP === 'true'
+
+// В video-call-provider.tsx
+const connectionHook = USE_MEDIASOUP 
+  ? useMediasoupConnection 
+  : usePeerConnection
+```
+
+---
+
+## Риски и митигация
+
+| Риск | Вероятность | Влияние | Митигация |
+|------|-------------|---------|-----------|
+| Сложность MediaSoup API | Средняя | Высокое | Поэтапная реализация, документация |
+| Нагрузка на сервер | Средняя | Среднее | Мониторинг, масштабирование |
+| Проблемы с NAT/Firewall | Низкая | Высокое | Настройка TURN, тестирование |
+| Регрессии в звонках | Средняя | Высокое | Feature flag, A/B тестирование |
+
+---
+
+## Оценка времени
+
+| Фаза | Оптимистично | Реалистично | Пессимистично |
+|------|--------------|-------------|---------------|
+| Фаза 1: Подготовка | 1 день | 2 дня | 3 дня |
+| Фаза 2: Сервер | 3 дня | 4 дня | 6 дней |
+| Фаза 3: Клиент | 4 дня | 5 дней | 7 дней |
+| Фаза 4: Запись | 3 дня | 4 дня | 5 дней |
+| Фаза 5: Тестирование | 2 дня | 3 дня | 4 дня |
+| Фаза 6: Деплой | 1 день | 2 дня | 3 дня |
+| **Итого** | **14 дней** | **20 дней** | **28 дней** |
+
+---
+
+## Чеклист готовности к миграции
+
+- [ ] Сервер соответствует требованиям
+- [ ] Порты открыты и доступны
+- [ ] FFmpeg установлен и работает
+- [ ] MediaSoup сервер запускается
+- [ ] Тестовый звонок работает
+- [ ] Запись сохраняется корректно
+- [ ] Интеграция с Payload CMS работает
+- [ ] Все тестовые сценарии пройдены
+- [ ] Feature flag настроен
+- [ ] Мониторинг настроен
+- [ ] Rollback план готов
+
+---
+
+## Ссылки и ресурсы
+
+- [MediaSoup Documentation](https://mediasoup.org/documentation/)
+- [MediaSoup GitHub](https://github.com/versatica/mediasoup)
+- [MediaSoup Demo](https://github.com/versatica/mediasoup-demo)
+- [FFmpeg Recording Guide](https://trac.ffmpeg.org/wiki/Capture/Desktop)
