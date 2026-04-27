@@ -1,5 +1,8 @@
 # Архитектура видеозвонков в проекте Telemed
 
+> **ИДЕТ МИГРАЦИЯ:** Планируется переход с PeerJS на MediaSoup для серверной записи.  
+> См. [MediaSoupMigration.md](./MediaSoupMigration.md) для деталей.
+
 ## Оглавление
 
 - [Высокоуровневая схема](#высокоуровневая-схема)
@@ -88,7 +91,7 @@
 | `MinimizedView` | `src/components/video-call/views/minimized-view.tsx` | Свернутый вид (PiP) |
 | `LocalVideo` | `src/components/video-call/components/local-video.tsx` | Компонент локального видео (камера пользователя) |
 | `RemoteVideo` | `src/components/video-call/components/remote-video.tsx` | Компонент удаленного видео (собеседник) |
-| `CallControls` | `src/components/video-call/components/call-controls.tsx` | Кн������пки управления (вкл/выкл камеру, микрофон, завершить) |
+| `CallControls` | `src/components/video-call/components/call-controls.tsx` | Кн��������пки управления (вкл/выкл камеру, микрофон, завершить) |
 | `CallTimer` | `src/components/video-call/components/call-timer.tsx` | Таймер консультации |
 | `ConnectionQuality` | `src/components/video-call/components/connection-quality.tsx` | Индикатор качества соединения |
 
