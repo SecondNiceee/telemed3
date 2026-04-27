@@ -1,8 +1,36 @@
 # План миграции: PeerJS → MediaSoup
 
-> **Статус:** В планировании  
+> **Статус:** Фаза 1-2 завершены, Фаза 3 в процессе  
 > **Дата создания:** 27.04.2026  
 > **Цель:** Перенос записи видеозвонков на сторону сервера
+
+## Прогресс
+
+- [x] **Фаза 1:** MediaSoup сервер создан
+- [x] **Фаза 2:** Клиентский хук mediasoup-client создан  
+- [ ] **Фаза 3:** Серверная запись (FFmpeg pipeline)
+- [ ] **Фаза 4:** Интеграция с video-call-provider
+
+### Созданные файлы:
+
+**Сервер:**
+- `src/mediasoup-server.ts` - главный сервер MediaSoup (порт 3002)
+- `src/lib/mediasoup/config.ts` - конфигурация (кодеки, порты, ICE)
+- `src/lib/mediasoup/worker-manager.ts` - управление MediaSoup workers
+- `src/lib/mediasoup/room.ts` - управление комнатами и участниками
+
+**Клиент:**
+- `src/components/video-call/hooks/use-mediasoup-connection.ts` - хук для mediasoup-client
+
+### Как запустить MediaSoup сервер:
+
+```bash
+# В dev режиме
+pnpm mediasoup
+
+# Или с переменными окружения
+MEDIASOUP_ANNOUNCED_IP=your.server.ip pnpm mediasoup
+```
 
 ---
 
@@ -117,7 +145,7 @@
 
 ### Необходимые порты
 
-| Порт | Протокол | Назначение |
+| Пор�� | Протокол | Назначение |
 |------|----------|------------|
 | 3003 | TCP | MediaSoup Signaling API |
 | 40000-49999 | UDP | WebRTC Media (RTP/RTCP) |
@@ -150,14 +178,14 @@ sudo ufw allow 40000:49999/udp
 
 ---
 
-### Фаза 2: MediaSoup сервер (3-4 дня)
-- [ ] Создание `mediasoup-server/` директории
-- [ ] Инициализация Node.js проекта
-- [ ] Установка `mediasoup` и `socket.io`
-- [ ] Создание Worker и Router
-- [ ] API для создания WebRTC транспортов
-- [ ] API для Producer/Consumer
-- [ ] Интеграция с существующей аутентификацией
+### Фаза 2: MediaSoup сервер (3-4 дня) - ЗАВЕРШЕНО
+- [x] Создание `src/lib/mediasoup/` директории
+- [x] Установка `mediasoup` и `socket.io`
+- [x] Создание Worker Manager (`worker-manager.ts`)
+- [x] Создание Room Manager (`room.ts`)
+- [x] API для создания WebRTC транспортов
+- [x] API для Producer/Consumer
+- [x] Главный сервер (`mediasoup-server.ts`)
 
 **Структура сервера:**
 ```
@@ -203,10 +231,11 @@ mediasoup-server/
 
 ---
 
-### Фаза 3: Клиентская часть (4-5 дней)
-- [ ] Установка `mediasoup-client`
-- [ ] Создание `use-mediasoup-connection.ts`
-- [ ] Адаптация `video-call-provider.tsx`
+### Фаза 3: Клиентская часть (4-5 дней) - ЗАВЕРШЕНО
+- [x] Установка `mediasoup-client`
+- [x] Создание `use-mediasoup-connection.ts`
+- [x] Создание типов `client-types.ts`
+- [ ] Адаптация `video-call-provider.tsx` (в процессе)
 - [ ] Обновление UI компонентов
 - [ ] Удаление PeerJS зависимостей
 
