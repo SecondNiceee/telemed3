@@ -88,7 +88,7 @@
 | `MinimizedView` | `src/components/video-call/views/minimized-view.tsx` | Свернутый вид (PiP) |
 | `LocalVideo` | `src/components/video-call/components/local-video.tsx` | Компонент локального видео (камера пользователя) |
 | `RemoteVideo` | `src/components/video-call/components/remote-video.tsx` | Компонент удаленного видео (собеседник) |
-| `CallControls` | `src/components/video-call/components/call-controls.tsx` | Кн����пки управления (вкл/выкл камеру, микрофон, завершить) |
+| `CallControls` | `src/components/video-call/components/call-controls.tsx` | Кн������пки управления (вкл/выкл камеру, микрофон, завершить) |
 | `CallTimer` | `src/components/video-call/components/call-timer.tsx` | Таймер консультации |
 | `ConnectionQuality` | `src/components/video-call/components/connection-quality.tsx` | Индикатор качества соединения |
 
@@ -674,6 +674,42 @@ API `/api/recording-chunks` и `/api/recording-chunks/finalize` использу
 2. Верифицируется с использованием `payload.secret` (тот же secret, которым токен был подписан при логине)
 3. Проверяется что `collection === 'doctors'`
 4. Проверяется что `doctorId` в запросе совпадает с ID из токена
+
+### Завершение звонка любой стороной
+
+**Проблема (исправлена):** Ранее запись сохранялась только если звонок завершал врач. Если пациент завершал звонок, запись терялась.
+
+**Причина:** Когда пациент завершал звонок:
+1. Событие `call-ended` приходило врачу через WebSocket
+2. Callback `handleCallEnded()` вызывался **синхронно** (без await)
+3. Сразу после вызова callbacks выполнялся `callStoreRef.current.endCall()` - очистка store
+4. `handleCallEnded()` не успевал завершить сохранение записи, т.к. store уже был очищен
+
+**Решение:**
+1. Callback `onRemoteCallEnded` теперь поддерживает **async функции**
+2. `socket-provider.tsx` **ожидает (await)** завершения всех async callbacks перед очисткой store
+3. Используются `ref` вместо `state` для проверки статуса (`statusRef`, `isRecordingRef`) - избегаем stale closures
+4. Pending chunks **не очищаются** в `stopRecording` - они сохраняются для финальной отправки
+
+**Файлы изменений:**
+- `src/components/socket-provider.tsx` - async callbacks + await
+- `src/components/video-call/video-call-provider.tsx` - async callback + refs
+- `src/components/video-call/hooks/use-call-recording.ts` - isRecordingRef + сохранение pending chunks
+
+### Закрытие страницы во время сохранения
+
+**Важно:** Если врач закроет страницу во время показа "Сохранение видео, подождите... Не закрывайте страницу":
+
+1. **Финализация прервется** - запрос на `/api/recording-chunks/finalize` не завершится
+2. **Chunks уже на сервере** - все chunks (каждые 30 сек) уже сохранены в `/tmp/recording-chunks/{sessionId}/`
+3. **Запись НЕ создастся** - `CallRecording` не появится в БД, т.к. finalize не вызвался
+4. **Chunks останутся** - временные файлы останутся на сервере как "мусор"
+
+**Потери данных:**
+- Последние ~30 секунд (pending chunks в браузере)
+- Остальные chunks сохранены, но не собраны в видео
+
+**TODO:** Можно добавить cron job для восстановления "осиротевших" chunks.
 
 ---
 
