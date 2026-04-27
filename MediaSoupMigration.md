@@ -1,14 +1,15 @@
 # План миграции: PeerJS → MediaSoup
 
-> **Статус:** Фаза 1-2 завершены, Фаза 3 в процессе  
+> **Статус:** Фаза 1-3 завершены, Фаза 4 в процессе  
 > **Дата создания:** 27.04.2026  
+> **Обновлено:** 27.04.2026  
 > **Цель:** Перенос записи видеозвонков на сторону сервера
 
 ## Прогресс
 
 - [x] **Фаза 1:** MediaSoup сервер создан
 - [x] **Фаза 2:** Клиентский хук mediasoup-client создан  
-- [ ] **Фаза 3:** Серверная запись (FFmpeg pipeline)
+- [x] **Фаза 3:** Серверная запись (FFmpeg pipeline)
 - [ ] **Фаза 4:** Интеграция с video-call-provider
 
 ### Созданные файлы:
@@ -18,9 +19,11 @@
 - `src/lib/mediasoup/config.ts` - конфигурация (кодеки, порты, ICE)
 - `src/lib/mediasoup/worker-manager.ts` - управление MediaSoup workers
 - `src/lib/mediasoup/room.ts` - управление комнатами и участниками
+- `src/lib/mediasoup/recorder.ts` - серверная запись через PlainTransport + FFmpeg
 
 **Клиент:**
 - `src/components/video-call/hooks/use-mediasoup-connection.ts` - хук для mediasoup-client
+- `src/lib/mediasoup/client-types.ts` - типы для клиента
 
 ### Как запустить MediaSoup сервер:
 
@@ -118,7 +121,7 @@ MEDIASOUP_ANNOUNCED_IP=your.server.ip pnpm mediasoup
 │                 └────────┬─────────┘                         │
 │                          ▼                                   │
 │                 ┌──────────────────┐                         │
-│                 │   recordings/    │                         │
+��                 │   recordings/    │                         │
 │                 │   {appointmentId}│                         │
 │                 │   .webm          │                         │
 │                 └──────────────────┘                         │
@@ -235,9 +238,11 @@ mediasoup-server/
 - [x] Установка `mediasoup-client`
 - [x] Создание `use-mediasoup-connection.ts`
 - [x] Создание типов `client-types.ts`
-- [ ] Адаптация `video-call-provider.tsx` (в процессе)
-- [ ] Обновление UI компонентов
-- [ ] Удаление PeerJS зависимостей
+- [x] Добавлены методы записи в хук (`startRecording`, `stopRecording`)
+- [x] Добавлены события записи (`recording-started`, `recording-stopped`)
+- [ ] Адаптация `video-call-provider.tsx` (Фаза 5)
+- [ ] Обновление UI компонентов (Фаза 5)
+- [ ] Удаление PeerJS зависимостей (Фаза 6)
 
 **Новые файлы:**
 ```
@@ -278,12 +283,49 @@ const consumer = await recvTransport.consume({ ... })
 
 ---
 
-### Фаза 4: Серверная запись (3-4 дня)
-- [ ] Создание PlainTransport для RTP
-- [ ] Настройка FFmpeg pipeline
-- [ ] Запись обоих потоков в один файл
-- [ ] Сохранение метаданных (appointmentId, timestamps)
-- [ ] Интеграция с Payload CMS (сохранение записи)
+### Фаза 4: Серверная запись (3-4 дня) - ЗАВЕРШЕНО
+- [x] Создание PlainTransport для RTP
+- [x] Настройка FFmpeg pipeline
+- [x] Запись обоих потоков в один файл
+- [x] Сохранение метаданных (appointmentId, timestamps)
+- [ ] Интеграция с Payload CMS (сохранение записи) - **в Фазе 5**
+
+**Созданные модули записи:**
+
+Файл: `src/lib/mediasoup/recorder.ts`
+
+Функционал:
+- `startRecording(roomId, router, producers)` - начать запись комнаты
+- `stopRecording(sessionId)` - остановить запись
+- `stopRecordingByRoom(roomId)` - остановить запись по ID комнаты
+- `getActiveRecordingForRoom(roomId)` - получить активную запись комнаты
+- PlainTransport для получения RTP потоков от producers
+- Генерация SDP файла для FFmpeg
+- Автоматическая остановка записи при выходе врача
+- Автоматическая остановка при пустой комнате
+
+**Socket события записи:**
+```typescript
+// Клиент → Сервер
+'start-recording'       // Начать запись (только врач)
+'stop-recording'        // Остановить запись (только врач)
+'get-recording-status'  // Получить статус записи
+
+// Сервер → Клиент
+'recording-started'     // Запись началась
+'recording-stopped'     // Запись завершена
+```
+
+**Конфигурация записи:** `src/lib/mediasoup/config.ts`
+```typescript
+export const recordingConfig = {
+  outputDir: process.env.RECORDING_OUTPUT_DIR || '/tmp/mediasoup-recordings',
+  ffmpegPath: process.env.FFMPEG_PATH || 'ffmpeg',
+  format: 'webm',
+  videoCodec: 'libvpx-vp9',
+  audioCodec: 'libopus',
+}
+```
 
 **FFmpeg команда для записи:**
 ```bash

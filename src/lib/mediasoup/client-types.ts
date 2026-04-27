@@ -73,6 +73,21 @@ export interface MediasoupClientToServerEvents {
     data: { roomId: string },
     callback: (response: GetProducersResponse) => void
   ) => void
+
+  'start-recording': (
+    data: { roomId: string },
+    callback: (response: StartRecordingResponse) => void
+  ) => void
+
+  'stop-recording': (
+    data: { roomId: string },
+    callback: (response: StopRecordingResponse) => void
+  ) => void
+
+  'get-recording-status': (
+    data: { roomId: string },
+    callback: (response: GetRecordingStatusResponse) => void
+  ) => void
 }
 
 /**
@@ -91,6 +106,17 @@ export interface MediasoupServerToClientEvents {
     producerId: string
     producerPeerId: string
     kind: 'audio' | 'video'
+  }) => void
+
+  'recording-started': (data: {
+    sessionId: string
+    startedBy: string
+  }) => void
+
+  'recording-stopped': (data: {
+    sessionId: string
+    filePath: string
+    reason?: 'doctor-disconnected' | 'manual'
   }) => void
 }
 
@@ -140,6 +166,26 @@ export interface GetProducersResponse {
     producerPeerId: string
     kind: 'audio' | 'video'
   }>
+  error?: string
+}
+
+export interface StartRecordingResponse {
+  success: boolean
+  sessionId?: string
+  error?: string
+}
+
+export interface StopRecordingResponse {
+  success: boolean
+  filePath?: string
+  error?: string
+}
+
+export interface GetRecordingStatusResponse {
+  success: boolean
+  isRecording: boolean
+  sessionId?: string
+  startedAt?: string
   error?: string
 }
 

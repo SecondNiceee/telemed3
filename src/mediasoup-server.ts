@@ -18,6 +18,7 @@ import type { RtpCapabilities, DtlsParameters, RtpParameters, MediaKind } from '
 import { workerManager } from './lib/mediasoup/worker-manager'
 import { roomManager } from './lib/mediasoup/room'
 import { serverConfig } from './lib/mediasoup/config'
+import { recorder } from './lib/mediasoup/recorder'
 
 // Socket data interface
 interface SocketData {
@@ -274,6 +275,21 @@ async function main() {
           kind,
         })
 
+        // If recording is active, add this producer to the recording
+        const activeRecording = recorder.getActiveRecordingForRoom(roomId)
+        if (activeRecording) {
+          try {
+            const peer = room.peers.get(peerId)
+            const producer = peer?.producers.get(producerId)
+            if (producer) {
+              await recorder.addProducerToRecording(activeRecording.id, room.router, producer)
+              console.log(`[MediaSoup] Added new producer ${producerId} to active recording`)
+            }
+          } catch (err) {
+            console.error(`[MediaSoup] Failed to add producer to recording:`, err)
+          }
+        }
+
       } catch (error) {
         console.error('[MediaSoup] Produce error:', error)
         callback({
@@ -438,12 +454,170 @@ async function main() {
     })
 
     // ==========================================
+    // Recording Management
+    // ==========================================
+
+    /**
+     * Start recording a room
+     */
+    socket.on('start-recording', async (data: {
+      roomId: string
+    }, callback: (response: {
+      success: boolean
+      sessionId?: string
+      error?: string
+    }) => void) => {
+      try {
+        const { roomId } = data
+        const peerId = authSocket.data.peerId
+        const role = authSocket.data.role
+
+        if (!peerId) {
+          throw new Error('Not authenticated')
+        }
+
+        // Only doctors can start recording
+        if (role !== 'doctor') {
+          throw new Error('Only doctors can start recording')
+        }
+
+        const room = roomManager.getRoom(roomId)
+        if (!room) {
+          throw new Error(`Room ${roomId} not found`)
+        }
+
+        // Collect all producers from all peers in the room
+        const allProducers = new Map<string, typeof room.peers extends Map<string, infer P> ? P extends { producers: infer Pr } ? Pr extends Map<string, infer Producer> ? Producer : never : never : never>()
+        
+        for (const peer of room.peers.values()) {
+          for (const [producerId, producer] of peer.producers) {
+            allProducers.set(producerId, producer)
+          }
+        }
+
+        if (allProducers.size === 0) {
+          throw new Error('No producers to record')
+        }
+
+        // Start recording
+        const session = await recorder.startRecording(roomId, room.router, allProducers as Map<string, import('mediasoup/node/lib/types').Producer>)
+
+        callback({
+          success: true,
+          sessionId: session.id,
+        })
+
+        // Notify all peers in room that recording started
+        io.to(roomId).emit('recording-started', {
+          sessionId: session.id,
+          startedBy: peerId,
+        })
+
+        console.log(`[MediaSoup] Recording started for room ${roomId}, session: ${session.id}`)
+
+      } catch (error) {
+        console.error('[MediaSoup] Start recording error:', error)
+        callback({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    /**
+     * Stop recording a room
+     */
+    socket.on('stop-recording', async (data: {
+      roomId: string
+    }, callback: (response: {
+      success: boolean
+      filePath?: string
+      error?: string
+    }) => void) => {
+      try {
+        const { roomId } = data
+        const peerId = authSocket.data.peerId
+        const role = authSocket.data.role
+
+        if (!peerId) {
+          throw new Error('Not authenticated')
+        }
+
+        // Only doctors can stop recording
+        if (role !== 'doctor') {
+          throw new Error('Only doctors can stop recording')
+        }
+
+        const session = await recorder.stopRecordingByRoom(roomId)
+
+        if (!session) {
+          throw new Error('No active recording found')
+        }
+
+        callback({
+          success: true,
+          filePath: session.filePath,
+        })
+
+        // Notify all peers in room that recording stopped
+        io.to(roomId).emit('recording-stopped', {
+          sessionId: session.id,
+          filePath: session.filePath,
+        })
+
+        console.log(`[MediaSoup] Recording stopped for room ${roomId}, file: ${session.filePath}`)
+
+      } catch (error) {
+        console.error('[MediaSoup] Stop recording error:', error)
+        callback({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    /**
+     * Get recording status for a room
+     */
+    socket.on('get-recording-status', (data: {
+      roomId: string
+    }, callback: (response: {
+      success: boolean
+      isRecording: boolean
+      sessionId?: string
+      startedAt?: string
+      error?: string
+    }) => void) => {
+      try {
+        const { roomId } = data
+
+        const session = recorder.getActiveRecordingForRoom(roomId)
+
+        callback({
+          success: true,
+          isRecording: !!session,
+          sessionId: session?.id,
+          startedAt: session?.startedAt.toISOString(),
+        })
+
+      } catch (error) {
+        console.error('[MediaSoup] Get recording status error:', error)
+        callback({
+          success: false,
+          isRecording: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    // ==========================================
     // Disconnect Handler
     // ==========================================
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       const peerId = authSocket.data.peerId
       const roomId = authSocket.data.roomId
+      const role = authSocket.data.role
 
       console.log(`[MediaSoup] Client disconnected: ${socket.id}, peerId: ${peerId}`)
 
@@ -452,6 +626,37 @@ async function main() {
         if (room) {
           roomManager.removePeer(room, peerId)
           socket.to(roomId).emit('peer-left', { peerId })
+
+          // If doctor disconnected, stop recording
+          if (role === 'doctor') {
+            const session = recorder.getActiveRecordingForRoom(roomId)
+            if (session) {
+              console.log(`[MediaSoup] Doctor disconnected, stopping recording for room ${roomId}`)
+              try {
+                await recorder.stopRecording(session.id)
+                io.to(roomId).emit('recording-stopped', {
+                  sessionId: session.id,
+                  filePath: session.filePath,
+                  reason: 'doctor-disconnected',
+                })
+              } catch (error) {
+                console.error('[MediaSoup] Error stopping recording on disconnect:', error)
+              }
+            }
+          }
+
+          // If room is now empty, ensure recording is stopped
+          if (room.peers.size === 0) {
+            const session = recorder.getActiveRecordingForRoom(roomId)
+            if (session) {
+              console.log(`[MediaSoup] Room ${roomId} is empty, stopping recording`)
+              try {
+                await recorder.stopRecording(session.id)
+              } catch (error) {
+                console.error('[MediaSoup] Error stopping recording on empty room:', error)
+              }
+            }
+          }
         }
       }
     })
@@ -466,6 +671,19 @@ async function main() {
   // Graceful shutdown
   const shutdown = async () => {
     console.log('[MediaSoup] Shutting down...')
+    
+    // Stop all active recordings
+    const activeSessions = recorder.getAllSessions().filter(
+      (s) => s.status === 'recording' || s.status === 'starting'
+    )
+    for (const session of activeSessions) {
+      console.log(`[MediaSoup] Stopping recording session ${session.id}`)
+      try {
+        await recorder.stopRecording(session.id)
+      } catch (error) {
+        console.error(`[MediaSoup] Error stopping recording ${session.id}:`, error)
+      }
+    }
     
     // Close all rooms
     for (const [roomId] of roomManager.getAllRooms()) {
