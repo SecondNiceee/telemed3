@@ -1,0 +1,625 @@
+'use client'
+
+/**
+ * VideoCallProvider с поддержкой MediaSoup SFU
+ * 
+ * Заменяет PeerJS провайдер для серверной записи консультаций.
+ * Медиа проходит через MediaSoup сервер, что позволяет:
+ * - Записывать на сервере (не зависит от клиента)
+ * - Гарантировать сохранение записи при обрыве соединения
+ * - Контролировать качество записи
+ */
+
+import {
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+  type ReactNode,
+} from 'react'
+import { toast } from 'sonner'
+import { useSocket } from '@/components/socket-provider'
+import { useCallStore } from '@/stores/call-store'
+import { useUserStore } from '@/stores/user-store'
+import { useDoctorStore } from '@/stores/doctor-store'
+import { useMediaStream } from './hooks/use-media-stream'
+import { useCallTimer } from './hooks/use-call-timer'
+import { useConnectionQuality } from './hooks/use-connection-quality'
+import { useMediasoupConnection } from './hooks/use-mediasoup-connection'
+import { CALL_TIMEOUTS } from '@/lib/video-call/config'
+import type {
+  CallStatus,
+  CallViewMode,
+  CallParticipant,
+  CallRole,
+  MediaState,
+} from '@/lib/video-call/types'
+
+// Extended context value for MediaSoup
+interface MediaSoupVideoCallContextValue {
+  // State
+  status: CallStatus
+  callData: {
+    appointmentId: number
+    caller: CallParticipant
+    callee: CallParticipant
+    durationMinutes: number
+  } | null
+  localStream: MediaStream | null
+  remoteStream: MediaStream | null
+  mediaState: MediaState
+  connectionQuality: 'excellent' | 'good' | 'fair' | 'poor' | 'unknown'
+  viewMode: CallViewMode
+  remainingSeconds: number
+  isPaused: boolean
+  isSavingRecording: boolean
+  isAudioOnly: boolean
+  
+  // MediaSoup-specific state
+  isServerRecording: boolean
+  recordingSessionId: string | null
+  
+  // Actions
+  startCall: (callee: CallParticipant, appointmentId: number, durationMinutes: number) => Promise<void>
+  startAudioCall: (callee: CallParticipant, appointmentId: number, durationMinutes: number) => Promise<void>
+  answerCall: () => Promise<void>
+  rejectCall: () => void
+  endCall: () => void
+  toggleVideo: () => void
+  toggleAudio: () => void
+  toggleMinimize: () => void
+  togglePause: () => void
+  completeConsultation: () => void
+  
+  // MediaSoup-specific actions
+  startServerRecording: () => Promise<boolean>
+  stopServerRecording: () => Promise<string | null>
+  
+  // Info
+  currentUser: CallParticipant | null
+  role: CallRole | null
+}
+
+const VideoCallContext = createContext<MediaSoupVideoCallContextValue | null>(null)
+
+interface VideoCallProviderMediaSoupProps {
+  children: ReactNode
+}
+
+export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaSoupProps) {
+  // Get current user from stores
+  const user = useUserStore((state) => state.user)
+  const doctor = useDoctorStore((state) => state.doctor)
+  
+  // Generate unique tab ID
+  const tabIdRef = useRef<string>('')
+  if (typeof window !== 'undefined' && !tabIdRef.current) {
+    tabIdRef.current = `_${Date.now().toString(36)}`
+  }
+  
+  // Derive currentUser from available data
+  const currentUser = useMemo<CallParticipant | null>(() => {
+    const tabSuffix = tabIdRef.current
+    if (doctor) {
+      const odooUserId = doctor.id
+      const peerId = `doctor_${odooUserId}${tabSuffix}`
+      return {
+        odooUserId,
+        odooPartnerId: odooUserId,
+        odooPartnerName: doctor.name || 'Doctor',
+        peerId,
+        basePeerId: `doctor_${odooUserId}`,
+        role: 'doctor' as const,
+      }
+    }
+    if (user) {
+      const odooUserId = user.id
+      const peerId = `patient_${odooUserId}${tabSuffix}`
+      return {
+        odooUserId,
+        odooPartnerId: odooUserId,
+        odooPartnerName: user.name || 'User',
+        peerId,
+        basePeerId: `patient_${odooUserId}`,
+        role: 'patient' as const,
+      }
+    }
+    return null
+  }, [doctor, user])
+  
+  // Zustand store
+  const callStore = useCallStore()
+  
+  // Socket for signaling
+  const socket = useSocket()
+  
+  // Local state
+  const [status, setStatus] = useState<CallStatus>('idle')
+  const statusRef = useRef<CallStatus>('idle')
+  const [isAudioOnly, setIsAudioOnly] = useState(false)
+  const [viewMode, setViewMode] = useState<CallViewMode>('fullscreen')
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
+  const [callData, setCallData] = useState<{
+    appointmentId: number
+    durationMinutes: number
+    participant: CallParticipant
+    isOutgoing: boolean
+  } | null>(null)
+  const callDataRef = useRef(callData)
+  const callTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Keep refs in sync
+  useEffect(() => {
+    statusRef.current = status
+  }, [status])
+  useEffect(() => {
+    callDataRef.current = callData
+  }, [callData])
+  
+  // Hooks
+  const mediaStream = useMediaStream()
+  const timer = useCallTimer(0)
+  const connectionQuality = useConnectionQuality()
+  
+  // MediaSoup connection
+  const mediasoup = useMediasoupConnection({
+    peerId: currentUser?.peerId || '',
+    peerName: currentUser?.odooPartnerName || '',
+    role: currentUser?.role || 'patient',
+    onRemoteStream: (stream, producerPeerId) => {
+      console.log('[MediaSoup Provider] Remote stream received from:', producerPeerId)
+      setRemoteStream(stream)
+      
+      // If we were connecting, we're now connected
+      if (statusRef.current === 'connecting') {
+        setStatus('connected')
+        timer.start()
+      }
+    },
+    onPeerJoined: (peerId, peerName, role) => {
+      console.log('[MediaSoup Provider] Peer joined:', peerId, peerName, role)
+      toast.info(`${peerName} присоединился к звонку`)
+    },
+    onPeerLeft: (peerId) => {
+      console.log('[MediaSoup Provider] Peer left:', peerId)
+      // If the other participant left, end the call
+      if (statusRef.current === 'connected' || statusRef.current === 'connecting') {
+        toast.info('Собеседник покинул звонок')
+        handleCallEnded()
+      }
+    },
+    onError: (error) => {
+      console.error('[MediaSoup Provider] Error:', error)
+      toast.error(`Ошибка соединения: ${error.message}`)
+    },
+    onRecordingStarted: (sessionId, startedBy) => {
+      console.log('[MediaSoup Provider] Recording started:', sessionId, 'by', startedBy)
+      toast.success('Запись консультации начата')
+    },
+    onRecordingStopped: (sessionId, filePath, reason) => {
+      console.log('[MediaSoup Provider] Recording stopped:', sessionId, filePath, reason)
+      if (reason === 'doctor-disconnected') {
+        toast.info('Запись остановлена (врач отключился)')
+      } else {
+        toast.success('Запись консультации сохранена')
+      }
+    },
+  })
+  
+  // Peer ID
+  const peerId = currentUser?.peerId ?? null
+  
+  // Media state
+  const mediaState: MediaState = {
+    isVideoEnabled: mediaStream.isVideoEnabled,
+    isAudioEnabled: mediaStream.isAudioEnabled,
+    isCameraAvailable: mediaStream.isCameraAvailable,
+    isMicrophoneAvailable: mediaStream.isMicrophoneAvailable,
+  }
+  
+  // Role
+  const role: CallRole | null = currentUser?.role ?? null
+  
+  // Clear call timeout
+  const clearCallTimeout = useCallback(() => {
+    if (callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current)
+      callTimeoutRef.current = null
+    }
+  }, [])
+  
+  // Handle call ended
+  const handleCallEnded = useCallback(async () => {
+    console.log('[MediaSoup Provider] handleCallEnded')
+    
+    clearCallTimeout()
+    connectionQuality.stopMonitoring()
+    timer.pause()
+    
+    // Stop MediaSoup connection
+    mediasoup.leaveRoom()
+    
+    // Stop local media
+    mediaStream.stopStream()
+    
+    setRemoteStream(null)
+    setStatus('ended')
+    setCallData(null)
+    callStore.endCall()
+    
+    // Reset to idle after animation
+    setTimeout(() => {
+      setStatus('idle')
+      setViewMode('fullscreen')
+      setIsAudioOnly(false)
+    }, 1000)
+  }, [clearCallTimeout, connectionQuality, timer, mediasoup, mediaStream, callStore])
+  
+  // Start outgoing video call
+  const startCall = useCallback(async (
+    callee: CallParticipant,
+    appointmentId: number,
+    durationMinutes: number
+  ) => {
+    if (!currentUser || !peerId) {
+      toast.error('Не удалось начать звонок')
+      return
+    }
+    
+    setIsAudioOnly(false)
+    setStatus('calling')
+    setCallData({
+      appointmentId,
+      durationMinutes,
+      participant: callee,
+      isOutgoing: true,
+    })
+    timer.reset(durationMinutes)
+    
+    // Get media stream
+    const stream = await mediaStream.getStream(true, true)
+    if (!stream) {
+      toast.error('Нет доступа к камере/микрофону')
+      setStatus('idle')
+      setCallData(null)
+      return
+    }
+    
+    callStore.setLocalStream(stream)
+    
+    // Join MediaSoup room (using appointmentId as roomId)
+    const roomId = `appointment_${appointmentId}`
+    const joined = await mediasoup.joinRoom(roomId)
+    
+    if (!joined) {
+      toast.error('Не удалось подключиться к серверу')
+      setStatus('idle')
+      setCallData(null)
+      mediaStream.stopStream()
+      return
+    }
+    
+    // Start producing media
+    await mediasoup.startProducing(stream)
+    
+    // Signal call via socket (for notification)
+    socket.initiateCall(appointmentId, peerId, currentUser.odooPartnerName)
+    callStore.startCall(appointmentId, callee.peerId)
+    
+    setStatus('connecting')
+    
+    // Set call timeout
+    callTimeoutRef.current = setTimeout(() => {
+      if (statusRef.current === 'calling' || statusRef.current === 'connecting') {
+        toast.error('Нет ответа')
+        handleCallEnded()
+      }
+    }, CALL_TIMEOUTS.CALL_TIMEOUT)
+    
+    // Auto-start recording for doctors
+    if (currentUser.role === 'doctor') {
+      // Wait a bit for the other participant to join
+      setTimeout(async () => {
+        if (statusRef.current === 'connected') {
+          const started = await mediasoup.startRecording()
+          if (started) {
+            console.log('[MediaSoup Provider] Auto-started recording for doctor')
+          }
+        }
+      }, 3000)
+    }
+    
+  }, [currentUser, peerId, mediaStream, mediasoup, socket, callStore, timer, handleCallEnded])
+  
+  // Start outgoing audio-only call
+  const startAudioCall = useCallback(async (
+    callee: CallParticipant,
+    appointmentId: number,
+    durationMinutes: number
+  ) => {
+    if (!currentUser || !peerId) {
+      toast.error('Не удалось начать звонок')
+      return
+    }
+    
+    setIsAudioOnly(true)
+    setStatus('calling')
+    setCallData({
+      appointmentId,
+      durationMinutes,
+      participant: callee,
+      isOutgoing: true,
+    })
+    timer.reset(durationMinutes)
+    
+    // Get media stream (audio only)
+    const stream = await mediaStream.getStream(false, true)
+    if (!stream) {
+      toast.error('Нет доступа к микрофону')
+      setStatus('idle')
+      setCallData(null)
+      setIsAudioOnly(false)
+      return
+    }
+    
+    callStore.setLocalStream(stream)
+    
+    // Join MediaSoup room
+    const roomId = `appointment_${appointmentId}`
+    const joined = await mediasoup.joinRoom(roomId)
+    
+    if (!joined) {
+      toast.error('Не удалось подключиться к серверу')
+      setStatus('idle')
+      setCallData(null)
+      setIsAudioOnly(false)
+      mediaStream.stopStream()
+      return
+    }
+    
+    // Start producing media
+    await mediasoup.startProducing(stream)
+    
+    // Signal call via socket
+    socket.initiateCall(appointmentId, peerId, currentUser.odooPartnerName)
+    callStore.startCall(appointmentId, callee.peerId)
+    
+    setStatus('connecting')
+    
+    // Set call timeout
+    callTimeoutRef.current = setTimeout(() => {
+      if (statusRef.current === 'calling' || statusRef.current === 'connecting') {
+        toast.error('Нет ответа')
+        handleCallEnded()
+      }
+    }, CALL_TIMEOUTS.CALL_TIMEOUT)
+    
+    // Auto-start recording for doctors
+    if (currentUser.role === 'doctor') {
+      setTimeout(async () => {
+        if (statusRef.current === 'connected') {
+          await mediasoup.startRecording()
+        }
+      }, 3000)
+    }
+    
+  }, [currentUser, peerId, mediaStream, mediasoup, socket, callStore, timer, handleCallEnded])
+  
+  // Answer incoming call
+  const answerCall = useCallback(async () => {
+    if (!callData || !peerId || !currentUser) return
+    
+    setStatus('connecting')
+    
+    // Get media stream
+    const useVideo = !isAudioOnly
+    const stream = await mediaStream.getStream(useVideo, true)
+    if (!stream) {
+      toast.error(useVideo ? 'Нет доступа к камере/микрофону' : 'Нет доступа к микрофону')
+      handleCallEnded()
+      return
+    }
+    
+    callStore.setLocalStream(stream)
+    
+    // Join MediaSoup room
+    const roomId = `appointment_${callData.appointmentId}`
+    const joined = await mediasoup.joinRoom(roomId)
+    
+    if (!joined) {
+      toast.error('Не удалось подключиться')
+      handleCallEnded()
+      return
+    }
+    
+    // Start producing media
+    await mediasoup.startProducing(stream)
+    
+    // Signal answer via socket
+    socket.answerCall(callData.appointmentId, peerId)
+    timer.reset(callData.durationMinutes)
+    
+  }, [callData, peerId, currentUser, isAudioOnly, mediaStream, mediasoup, socket, timer, callStore, handleCallEnded])
+  
+  // Reject incoming call
+  const rejectCall = useCallback(() => {
+    if (!callData) return
+    
+    socket.rejectCall(callData.appointmentId)
+    setStatus('idle')
+    setCallData(null)
+  }, [callData, socket])
+  
+  // End active call
+  const endCall = useCallback(() => {
+    if (callData) {
+      socket.endCall(callData.appointmentId)
+    }
+    handleCallEnded()
+  }, [callData, socket, handleCallEnded])
+  
+  // Toggle video
+  const toggleVideo = useCallback(() => {
+    mediaStream.toggleVideo()
+    callStore.toggleVideo()
+  }, [mediaStream, callStore])
+  
+  // Toggle audio
+  const toggleAudio = useCallback(() => {
+    mediaStream.toggleAudio()
+    callStore.toggleAudio()
+  }, [mediaStream, callStore])
+  
+  // Toggle minimize
+  const toggleMinimize = useCallback(() => {
+    setViewMode((prev) => prev === 'minimized' ? 'fullscreen' : 'minimized')
+  }, [])
+  
+  // Toggle pause (doctor only)
+  const togglePause = useCallback(() => {
+    if (timer.isPaused) {
+      timer.resume()
+    } else {
+      timer.pause()
+    }
+  }, [timer])
+  
+  // Complete consultation (doctor only)
+  const completeConsultation = useCallback(() => {
+    endCall()
+  }, [endCall])
+  
+  // Start server recording (doctor only)
+  const startServerRecording = useCallback(async (): Promise<boolean> => {
+    if (currentUser?.role !== 'doctor') {
+      toast.error('Только врач может управлять записью')
+      return false
+    }
+    return mediasoup.startRecording()
+  }, [currentUser, mediasoup])
+  
+  // Stop server recording (doctor only)
+  const stopServerRecording = useCallback(async (): Promise<string | null> => {
+    if (currentUser?.role !== 'doctor') {
+      toast.error('Только врач может управлять записью')
+      return null
+    }
+    return mediasoup.stopRecording()
+  }, [currentUser, mediasoup])
+  
+  // Handle incoming call from socket
+  useEffect(() => {
+    const handleIncomingCall = () => {
+      const { status: storeStatus, callerName, appointmentId, remotePeerId } = callStore
+      
+      if (storeStatus === 'incoming' && callerName && appointmentId && status === 'idle') {
+        const caller: CallParticipant = {
+          odooUserId: 0,
+          odooPartnerId: 0,
+          odooPartnerName: callerName,
+          peerId: remotePeerId || '',
+          role: currentUser?.role === 'doctor' ? 'patient' : 'doctor',
+        }
+        
+        setStatus('incoming')
+        setCallData({
+          appointmentId,
+          durationMinutes: 30,
+          participant: caller,
+          isOutgoing: false,
+        })
+      }
+    }
+    
+    handleIncomingCall()
+  }, [callStore, currentUser, status])
+  
+  // Handle call ended from remote side
+  useEffect(() => {
+    const unsubscribe = socket.onRemoteCallEnded(async (appointmentId) => {
+      const currentStatus = statusRef.current
+      if (currentStatus === 'connected' || currentStatus === 'connecting' || currentStatus === 'calling') {
+        await handleCallEnded()
+      }
+    })
+    
+    return unsubscribe
+  }, [socket, handleCallEnded])
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearCallTimeout()
+      connectionQuality.stopMonitoring()
+      mediaStream.stopStream()
+      mediasoup.cleanup()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  
+  const contextValue: MediaSoupVideoCallContextValue = {
+    // State
+    status,
+    callData: callData ? {
+      appointmentId: callData.appointmentId,
+      caller: callData.isOutgoing ? currentUser! : callData.participant,
+      callee: callData.isOutgoing ? callData.participant : currentUser!,
+      durationMinutes: callData.durationMinutes,
+    } : null,
+    localStream: mediaStream.stream,
+    remoteStream,
+    mediaState,
+    connectionQuality: connectionQuality.quality,
+    viewMode,
+    remainingSeconds: timer.remainingSeconds,
+    isPaused: timer.isPaused,
+    isSavingRecording: false, // Server handles this
+    isAudioOnly,
+    
+    // MediaSoup-specific
+    isServerRecording: mediasoup.isRecording,
+    recordingSessionId: mediasoup.recordingSessionId,
+    
+    // Actions
+    startCall,
+    startAudioCall,
+    answerCall,
+    rejectCall,
+    endCall,
+    toggleVideo,
+    toggleAudio,
+    toggleMinimize,
+    togglePause,
+    completeConsultation,
+    
+    // MediaSoup-specific actions
+    startServerRecording,
+    stopServerRecording,
+    
+    // User info
+    currentUser,
+    role,
+  }
+  
+  return (
+    <VideoCallContext.Provider value={contextValue}>
+      {children}
+    </VideoCallContext.Provider>
+  )
+}
+
+export function useVideoCallMediaSoup() {
+  const context = useContext(VideoCallContext)
+  if (!context) {
+    throw new Error('useVideoCallMediaSoup must be used within a VideoCallProviderMediaSoup')
+  }
+  return context
+}
+
+// Safe hook for optional usage
+export function useVideoCallMediaSoupSafe() {
+  return useContext(VideoCallContext)
+}

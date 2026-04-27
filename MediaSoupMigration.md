@@ -1,6 +1,6 @@
 # План миграции: PeerJS → MediaSoup
 
-> **Статус:** Фаза 1-3 завершены, Фаза 4 в процессе  
+> **Статус:** Фаза 1-4 завершены, готово к тестированию  
 > **Дата создания:** 27.04.2026  
 > **Обновлено:** 27.04.2026  
 > **Цель:** Перенос записи видеозвонков на сторону сервера
@@ -10,7 +10,8 @@
 - [x] **Фаза 1:** MediaSoup сервер создан
 - [x] **Фаза 2:** Клиентский хук mediasoup-client создан  
 - [x] **Фаза 3:** Серверная запись (FFmpeg pipeline)
-- [ ] **Фаза 4:** Интеграция с video-call-provider
+- [x] **Фаза 4:** Интеграция с video-call-provider
+- [ ] **Фаза 5:** Тестирование и деплой
 
 ### Созданные файлы:
 
@@ -25,6 +26,11 @@
 - `src/components/video-call/hooks/use-mediasoup-connection.ts` - хук для mediasoup-client
 - `src/lib/mediasoup/client-types.ts` - типы для клиента
 
+**Интеграция (Фаза 4):**
+- `src/components/video-call/video-call-provider-mediasoup.tsx` - провайдер с MediaSoup
+- `src/components/video-call/video-call-provider-wrapper.tsx` - обертка с feature flag
+- Обновлен `src/components/video-call/views/connected-view.tsx` - индикатор записи
+
 ### Как запустить MediaSoup сервер:
 
 ```bash
@@ -33,6 +39,53 @@ pnpm mediasoup
 
 # Или с переменными окружения
 MEDIASOUP_ANNOUNCED_IP=your.server.ip pnpm mediasoup
+```
+
+### Как включить MediaSoup на клиенте:
+
+```bash
+# В .env.local
+NEXT_PUBLIC_USE_MEDIASOUP=true
+NEXT_PUBLIC_MEDIASOUP_URL=http://localhost:3002
+
+# Для production
+NEXT_PUBLIC_USE_MEDIASOUP=true
+NEXT_PUBLIC_MEDIASOUP_URL=https://mediasoup.your-domain.com
+```
+
+### Использование провайдера:
+
+```tsx
+// С автоматическим выбором (рекомендуется)
+import { VideoCallProviderWrapper } from '@/components/video-call'
+
+function App() {
+  return (
+    <VideoCallProviderWrapper>
+      <YourApp />
+    </VideoCallProviderWrapper>
+  )
+}
+
+// Или напрямую MediaSoup провайдер
+import { VideoCallProviderMediaSoup, useVideoCallMediaSoup } from '@/components/video-call'
+
+function VideoCallUI() {
+  const { 
+    isServerRecording,
+    startServerRecording,
+    stopServerRecording,
+    // ... остальные методы как в обычном провайдере
+  } = useVideoCallMediaSoup()
+  
+  return (
+    <div>
+      {isServerRecording && <span>Идёт запись на сервере</span>}
+      <button onClick={startServerRecording}>Начать запись</button>
+      <button onClick={stopServerRecording}>Остановить запись</button>
+    </div>
+  )
+}
 ```
 
 ---
@@ -118,7 +171,7 @@ MEDIASOUP_ANNOUNCED_IP=your.server.ip pnpm mediasoup
 │                 │     FFmpeg       │                         │
 │                 │  (серверная      │                         │
 │                 │   запись)        │                         │
-│                 └────────┬─────────┘                         │
+│                 └────────┬─────────���                         │
 │                          ▼                                   │
 │                 ┌──────────────────┐                         │
 ��                 │   recordings/    │                         │
@@ -309,7 +362,7 @@ const consumer = await recvTransport.consume({ ... })
 // Клиент → Сервер
 'start-recording'       // Начать запись (только врач)
 'stop-recording'        // Остановить запись (только врач)
-'get-recording-status'  // Получить статус записи
+'get-recording-status'  // Получить статус запис��
 
 // Сервер → Клиент
 'recording-started'     // Запись началась
