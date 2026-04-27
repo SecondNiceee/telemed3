@@ -463,7 +463,6 @@ export function useCallRecording(): UseCallRecordingReturn {
         if (!isAudioOnly) {
           cleanupCompositeState() // Clean up canvas and videos (only for video)
         }
-      }
         console.log('[Recording] Stopped, total blob size:', blob.size, 'isAudioOnly:', isAudioOnly)
       }
 
@@ -473,12 +472,12 @@ export function useCallRecording(): UseCallRecordingReturn {
         isRecordingRef.current = false
       }
 
-    // Record in 1 second chunks for smooth streaming
-    recorder.start(1000)
-    mediaRecorderRef.current = recorder
-    recordingStartTimeRef.current = Date.now()
-    setIsRecording(true)
-    isRecordingRef.current = true
+      // Record in 1 second chunks for smooth streaming
+      recorder.start(1000)
+      mediaRecorderRef.current = recorder
+      recordingStartTimeRef.current = Date.now()
+      setIsRecording(true)
+      isRecordingRef.current = true
       
       console.log('[Recording] Started with mime type:', selectedMimeType, 'isAudioOnly:', isAudioOnly)
 
