@@ -1,5 +1,16 @@
-// Main exports
+// Main exports - PeerJS (legacy)
 export { VideoCallProvider, useVideoCall, useVideoCallSafe } from './video-call-provider'
+
+// Main exports - MediaSoup (new)
+export { 
+  VideoCallProviderMediaSoup, 
+  useVideoCallMediaSoup, 
+  useVideoCallMediaSoupSafe 
+} from './video-call-provider-mediasoup'
+
+// Provider wrapper with feature flag
+export { VideoCallProviderWrapper } from './video-call-provider-wrapper'
+
 export { VideoCallOverlay } from './video-call-overlay'
 
 // Components
@@ -30,6 +41,7 @@ export {
   useConnectionQuality,
   useCallRecording,
   useTurnTest,
+  useMediasoupConnection,
 } from './hooks'
 
 // Re-export types

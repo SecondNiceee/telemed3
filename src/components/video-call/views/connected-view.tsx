@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Circle } from 'lucide-react'
 import { LocalVideo } from '../components/local-video'
 import { RemoteVideo } from '../components/remote-video'
 import { CallControls } from '../components/call-controls'
@@ -9,6 +10,10 @@ import { ConnectionQualityIndicator } from '../components/connection-quality'
 import { EndCallDialog } from '../components/end-call-dialog'
 import { cn } from '@/lib/utils'
 import type { ConnectedViewProps } from '@/lib/video-call/types'
+
+interface ExtendedConnectedViewProps extends ConnectedViewProps {
+  isServerRecording?: boolean
+}
 
 export function ConnectedView({
   localStream,
@@ -23,7 +28,8 @@ export function ConnectedView({
   onToggleAudio,
   onEndCall,
   onToggleMinimize,
-}: ConnectedViewProps) {
+  isServerRecording,
+}: ExtendedConnectedViewProps) {
   const [showEndDialog, setShowEndDialog] = useState(false)
   const [showControls, setShowControls] = useState(true)
 
@@ -50,17 +56,26 @@ export function ConnectedView({
         className="h-full w-full"
       />
 
-      {/* Top overlay - timer and quality */}
+      {/* Top overlay - timer, recording indicator and quality */}
       <div
         className={cn(
           'absolute left-0 right-0 top-0 flex items-start justify-between p-4 transition-opacity duration-300',
           showControls ? 'opacity-100' : 'opacity-0'
         )}
       >
-        <CallTimer
-          remainingSeconds={remainingSeconds}
-          isPaused={isPaused}
-        />
+        <div className="flex items-center gap-3">
+          <CallTimer
+            remainingSeconds={remainingSeconds}
+            isPaused={isPaused}
+          />
+          {/* Server recording indicator */}
+          {isServerRecording && (
+            <div className="flex items-center gap-1.5 rounded-full bg-red-500/90 px-2.5 py-1 text-white backdrop-blur-sm">
+              <Circle className="h-2.5 w-2.5 animate-pulse fill-current" />
+              <span className="text-xs font-medium">REC</span>
+            </div>
+          )}
+        </div>
         <ConnectionQualityIndicator quality={connectionQuality} showLabel />
       </div>
 
