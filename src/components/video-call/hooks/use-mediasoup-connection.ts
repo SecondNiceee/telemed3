@@ -21,17 +21,23 @@ export interface UseMediasoupConnectionOptions {
   onPeerJoined?: (peerId: string, peerName: string, role: string) => void
   onPeerLeft?: (peerId: string) => void
   onError?: (error: Error) => void
+  onRecordingStarted?: (sessionId: string, startedBy: string) => void
+  onRecordingStopped?: (sessionId: string, filePath: string, reason?: string) => void
 }
 
 export interface UseMediasoupConnectionReturn {
   isConnected: boolean
   isConnecting: boolean
   error: Error | null
+  isRecording: boolean
+  recordingSessionId: string | null
   // Actions
   joinRoom: (roomId: string) => Promise<boolean>
   leaveRoom: () => void
   startProducing: (stream: MediaStream) => Promise<void>
   stopProducing: () => void
+  startRecording: () => Promise<boolean>
+  stopRecording: () => Promise<string | null>
   cleanup: () => void
   // State
   localProducers: Map<string, Producer>
@@ -48,11 +54,15 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
     onPeerJoined,
     onPeerLeft,
     onError,
+    onRecordingStarted,
+    onRecordingStopped,
   } = options
 
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingSessionId, setRecordingSessionId] = useState<string | null>(null)
 
   // Refs for MediaSoup objects
   const socketRef = useRef<Socket | null>(null)
@@ -374,6 +384,33 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
         await consumeProducer(socket, roomId, data.producerId, data.producerPeerId, data.kind)
       })
 
+      // Recording events
+      socket.on('recording-started', (data: { sessionId: string; startedBy: string }) => {
+        console.log('[MediaSoup Client] Recording started:', data)
+        setIsRecording(true)
+        setRecordingSessionId(data.sessionId)
+        onRecordingStarted?.(data.sessionId, data.startedBy)
+      })
+
+      socket.on('recording-stopped', (data: { sessionId: string; filePath: string; reason?: string }) => {
+        console.log('[MediaSoup Client] Recording stopped:', data)
+        setIsRecording(false)
+        setRecordingSessionId(null)
+        onRecordingStopped?.(data.sessionId, data.filePath, data.reason)
+      })
+
+      // Check if there's an active recording when joining
+      socket.emit('get-recording-status', { roomId }, (response: {
+        success: boolean
+        isRecording: boolean
+        sessionId?: string
+      }) => {
+        if (response.success && response.isRecording && response.sessionId) {
+          setIsRecording(true)
+          setRecordingSessionId(response.sessionId)
+        }
+      })
+
       // Get existing producers
       socket.emit('get-producers', { roomId }, async (response: {
         success: boolean
@@ -460,6 +497,78 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
   }, [localProducers])
 
   /**
+   * Start recording (only doctors can do this)
+   */
+  const startRecording = useCallback(async (): Promise<boolean> => {
+    const socket = socketRef.current
+    const roomId = roomIdRef.current
+
+    if (!socket || !roomId) {
+      console.error('[MediaSoup Client] Cannot start recording: not connected')
+      return false
+    }
+
+    if (role !== 'doctor') {
+      console.error('[MediaSoup Client] Only doctors can start recording')
+      return false
+    }
+
+    return new Promise((resolve) => {
+      socket.emit('start-recording', { roomId }, (response: {
+        success: boolean
+        sessionId?: string
+        error?: string
+      }) => {
+        if (response.success && response.sessionId) {
+          console.log('[MediaSoup Client] Recording started, session:', response.sessionId)
+          setIsRecording(true)
+          setRecordingSessionId(response.sessionId)
+          resolve(true)
+        } else {
+          console.error('[MediaSoup Client] Failed to start recording:', response.error)
+          resolve(false)
+        }
+      })
+    })
+  }, [role])
+
+  /**
+   * Stop recording (only doctors can do this)
+   */
+  const stopRecording = useCallback(async (): Promise<string | null> => {
+    const socket = socketRef.current
+    const roomId = roomIdRef.current
+
+    if (!socket || !roomId) {
+      console.error('[MediaSoup Client] Cannot stop recording: not connected')
+      return null
+    }
+
+    if (role !== 'doctor') {
+      console.error('[MediaSoup Client] Only doctors can stop recording')
+      return null
+    }
+
+    return new Promise((resolve) => {
+      socket.emit('stop-recording', { roomId }, (response: {
+        success: boolean
+        filePath?: string
+        error?: string
+      }) => {
+        if (response.success) {
+          console.log('[MediaSoup Client] Recording stopped, file:', response.filePath)
+          setIsRecording(false)
+          setRecordingSessionId(null)
+          resolve(response.filePath || null)
+        } else {
+          console.error('[MediaSoup Client] Failed to stop recording:', response.error)
+          resolve(null)
+        }
+      })
+    })
+  }, [role])
+
+  /**
    * Leave room
    */
   const leaveRoom = useCallback(() => {
@@ -516,10 +625,14 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
     isConnected,
     isConnecting,
     error,
+    isRecording,
+    recordingSessionId,
     joinRoom,
     leaveRoom,
     startProducing,
     stopProducing,
+    startRecording,
+    stopRecording,
     cleanup,
     localProducers,
     remoteStreams,
