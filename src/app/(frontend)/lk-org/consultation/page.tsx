@@ -14,15 +14,14 @@ export const metadata = {
 }
 
 interface ConsultationPageProps {
-  params: Promise<{ id: string; appointmentId: string }>
+  searchParams: Promise<{ id?: string }>
 }
 
-export default async function ConsultationPage({ params }: ConsultationPageProps) {
-  const { id, appointmentId: apptIdStr } = await params
-  const doctorId = parseInt(id, 10)
-  const appointmentId = parseInt(apptIdStr, 10)
+export default async function ConsultationPage({ searchParams }: ConsultationPageProps) {
+  const params = await searchParams
+  const appointmentId = params.id ? parseInt(params.id, 10) : NaN
 
-  if (isNaN(doctorId) || isNaN(appointmentId)) {
+  if (isNaN(appointmentId)) {
     notFound()
   }
 
@@ -37,6 +36,23 @@ export default async function ConsultationPage({ params }: ConsultationPageProps
 
   if (!org) {
     redirect("/lk-org")
+  }
+
+  // Fetch appointment
+  let appointment
+  try {
+    appointment = await AppointmentsApi.fetchByIdServer(appointmentId, { cookie })
+  } catch {
+    notFound()
+  }
+
+  // Get doctor ID from appointment
+  const doctorId = typeof appointment.doctor === 'object' && appointment.doctor
+    ? appointment.doctor.id
+    : appointment.doctor
+
+  if (!doctorId || typeof doctorId !== 'number') {
+    notFound()
   }
 
   // Fetch doctor and verify ownership
@@ -55,23 +71,6 @@ export default async function ConsultationPage({ params }: ConsultationPageProps
     redirect("/lk-org")
   }
 
-  // Fetch appointment
-  let appointment
-  try {
-    appointment = await AppointmentsApi.fetchByIdServer(appointmentId, { cookie })
-  } catch {
-    notFound()
-  }
-
-  // Verify appointment belongs to this doctor
-  const apptDoctorId = typeof appointment.doctor === 'object' && appointment.doctor
-    ? appointment.doctor.id
-    : appointment.doctor
-
-  if (apptDoctorId !== doctorId) {
-    redirect(`/lk-org/doctor/${doctorId}`)
-  }
-
   // Fetch messages and recordings
   const [messages, recordings] = await Promise.all([
     MessagesApi.fetchByAppointmentServer(appointmentId, { cookie }),
@@ -85,7 +84,6 @@ export default async function ConsultationPage({ params }: ConsultationPageProps
         appointment={appointment}
         initialMessages={messages}
         initialRecordings={recordings}
-        doctorId={doctorId}
       />
       <Footer />
     </div>

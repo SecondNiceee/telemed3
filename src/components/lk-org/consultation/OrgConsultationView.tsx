@@ -22,7 +22,6 @@ interface OrgConsultationViewProps {
   appointment: ApiAppointment
   initialMessages: ApiMessage[]
   initialRecordings: ApiCallRecording[]
-  doctorId: number
 }
 
 export function OrgConsultationView({
@@ -30,7 +29,6 @@ export function OrgConsultationView({
   appointment,
   initialMessages,
   initialRecordings,
-  doctorId,
 }: OrgConsultationViewProps) {
   const router = useRouter()
   const [messages, setMessages] = useState(initialMessages)
@@ -77,11 +75,11 @@ export function OrgConsultationView({
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back button */}
         <Link
-          href={`/lk-org/doctor/${doctorId}`}
+          href="/lk-org/consultations"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
-          Назад к консультациям врача
+          Назад к консультациям
         </Link>
 
         {/* Header with doctor and patient info */}

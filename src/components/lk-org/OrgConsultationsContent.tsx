@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { ArrowRight } from "lucide-react"
 import {
   Search,
   ChevronLeft,
@@ -223,7 +224,7 @@ export function OrgConsultationsContent({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Поиск по имени врача или пациента..."
+              placeholder="Поиск по име��и врача или пациента..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -265,9 +266,10 @@ export function OrgConsultationsContent({
         ) : (
           <div className="flex flex-col gap-3">
             {consultations.map((consultation) => (
-              <div
+              <Link
                 key={consultation.id}
-                className="rounded-xl border border-border bg-card p-4 hover:shadow-sm transition-shadow"
+                href={`/lk-org/consultation?id=${consultation.id}`}
+                className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:border-primary/30 transition-all block"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex-1">
@@ -304,15 +306,16 @@ export function OrgConsultationsContent({
                     )}
                   </div>
                   
-                  {consultation.price && (
-                    <div className="text-right">
+                  <div className="flex items-center gap-3">
+                    {consultation.price && (
                       <p className="text-lg font-semibold text-foreground">
                         {consultation.price.toLocaleString('ru-RU')} &#8381;
                       </p>
-                    </div>
-                  )}
+                    )}
+                    <ArrowRight className="w-5 h-5 text-muted-foreground" />
+                  </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
