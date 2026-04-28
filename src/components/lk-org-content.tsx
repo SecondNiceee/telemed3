@@ -97,7 +97,7 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
         <OrgPageHeader userName={userName} />
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 gap-4 mb-8">
           <Link
             href="/lk-org/consultations?sort=all"
             className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-primary/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"

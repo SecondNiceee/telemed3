@@ -128,7 +128,7 @@ export function ChatInput({
             }}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder="Введите сообщение... (Shift+Enter для новой строки)"
+            placeholder="Введите сообщение..."
             className="flex-1 min-h-[40px] max-h-[120px] px-3 py-2 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!isConnected}
             rows={1}

@@ -141,7 +141,7 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
       onSuccess?.()
       if (result.user.role === "user" || result.user.role === "admin") {
         // Use hard navigation to ensure server gets the new cookie
-        window.location.href = "/lk"
+        window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH}/lk`
       } else {
         router.refresh()
       }

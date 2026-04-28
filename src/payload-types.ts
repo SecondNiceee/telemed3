@@ -76,6 +76,8 @@ export interface Config {
     'doctor-categories': DoctorCategory;
     appointments: Appointment;
     messages: Message;
+    'call-recordings': CallRecording;
+    feedbacks: Feedback;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -90,6 +92,8 @@ export interface Config {
     'doctor-categories': DoctorCategoriesSelect<false> | DoctorCategoriesSelect<true>;
     appointments: AppointmentsSelect<false> | AppointmentsSelect<true>;
     messages: MessagesSelect<false> | MessagesSelect<true>;
+    'call-recordings': CallRecordingsSelect<false> | CallRecordingsSelect<true>;
+    feedbacks: FeedbacksSelect<false> | FeedbacksSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -364,6 +368,14 @@ export interface Appointment {
   price?: number | null;
   status: 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
   /**
+   * Предпочтительный способ связи пациента
+   */
+  connectionType?: ('chat' | 'audio' | 'video') | null;
+  /**
+   * Если включено, пациент не может отправлять сообщения
+   */
+  chatBlocked?: boolean | null;
+  /**
    * Видеозапись видеоконсультации (если проводилась)
    */
   recording?: (number | null) | Media;
@@ -389,20 +401,68 @@ export interface Message {
   id: number;
   appointment: number | Appointment;
   /**
-   * Полиморфная связь: может быть пользователем или врачом
+   * Полиморфная связь: может быть пользователем или врачом. Для системных сообщений = null
    */
-  sender:
-    | {
+  sender?:
+    | ({
         relationTo: 'users';
         value: number | User;
-      }
-    | {
+      } | null)
+    | ({
         relationTo: 'doctors';
         value: number | Doctor;
-      };
+      } | null);
+  /**
+   * Если включено, сообщение отображается как системное уведомление
+   */
+  isSystemMessage?: boolean | null;
   text?: string | null;
   attachment?: (number | null) | Media;
   read?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "call-recordings".
+ */
+export interface CallRecording {
+  id: number;
+  appointment: number | Appointment;
+  doctor: number | Doctor;
+  recordingType?: ('video' | 'audio') | null;
+  video: number | Media;
+  durationSeconds?: number | null;
+  recordedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "feedbacks".
+ */
+export interface Feedback {
+  id: number;
+  /**
+   * Пользователь, оставивший отзыв
+   */
+  user: number | User;
+  /**
+   * Врач, которому оставлен отзыв
+   */
+  doctor: number | Doctor;
+  /**
+   * Консультация, по которой оставлен отзыв
+   */
+  appointment: number | Appointment;
+  /**
+   * Оценка от 1 до 5 звёзд
+   */
+  rating: number;
+  /**
+   * Текст отзыва пациента
+   */
+  text?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -457,6 +517,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'messages';
         value: number | Message;
+      } | null)
+    | ({
+        relationTo: 'call-recordings';
+        value: number | CallRecording;
+      } | null)
+    | ({
+        relationTo: 'feedbacks';
+        value: number | Feedback;
       } | null);
   globalSlug?: string | null;
   user:
@@ -667,6 +735,8 @@ export interface AppointmentsSelect<T extends boolean = true> {
   time?: T;
   price?: T;
   status?: T;
+  connectionType?: T;
+  chatBlocked?: T;
   recording?: T;
   activeCall?:
     | T
@@ -688,9 +758,37 @@ export interface AppointmentsSelect<T extends boolean = true> {
 export interface MessagesSelect<T extends boolean = true> {
   appointment?: T;
   sender?: T;
+  isSystemMessage?: T;
   text?: T;
   attachment?: T;
   read?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "call-recordings_select".
+ */
+export interface CallRecordingsSelect<T extends boolean = true> {
+  appointment?: T;
+  doctor?: T;
+  recordingType?: T;
+  video?: T;
+  durationSeconds?: T;
+  recordedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "feedbacks_select".
+ */
+export interface FeedbacksSelect<T extends boolean = true> {
+  user?: T;
+  doctor?: T;
+  appointment?: T;
+  rating?: T;
+  text?: T;
   updatedAt?: T;
   createdAt?: T;
 }
