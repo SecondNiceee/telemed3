@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Circle } from 'lucide-react'
 import { LocalVideo } from '../components/local-video'
 import { RemoteVideo } from '../components/remote-video'
@@ -34,6 +34,26 @@ export function ConnectedView({
 }: ExtendedConnectedViewProps) {
   const [showEndDialog, setShowEndDialog] = useState(false)
   const [showControls, setShowControls] = useState(true)
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  // For audio-only calls, we need to play the remote audio stream
+  useEffect(() => {
+    if (isAudioOnly && remoteStream && audioRef.current) {
+      console.log('[v0] ConnectedView: Setting up audio-only playback')
+      console.log('[v0] ConnectedView: Audio tracks:', remoteStream.getAudioTracks().length)
+      audioRef.current.srcObject = remoteStream
+      audioRef.current.muted = false
+      audioRef.current.volume = 1.0
+      audioRef.current.play().catch(err => {
+        console.error('[v0] ConnectedView: Failed to play audio:', err)
+      })
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.srcObject = null
+      }
+    }
+  }, [isAudioOnly, remoteStream])
 
   const handleEndCallClick = () => {
     setShowEndDialog(true)
@@ -54,6 +74,9 @@ export function ConnectedView({
       onMouseLeave={() => setShowControls(false)}
       onClick={() => setShowControls((prev) => !prev)}
     >
+      {/* Hidden audio element for audio playback (both audio-only and video calls need this as backup) */}
+      <audio ref={audioRef} autoPlay playsInline className="hidden" />
+
       {/* For audio calls: white background with participant name */}
       {isAudioOnly ? (
         <div className="flex h-full w-full flex-col items-center justify-center">
