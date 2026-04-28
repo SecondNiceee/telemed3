@@ -11,6 +11,7 @@ export interface ActiveCall {
   callerId: number
   targetType: 'user' | 'doctor'
   targetId: number | null // ID of the target user/doctor (null if unknown)
+  isAudioOnly: boolean // True if this is an audio-only call (no video)
   createdAt: number
 }
 

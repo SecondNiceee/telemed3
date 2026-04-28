@@ -37,6 +37,7 @@ export function checkPendingCallsForSocket(socket: AuthenticatedSocket): void {
       callerName: call.callerName,
       callerType: call.callerType,
       callerId: call.callerId,
+      isAudioOnly: call.isAudioOnly ?? false,
     })
   }
 }
@@ -47,12 +48,12 @@ export function checkPendingCallsForSocket(socket: AuthenticatedSocket): void {
  */
 export function createCallHandler(io: SocketIOServer, payload: Payload) {
   return async (socket: AuthenticatedSocket, data: CallSignalPayload) => {
-    const { appointmentId, callerPeerId, callerName } = data
+    const { appointmentId, callerPeerId, callerName, isAudioOnly } = data
     const roomName = `appointment:${appointmentId}`
     
     console.log(`[Socket] ====== CALL INITIATE ======`)
     console.log(`[Socket] Call initiated by ${socket.data.senderType}:${socket.data.senderId}, peerId: ${callerPeerId}`)
-    console.log(`[Socket] callerName: ${callerName}`)
+    console.log(`[Socket] callerName: ${callerName}, isAudioOnly: ${isAudioOnly}`)
     console.log(`[Socket] Total connected sockets: ${io.sockets.sockets.size}`)
     
     // Determine who we need to call based on the caller type
@@ -93,10 +94,11 @@ export function createCallHandler(io: SocketIOServer, payload: Payload) {
       callerId: socket.data.senderId,
       targetType,
       targetId,
+      isAudioOnly: isAudioOnly ?? false,
       createdAt: Date.now(),
     }
     addActiveCall(activeCall)
-    console.log(`[Socket] Stored active call with targetType=${targetType}, targetId=${targetId}`)
+    console.log(`[Socket] Stored active call with targetType=${targetType}, targetId=${targetId}, isAudioOnly=${isAudioOnly}`)
     
     // Prepare the incoming call payload
     const incomingCallPayload = {
@@ -105,6 +107,7 @@ export function createCallHandler(io: SocketIOServer, payload: Payload) {
       callerName,
       callerType: socket.data.senderType,
       callerId: socket.data.senderId,
+      isAudioOnly: isAudioOnly ?? false,
     }
     
     // First, broadcast to room (catches the case where target is already viewing the chat)
