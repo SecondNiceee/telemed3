@@ -35,6 +35,7 @@ export function ChatHeader({
   onBack,
   onStartConsultation,
   onStartVideoCall,
+  onStartAudioCall,
   onShowCompleteDialog,
   onToggleChatBlock,
   onLeaveFeedback,
@@ -192,18 +193,32 @@ export function ChatHeader({
           </Button>
         )}
         
-        {/* Video call button - for doctor when consultation is in progress */}
+        {/* Call button with dropdown - for doctor when consultation is in progress */}
         {currentSenderType === 'doctor' && !isCompleted && localStatus === 'in_progress' && videoCallStatus === 'idle' && (
-          <Button
-            variant="default"
-            size="sm"
-            className="shrink-0 gap-1.5"
-            onClick={onStartVideoCall}
-            disabled={!isConnected}
-          >
-            <Video className="w-4 h-4" />
-            <span className="hidden sm:inline">Видеозвонок</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="default"
+                size="sm"
+                className="shrink-0 gap-1.5"
+                disabled={!isConnected}
+              >
+                <Phone className="w-4 h-4" />
+                <span className="hidden sm:inline">Звонок</span>
+                <ChevronDown className="w-3 h-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onStartVideoCall} className="flex items-center gap-2">
+                <Video className="w-4 h-4" />
+                <span>Видео</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onStartAudioCall} className="flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                <span>Аудио</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
         
         {/* Toggle chat block button - for doctor after consultation is completed */}
