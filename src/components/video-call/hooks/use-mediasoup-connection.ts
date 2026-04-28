@@ -8,9 +8,13 @@
  */
 
 import { useCallback, useRef, useState } from 'react'
-import type { Device } from 'mediasoup-client'
-import type { Transport, Producer, Consumer, RtpCapabilities } from 'mediasoup-client/lib/types'
+import type { Device, types as mediasoupTypes } from 'mediasoup-client'
 import { io, Socket } from 'socket.io-client'
+
+type Transport = mediasoupTypes.Transport
+type Producer = mediasoupTypes.Producer
+type Consumer = mediasoupTypes.Consumer
+type RtpCapabilities = mediasoupTypes.RtpCapabilities
 
 export interface UseMediasoupConnectionOptions {
   peerId: string
