@@ -82,9 +82,10 @@ export function LkOrgCategoriesList() {
         ) : (
           <div className="flex flex-col gap-3">
             {categories.map((category) => (
-              <div
+              <Link
                 key={category.id}
-                className="rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-md transition-all p-4"
+                href={`/lk-org/categories/${category.id}/edit`}
+                className="rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-md transition-all p-4 block"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
@@ -106,7 +107,7 @@ export function LkOrgCategoriesList() {
                   </div>
                   <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0 ml-4" />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

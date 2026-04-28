@@ -11,6 +11,8 @@ interface CategoriesState {
   fetchCategories: () => Promise<void>
   refetchCategories: () => Promise<void>
   createCategory: (data: CreateCategoryPayload) => Promise<ApiCategory>
+  updateCategory: (id: number, data: Partial<CreateCategoryPayload>) => Promise<ApiCategory>
+  deleteCategory: (id: number) => Promise<void>
   reset: () => void
 }
 
@@ -60,6 +62,34 @@ export const useCategoriesStore = create<CategoriesState>((set, get) => ({
       // Refetch to ensure cache is updated
       await get().refetchCategories()
       return newCategory
+    } finally {
+      set({ loading: false })
+    }
+  },
+
+  updateCategory: async (id, data) => {
+    set({ loading: true })
+    try {
+      const updatedCategory = await CategoriesApi.update(id, data)
+      const categories = get().categories.map((c) =>
+        c.id === id ? updatedCategory : c
+      )
+      set({ categories })
+      await revalidateCategoriesAction()
+      await get().refetchCategories()
+      return updatedCategory
+    } finally {
+      set({ loading: false })
+    }
+  },
+
+  deleteCategory: async (id) => {
+    set({ loading: true })
+    try {
+      await CategoriesApi.delete(id)
+      const categories = get().categories.filter((c) => c.id !== id)
+      set({ categories })
+      await revalidateCategoriesAction()
     } finally {
       set({ loading: false })
     }
