@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LoginModal } from "@/components/login-modal";
 import { useUserStore } from "@/stores/user-store";
 import { useUserAppointmentStore } from "@/stores/user-appointments-store";
@@ -21,7 +21,14 @@ export function Header() {
   const pathname = usePathname();
 
   const { user, loading: userLoading, fetched: userFetched, logout: logoutUser } = useUserStore();
-  const { appointments, fetched: apptFetched } = useUserAppointmentStore();
+  const { appointments, fetched: apptFetched, fetchAppointments } = useUserAppointmentStore();
+
+  // Fetch appointments when user is logged in
+  useEffect(() => {
+    if (user && !apptFetched) {
+      fetchAppointments();
+    }
+  }, [user, apptFetched, fetchAppointments]);
 
   const upcomingAppointment =
     user && apptFetched ? getUpcomingAppointment(appointments) : null;
