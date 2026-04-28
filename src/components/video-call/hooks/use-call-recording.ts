@@ -29,6 +29,8 @@ interface CompositeRecordingState {
   localVideo: HTMLVideoElement
   remoteVideo: HTMLVideoElement
   animationFrameId: number
+  audioContext?: AudioContext
+  audioDestination?: MediaStreamAudioDestinationNode
 }
 
 export function useCallRecording(): UseCallRecordingReturn {
@@ -243,6 +245,38 @@ export function useCallRecording(): UseCallRecordingReturn {
     
     const animationFrameId = requestAnimationFrame(drawFrame)
     
+    // Create AudioContext for mixing both audio streams
+    const audioContext = new AudioContext()
+    const audioDestination = audioContext.createMediaStreamDestination()
+    
+    // Create source nodes for both audio streams
+    const localAudioTracks = localStream.getAudioTracks()
+    const remoteAudioTracks = remoteStream.getAudioTracks()
+    
+    console.log('[Recording] Audio tracks - local:', localAudioTracks.length, 'remote:', remoteAudioTracks.length)
+    
+    // Add local (doctor) audio with normal gain
+    if (localAudioTracks.length > 0) {
+      const localAudioStream = new MediaStream([localAudioTracks[0]])
+      const localSource = audioContext.createMediaStreamSource(localAudioStream)
+      const localGain = audioContext.createGain()
+      localGain.gain.value = 1.0 // Doctor volume: normal
+      localSource.connect(localGain)
+      localGain.connect(audioDestination)
+      console.log('[Recording] Connected local (doctor) audio with gain:', localGain.gain.value)
+    }
+    
+    // Add remote (patient) audio with boosted gain to make them louder
+    if (remoteAudioTracks.length > 0) {
+      const remoteAudioStream = new MediaStream([remoteAudioTracks[0]])
+      const remoteSource = audioContext.createMediaStreamSource(remoteAudioStream)
+      const remoteGain = audioContext.createGain()
+      remoteGain.gain.value = 2.5 // Patient volume: boosted 2.5x to make them louder in recording
+      remoteSource.connect(remoteGain)
+      remoteGain.connect(audioDestination)
+      console.log('[Recording] Connected remote (patient) audio with gain:', remoteGain.gain.value)
+    }
+    
     // Store state for cleanup
     compositeStateRef.current = {
       canvas,
@@ -250,12 +284,14 @@ export function useCallRecording(): UseCallRecordingReturn {
       localVideo,
       remoteVideo,
       animationFrameId,
+      audioContext,
+      audioDestination,
     }
     
     // Create stream from canvas at 30 FPS
     const canvasStream = canvas.captureStream(30)
     
-    // Combine canvas video with BOTH audio tracks
+    // Combine canvas video with mixed audio
     const combinedStream = new MediaStream()
     
     // Add canvas video track
@@ -263,15 +299,12 @@ export function useCallRecording(): UseCallRecordingReturn {
       combinedStream.addTrack(track)
     })
     
-    // Add audio tracks from both streams (both doctor and patient audio)
-    localStream.getAudioTracks().forEach(track => {
-      combinedStream.addTrack(track)
-    })
-    remoteStream.getAudioTracks().forEach(track => {
+    // Add mixed audio track from AudioContext destination
+    audioDestination.stream.getAudioTracks().forEach(track => {
       combinedStream.addTrack(track)
     })
     
-    console.log('[Recording] Composite stream created:', {
+    console.log('[Recording] Composite stream created with AudioContext mixing:', {
       videoTracks: combinedStream.getVideoTracks().length,
       audioTracks: combinedStream.getAudioTracks().length,
       canvasSize: `${CANVAS_WIDTH}x${CANVAS_HEIGHT}`,
@@ -287,8 +320,12 @@ export function useCallRecording(): UseCallRecordingReturn {
       cancelAnimationFrame(compositeStateRef.current.animationFrameId)
       compositeStateRef.current.localVideo.srcObject = null
       compositeStateRef.current.remoteVideo.srcObject = null
+      // Close AudioContext if it was created
+      if (compositeStateRef.current.audioContext) {
+        compositeStateRef.current.audioContext.close().catch(console.error)
+      }
       compositeStateRef.current = null
-      console.log('[Recording] Composite state cleaned up')
+      console.log('[Recording] Composite state cleaned up (including AudioContext)')
     }
   }, [])
 
@@ -392,17 +429,51 @@ export function useCallRecording(): UseCallRecordingReturn {
       let recordingStream: MediaStream
 
       if (isAudioOnly) {
-        // Audio-only recording: combine audio tracks from both streams
-        console.log('[Recording] Creating audio-only stream')
-        recordingStream = new MediaStream()
-        localStream.getAudioTracks().forEach(track => {
-          recordingStream.addTrack(track)
-        })
-        if (remoteStream) {
-          remoteStream.getAudioTracks().forEach(track => {
-            recordingStream.addTrack(track)
-          })
+        // Audio-only recording: mix audio tracks from both streams using AudioContext
+        console.log('[Recording] Creating audio-only stream with AudioContext mixing')
+        
+        const audioContext = new AudioContext()
+        const audioDestination = audioContext.createMediaStreamDestination()
+        
+        // Add local (doctor) audio with normal gain
+        const localAudioTracks = localStream.getAudioTracks()
+        if (localAudioTracks.length > 0) {
+          const localAudioStream = new MediaStream([localAudioTracks[0]])
+          const localSource = audioContext.createMediaStreamSource(localAudioStream)
+          const localGain = audioContext.createGain()
+          localGain.gain.value = 1.0 // Doctor volume: normal
+          localSource.connect(localGain)
+          localGain.connect(audioDestination)
+          console.log('[Recording] Audio-only: connected local (doctor) audio with gain:', localGain.gain.value)
         }
+        
+        // Add remote (patient) audio with boosted gain
+        if (remoteStream) {
+          const remoteAudioTracks = remoteStream.getAudioTracks()
+          if (remoteAudioTracks.length > 0) {
+            const remoteAudioStream = new MediaStream([remoteAudioTracks[0]])
+            const remoteSource = audioContext.createMediaStreamSource(remoteAudioStream)
+            const remoteGain = audioContext.createGain()
+            remoteGain.gain.value = 2.5 // Patient volume: boosted 2.5x
+            remoteSource.connect(remoteGain)
+            remoteGain.connect(audioDestination)
+            console.log('[Recording] Audio-only: connected remote (patient) audio with gain:', remoteGain.gain.value)
+          }
+        }
+        
+        // Store audioContext for cleanup (reuse composite state structure)
+        compositeStateRef.current = {
+          canvas: document.createElement('canvas'), // dummy
+          ctx: null as unknown as CanvasRenderingContext2D,
+          localVideo: document.createElement('video'), // dummy
+          remoteVideo: document.createElement('video'), // dummy
+          animationFrameId: 0,
+          audioContext,
+          audioDestination,
+        }
+        
+        recordingStream = audioDestination.stream
+        console.log('[Recording] Audio-only stream created with', recordingStream.getAudioTracks().length, 'mixed audio tracks')
       } else if (remoteStream) {
         // Video call: create composite stream with PiP
         console.log('[Recording] Creating PiP composite stream (doctor + patient)')
@@ -460,9 +531,8 @@ export function useCallRecording(): UseCallRecordingReturn {
         setRecordingBlob(blob)
         setIsRecording(false)
         isRecordingRef.current = false
-        if (!isAudioOnly) {
-          cleanupCompositeState() // Clean up canvas and videos (only for video)
-        }
+        // Clean up composite state (includes AudioContext for both video and audio-only)
+        cleanupCompositeState()
         console.log('[Recording] Stopped, total blob size:', blob.size, 'isAudioOnly:', isAudioOnly)
       }
 

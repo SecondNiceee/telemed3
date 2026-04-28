@@ -11,7 +11,16 @@ export function RemoteVideo({ stream, participantName, className }: RemoteVideoP
   useEffect(() => {
     const videoElement = videoRef.current
     if (videoElement && stream) {
+      console.log('[v0] RemoteVideo: Setting stream to video element')
+      console.log('[v0] RemoteVideo: Audio tracks:', stream.getAudioTracks().length)
+      console.log('[v0] RemoteVideo: Video tracks:', stream.getVideoTracks().length)
       videoElement.srcObject = stream
+      // Ensure audio playback
+      videoElement.muted = false
+      videoElement.volume = 1.0
+      videoElement.play().catch(err => {
+        console.error('[v0] RemoteVideo: Failed to play:', err)
+      })
     }
 
     return () => {
