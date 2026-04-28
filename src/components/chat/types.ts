@@ -29,6 +29,7 @@ export interface ChatHeaderProps {
   onBack?: () => void
   onStartConsultation: () => void
   onStartVideoCall: () => void
+  onStartAudioCall: () => void
   onShowCompleteDialog: () => void
   onToggleChatBlock: () => void
   onLeaveFeedback?: () => void

@@ -446,6 +446,7 @@ export function ChatWindow({
   onBack={onBack}
   onStartConsultation={handleStartConsultationClick}
   onStartVideoCall={handleStartVideoConsultation}
+  onStartAudioCall={handleStartAudioConsultation}
   onShowCompleteDialog={() => setShowCompleteDialog(true)}
   onToggleChatBlock={handleToggleChatBlock}
   onLeaveFeedback={() => setShowFeedbackDialog(true)}
