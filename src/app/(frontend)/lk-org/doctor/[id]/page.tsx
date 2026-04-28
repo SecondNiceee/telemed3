@@ -1,14 +1,13 @@
 import { headers } from "next/headers"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, User, Calendar, Clock, CheckCircle } from "lucide-react"
+import { ArrowLeft, User, Calendar, Clock, CheckCircle, Video } from "lucide-react"
 import { Footer } from "@/components/footer"
 import { DoctorsApi } from "@/lib/api/doctors"
 import { AppointmentsApi } from "@/lib/api/appointments"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 import { resolveImageUrl } from "@/lib/utils/image"
 import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
-import { Button } from "@/components/ui/button"
 import type { Media } from "@/payload-types"
 
 export const metadata = {
@@ -83,6 +82,10 @@ export default async function DoctorDashboardPage({ params }: DoctorDashboardPag
   })
 
   const specialty = DoctorsApi.getSpecialty(doctor)
+  
+  // Calculate stats
+  const total = appointments.filter(a => a.status !== 'cancelled').length
+  const active = appointments.filter(a => a.status === 'in_progress').length
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -122,20 +125,31 @@ export default async function DoctorDashboardPage({ params }: DoctorDashboardPag
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="rounded-xl border border-border bg-card p-4">
+          {/* Stats Cards - 2 columns like on /lk-org */}
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Calendar className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{appointments.filter(a => a.status !== 'cancelled').length}</p>
+                  <p className="text-2xl font-bold text-foreground">{total}</p>
                   <p className="text-xs text-muted-foreground">Всего консультаций</p>
                 </div>
               </div>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                  <Video className="w-5 h-5 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{active}</p>
+                  <p className="text-xs text-muted-foreground">Текущих</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
                   <Clock className="w-5 h-5 text-blue-500" />
@@ -146,7 +160,7 @@ export default async function DoctorDashboardPage({ params }: DoctorDashboardPag
                 </div>
               </div>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
                   <CheckCircle className="w-5 h-5 text-green-500" />
@@ -177,7 +191,7 @@ export default async function DoctorDashboardPage({ params }: DoctorDashboardPag
                   return (
                     <Link
                       key={appt.id}
-                      href={`/lk-org/doctor/${doctorId}/consultation/${appt.id}`}
+                      href={`/lk-org/consultation?id=${appt.id}`}
                       className="rounded-xl border border-border bg-card p-4 hover:border-primary/30 hover:shadow-md transition-all"
                     >
                       <div className="flex items-center justify-between">
@@ -221,7 +235,7 @@ export default async function DoctorDashboardPage({ params }: DoctorDashboardPag
                   return (
                     <Link
                       key={appt.id}
-                      href={`/lk-org/doctor/${doctorId}/consultation/${appt.id}`}
+                      href={`/lk-org/consultation?id=${appt.id}`}
                       className="rounded-xl border border-border bg-card p-4 hover:border-primary/30 hover:shadow-md transition-all"
                     >
                       <div className="flex items-center justify-between">

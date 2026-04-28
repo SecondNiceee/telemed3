@@ -23,7 +23,7 @@ export function exportConsultationsToExcel(
     'Стоимость (₽)': consultation.price || 0,
     'Длительность (мин)': (typeof consultation.doctor === 'object' && consultation.doctor?.id ? doctorDurations[consultation.doctor.id] : 30) || 30,
     'ФИО пациента': consultation.userName || 'N/A',
-    'Ссылка на консультацию': `${typeof window !== 'undefined' ? window.location.origin : ''}/lk-org/doctor/${typeof consultation.doctor === 'object' ? consultation.doctor?.id : consultation.doctor}/consultation/${consultation.id}`,
+    'Ссылка на консультацию': `${typeof window !== 'undefined' ? window.location.origin : ''}/lk-org/consultation?id=${consultation.id}`,
   }))
 
   const ws = XLSX.utils.json_to_sheet(data, {

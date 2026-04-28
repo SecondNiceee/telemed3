@@ -39,8 +39,16 @@ export function AudioPlayer({ src, title, className, onDownload }: AudioPlayerPr
     }
 
     const handleLoadedMetadata = () => {
-      setDuration(audio.duration)
+      if (audio.duration && isFinite(audio.duration)) {
+        setDuration(audio.duration)
+      }
       setIsLoaded(true)
+    }
+
+    const handleDurationChange = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        setDuration(audio.duration)
+      }
     }
 
     const handleEnded = () => {
@@ -50,16 +58,28 @@ export function AudioPlayer({ src, title, className, onDownload }: AudioPlayerPr
 
     const handleCanPlay = () => {
       setIsLoaded(true)
+      // Also try to get duration on canplay
+      if (audio.duration && isFinite(audio.duration)) {
+        setDuration(audio.duration)
+      }
+    }
+
+    // Check if metadata is already loaded
+    if (audio.readyState >= 1 && audio.duration && isFinite(audio.duration)) {
+      setDuration(audio.duration)
+      setIsLoaded(true)
     }
 
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audio.addEventListener('durationchange', handleDurationChange)
     audio.addEventListener('ended', handleEnded)
     audio.addEventListener('canplay', handleCanPlay)
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      audio.removeEventListener('durationchange', handleDurationChange)
       audio.removeEventListener('ended', handleEnded)
       audio.removeEventListener('canplay', handleCanPlay)
     }
@@ -79,12 +99,19 @@ export function AudioPlayer({ src, title, className, onDownload }: AudioPlayerPr
 
   const handleSeek = useCallback((value: number[]) => {
     const audio = audioRef.current
-    if (!audio) return
+    if (!audio || !isLoaded) return
 
     const newTime = value[0]
-    audio.currentTime = newTime
-    setCurrentTime(newTime)
-  }, [])
+    try {
+      // Only seek if the value is valid
+      if (isFinite(newTime) && newTime >= 0 && newTime <= (audio.duration || 0)) {
+        audio.currentTime = newTime
+        setCurrentTime(newTime)
+      }
+    } catch (e) {
+      console.error('Error seeking audio:', e)
+    }
+  }, [isLoaded])
 
   const handleVolumeChange = useCallback((value: number[]) => {
     const audio = audioRef.current

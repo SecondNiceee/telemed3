@@ -44,8 +44,16 @@ export function VideoPlayer({ src, title, poster, className, onDownload }: Video
     }
 
     const handleLoadedMetadata = () => {
-      setDuration(video.duration)
+      if (video.duration && isFinite(video.duration)) {
+        setDuration(video.duration)
+      }
       setIsLoaded(true)
+    }
+
+    const handleDurationChange = () => {
+      if (video.duration && isFinite(video.duration)) {
+        setDuration(video.duration)
+      }
     }
 
     const handleEnded = () => {
@@ -54,14 +62,25 @@ export function VideoPlayer({ src, title, poster, className, onDownload }: Video
 
     const handleCanPlay = () => {
       setIsLoaded(true)
+      // Also try to get duration on canplay
+      if (video.duration && isFinite(video.duration)) {
+        setDuration(video.duration)
+      }
     }
 
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement)
     }
 
+    // Check if metadata is already loaded
+    if (video.readyState >= 1 && video.duration && isFinite(video.duration)) {
+      setDuration(video.duration)
+      setIsLoaded(true)
+    }
+
     video.addEventListener('timeupdate', handleTimeUpdate)
     video.addEventListener('loadedmetadata', handleLoadedMetadata)
+    video.addEventListener('durationchange', handleDurationChange)
     video.addEventListener('ended', handleEnded)
     video.addEventListener('canplay', handleCanPlay)
     document.addEventListener('fullscreenchange', handleFullscreenChange)
@@ -69,6 +88,7 @@ export function VideoPlayer({ src, title, poster, className, onDownload }: Video
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate)
       video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      video.removeEventListener('durationchange', handleDurationChange)
       video.removeEventListener('ended', handleEnded)
       video.removeEventListener('canplay', handleCanPlay)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
@@ -111,12 +131,19 @@ export function VideoPlayer({ src, title, poster, className, onDownload }: Video
 
   const handleSeek = useCallback((value: number[]) => {
     const video = videoRef.current
-    if (!video) return
+    if (!video || !isLoaded) return
 
     const newTime = value[0]
-    video.currentTime = newTime
-    setCurrentTime(newTime)
-  }, [])
+    try {
+      // Only seek if the value is valid
+      if (isFinite(newTime) && newTime >= 0 && newTime <= (video.duration || 0)) {
+        video.currentTime = newTime
+        setCurrentTime(newTime)
+      }
+    } catch (e) {
+      console.error('Error seeking video:', e)
+    }
+  }, [isLoaded])
 
   const handleVolumeChange = useCallback((value: number[]) => {
     const video = videoRef.current
@@ -154,15 +181,23 @@ export function VideoPlayer({ src, title, poster, className, onDownload }: Video
 
   const skipBack = useCallback(() => {
     const video = videoRef.current
-    if (!video) return
-    video.currentTime = Math.max(0, video.currentTime - 10)
-  }, [])
+    if (!video || !isLoaded) return
+    try {
+      video.currentTime = Math.max(0, video.currentTime - 10)
+    } catch (e) {
+      console.error('Error skipping back:', e)
+    }
+  }, [isLoaded])
 
   const skipForward = useCallback(() => {
     const video = videoRef.current
-    if (!video) return
-    video.currentTime = Math.min(duration, video.currentTime + 10)
-  }, [duration])
+    if (!video || !isLoaded) return
+    try {
+      video.currentTime = Math.min(duration, video.currentTime + 10)
+    } catch (e) {
+      console.error('Error skipping forward:', e)
+    }
+  }, [duration, isLoaded])
 
   const handleVideoClick = useCallback(() => {
     togglePlay()
