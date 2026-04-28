@@ -56,6 +56,7 @@ export function VideoCallOverlay() {
     toggleAudio,
     toggleMinimize,
     currentUser,
+    isAudioOnly,
   } = videoCall
   
   // Get the other participant
@@ -73,6 +74,7 @@ export function VideoCallOverlay() {
         remainingSeconds={remainingSeconds}
         onExpand={toggleMinimize}
         onEndCall={endCall}
+        isAudioOnly={isAudioOnly}
       />
     )
   }
@@ -123,6 +125,7 @@ export function VideoCallOverlay() {
             onToggleAudio={toggleAudio}
             onEndCall={endCall}
             onToggleMinimize={toggleMinimize}
+            isAudioOnly={isAudioOnly}
           />
         )}
         

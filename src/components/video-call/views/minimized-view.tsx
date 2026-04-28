@@ -17,6 +17,10 @@ interface Position {
   y: number
 }
 
+interface ExtendedMinimizedViewProps extends MinimizedViewProps {
+  isAudioOnly?: boolean
+}
+
 export function MinimizedView({
   localStream,
   remoteStream,
@@ -24,7 +28,8 @@ export function MinimizedView({
   remainingSeconds,
   onExpand,
   onEndCall,
-}: MinimizedViewProps) {
+  isAudioOnly,
+}: ExtendedMinimizedViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<Position>({ x: 16, y: 16 }) // bottom-right with 16px padding
@@ -170,8 +175,16 @@ export function MinimizedView({
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
     >
-      {/* Video */}
-      {remoteStream || localStream ? (
+      {/* Video or Audio-only display */}
+      {isAudioOnly ? (
+        <div className="flex h-full w-full flex-col items-center justify-center bg-white">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <span className="text-2xl font-semibold text-primary">
+              {participantName.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        </div>
+      ) : remoteStream || localStream ? (
         <video
           ref={videoRef}
           autoPlay
@@ -186,30 +199,44 @@ export function MinimizedView({
       )}
 
       {/* Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/40">
+      <div className={cn(
+        "absolute inset-0",
+        isAudioOnly 
+          ? "bg-gradient-to-t from-gray-100/80 via-transparent to-gray-100/60" 
+          : "bg-gradient-to-t from-black/60 via-transparent to-black/40"
+      )}>
         {/* Drag handle */}
         <div
           data-drag-handle
           className={cn(
             "absolute left-1/2 top-2 -translate-x-1/2 flex items-center justify-center",
-            "w-10 h-10 rounded-full bg-white/30 backdrop-blur-sm",
+            "w-10 h-10 rounded-full backdrop-blur-sm",
+            isAudioOnly ? "bg-gray-300/50" : "bg-white/30",
             "opacity-0 group-hover:opacity-100 transition-opacity",
             isDragging ? "opacity-100 cursor-grabbing" : "cursor-grab"
           )}
         >
-          <Hand className="h-5 w-5 text-white" />
+          <Hand className={cn("h-5 w-5", isAudioOnly ? "text-gray-700" : "text-white")} />
         </div>
 
         {/* Top info */}
         <div className="absolute left-2 top-2 flex items-center gap-2">
-          <span className="rounded bg-background/80 px-2 py-0.5 text-xs font-mono backdrop-blur-sm">
+          <span className={cn(
+            "rounded px-2 py-0.5 text-xs font-mono backdrop-blur-sm",
+            isAudioOnly ? "bg-gray-200/80 text-gray-700" : "bg-background/80"
+          )}>
             {formatTime(remainingSeconds)}
           </span>
         </div>
 
         {/* Name */}
         <div className="absolute bottom-2 left-2 right-2">
-          <p className="truncate text-sm font-medium text-white">{participantName}</p>
+          <p className={cn(
+            "truncate text-sm font-medium",
+            isAudioOnly ? "text-gray-700" : "text-white"
+          )}>
+            {participantName}
+          </p>
         </div>
 
         {/* Expand button */}
