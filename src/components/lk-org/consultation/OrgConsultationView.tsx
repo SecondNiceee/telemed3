@@ -3,13 +3,15 @@
 import { useState, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, User, RefreshCw, Video, MessageSquare, Play, Clock, Download, Mic } from "lucide-react"
+import { ArrowLeft, User, RefreshCw, Video, MessageSquare, Clock, Mic } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { resolveImageUrl } from "@/lib/utils/image"
 import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
 import { DoctorsApi } from "@/lib/api/doctors"
 import { MessageBubble } from "@/components/chat/message-bubble"
+import { AudioPlayer } from "@/components/ui/audio-player"
+import { VideoPlayer } from "@/components/ui/video-player"
 import { CallRecordingsApi, type ApiCallRecording } from "@/lib/api/call-recordings"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 import type { ApiMessage } from "@/lib/api/messages"
@@ -218,58 +220,30 @@ export function OrgConsultationView({
                       : 0
 
                     return (
-                      <div
-                        key={recording.id}
-                        className="rounded-lg border border-border bg-background p-4 flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Play className="w-6 h-6 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">
-                              Запись консультации
-                            </p>
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                              <span>{recordedDate}</span>
-                              {recording.durationSeconds && recording.durationSeconds > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {durationMin}:{durationSec.toString().padStart(2, '0')}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                      <div key={recording.id} className="space-y-3">
+                        {/* Recording info */}
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          <span>{recordedDate}</span>
+                          {recording.durationSeconds && recording.durationSeconds > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {durationMin}:{durationSec.toString().padStart(2, '0')}
+                            </span>
+                          )}
                         </div>
+                        
+                        {/* Video player */}
                         {videoUrl && (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
-                            >
-                              <a
-                                href={resolveImageUrl(videoUrl)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Play className="w-4 h-4 mr-2" />
-                                Смотреть
-                              </a>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              asChild
-                            >
-                              <a
-                                href={resolveImageUrl(videoUrl)}
-                                download
-                              >
-                                <Download className="w-4 h-4" />
-                              </a>
-                            </Button>
-                          </div>
+                          <VideoPlayer
+                            src={resolveImageUrl(videoUrl)}
+                            title="Запись консультации"
+                            onDownload={() => {
+                              const link = document.createElement('a')
+                              link.href = resolveImageUrl(videoUrl)
+                              link.download = `recording-${recording.id}.webm`
+                              link.click()
+                            }}
+                          />
                         )}
                       </div>
                     )
@@ -310,58 +284,30 @@ export function OrgConsultationView({
                       : 0
 
                     return (
-                      <div
-                        key={recording.id}
-                        className="rounded-lg border border-border bg-background p-4 flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Mic className="w-6 h-6 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">
-                              Аудиозапись консультации
-                            </p>
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                              <span>{recordedDate}</span>
-                              {recording.durationSeconds && recording.durationSeconds > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {durationMin}:{durationSec.toString().padStart(2, '0')}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                      <div key={recording.id} className="space-y-3">
+                        {/* Recording info */}
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          <span>{recordedDate}</span>
+                          {recording.durationSeconds && recording.durationSeconds > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {durationMin}:{durationSec.toString().padStart(2, '0')}
+                            </span>
+                          )}
                         </div>
+                        
+                        {/* Audio player */}
                         {audioUrl && (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
-                            >
-                              <a
-                                href={resolveImageUrl(audioUrl)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Play className="w-4 h-4 mr-2" />
-                                Слушать
-                              </a>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              asChild
-                            >
-                              <a
-                                href={resolveImageUrl(audioUrl)}
-                                download
-                              >
-                                <Download className="w-4 h-4" />
-                              </a>
-                            </Button>
-                          </div>
+                          <AudioPlayer
+                            src={resolveImageUrl(audioUrl)}
+                            title="Аудиозапись консультации"
+                            onDownload={() => {
+                              const link = document.createElement('a')
+                              link.href = resolveImageUrl(audioUrl)
+                              link.download = `recording-${recording.id}.webm`
+                              link.click()
+                            }}
+                          />
                         )}
                       </div>
                     )
