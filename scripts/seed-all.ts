@@ -32,8 +32,8 @@ function formatDate(date: Date): string {
 }
 
 // Generate schedule slots for next 7 days
-function generateScheduleSlots(startDate: Date, days: number = 7, slotsPerDay: number = 3) {
-  const slots = []
+function generateScheduleSlots(startDate: Date, days: number = 7) {
+  const schedule = []
   const times = ['09:00', '12:00', '15:00']
 
   for (let d = 0; d < days; d++) {
@@ -41,16 +41,13 @@ function generateScheduleSlots(startDate: Date, days: number = 7, slotsPerDay: n
     date.setDate(date.getDate() + d)
     const dateStr = formatDate(date)
 
-    for (let s = 0; s < slotsPerDay && s < times.length; s++) {
-      slots.push({
-        date: dateStr,
-        time: times[s],
-        isBooked: false,
-      })
-    }
+    schedule.push({
+      date: dateStr,
+      slots: times.map(time => ({ time })),
+    })
   }
 
-  return slots
+  return schedule
 }
 
 async function createAdmin(payload: Payload) {
@@ -188,7 +185,7 @@ async function createDoctors(
       continue
     }
 
-    const scheduleSlots = generateScheduleSlots(new Date(), 7, 3)
+    const scheduleSlots = generateScheduleSlots(new Date(), 7)
 
     const existing = await payload.find({
       collection: 'doctors',
@@ -204,8 +201,12 @@ async function createDoctors(
           name: doctor.name,
           categories: [categoryId],
           organisation: organisationId,
-          odooPartnerId: doctor.odooPartnerId,
-          consultationPrice: doctor.consultationPrice,
+          experience: doctor.experience,
+          degree: doctor.degree,
+          price: doctor.price,
+          bio: doctor.bio,
+          education: doctor.education.map(value => ({ value })),
+          services: doctor.services.map(value => ({ value })),
           slotDuration: doctor.slotDuration,
           schedule: scheduleSlots,
         },
@@ -224,8 +225,12 @@ async function createDoctors(
         name: doctor.name,
         categories: [categoryId],
         organisation: organisationId,
-        odooPartnerId: doctor.odooPartnerId,
-        consultationPrice: doctor.consultationPrice,
+        experience: doctor.experience,
+        degree: doctor.degree,
+        price: doctor.price,
+        bio: doctor.bio,
+        education: doctor.education.map(value => ({ value })),
+        services: doctor.services.map(value => ({ value })),
         slotDuration: doctor.slotDuration,
         schedule: scheduleSlots,
       },
