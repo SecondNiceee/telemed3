@@ -202,7 +202,7 @@ async function createDoctors(
         id: existing.docs[0].id,
         data: {
           name: doctor.name,
-          category: categoryId,
+          categories: [categoryId],
           organisation: organisationId,
           odooPartnerId: doctor.odooPartnerId,
           consultationPrice: doctor.consultationPrice,
@@ -222,7 +222,7 @@ async function createDoctors(
         email: doctor.email,
         password: doctor.password,
         name: doctor.name,
-        category: categoryId,
+        categories: [categoryId],
         organisation: organisationId,
         odooPartnerId: doctor.odooPartnerId,
         consultationPrice: doctor.consultationPrice,
