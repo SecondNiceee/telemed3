@@ -7,7 +7,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -46,10 +45,6 @@ export function ConsultationDialogs({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Завершить консультацию?</AlertDialogTitle>
-            <AlertDialogDescription>
-              После завершения консультации пациент больше не сможет отправлять сообщения в этот чат. 
-              Вы по-прежнему сможете просматривать историю переписки и приложенные материалы.
-            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isCompleting}>Отмена</AlertDialogCancel>
