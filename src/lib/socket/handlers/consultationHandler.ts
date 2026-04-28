@@ -39,6 +39,24 @@ export function createConsultationStartHandler(io: SocketIOServer, payload: Payl
     }
 
     try {
+      // Get current appointment to check if consultation is already in progress
+      const appointment = await payload.findByID({
+        collection: 'appointments',
+        id: appointmentId,
+        overrideAccess: true,
+      })
+
+      // If consultation is already in progress, just emit status update without creating a new message
+      if (appointment.status === 'in_progress') {
+        console.log(`[Socket] Consultation already in progress for appointment ${appointmentId}, skipping system message`)
+        const room = `appointment:${appointmentId}`
+        io.to(room).emit('consultation-started', { 
+          appointmentId,
+          message: null, // No new message, consultation was already started
+        })
+        return
+      }
+
       // Update appointment status to in_progress
       await payload.update({
         collection: 'appointments',
@@ -47,7 +65,7 @@ export function createConsultationStartHandler(io: SocketIOServer, payload: Payl
         overrideAccess: true,
       })
 
-      // Create system message for consultation start
+      // Create system message for consultation start (only if not already in_progress)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const systemMessage = await (payload.create as any)({
         collection: 'messages',
