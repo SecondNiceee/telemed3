@@ -1,6 +1,7 @@
 ```gitignore
 # Dependencies
 node_modules/
+media/
 .pnpm-store/
 .npm/
 .yarn/
