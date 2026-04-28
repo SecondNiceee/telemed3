@@ -234,16 +234,17 @@ export function ChatHeader({
             )}
             onClick={onToggleChatBlock}
             disabled={!isConnected}
+            title={!isChatBlocked ? "Пациент больше не сможет отправлять вам сообщения" : undefined}
           >
             {isChatBlocked ? (
               <>
                 <MessageCircle className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Разрешить пациенту писать</span>
+                <span className="hidden sm:inline">Продолжить диалог</span>
               </>
             ) : (
               <>
                 <Ban className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Запретить пациенту писать</span>
+                <span className="hidden sm:inline">Завершить диалог</span>
               </>
             )}
           </Button>
