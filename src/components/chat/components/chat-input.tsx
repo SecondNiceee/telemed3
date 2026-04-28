@@ -57,9 +57,9 @@ export function ChatInput({
     <div className="p-4 border-t border-border bg-card">
       {/* Chat blocked notice for patient - cannot send messages */}
       {isChatBlocked && currentSenderType === 'user' && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 text-green-600 text-sm">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>Врач окончательно завершил консультацию. Отправка сообщений недоступна.</span>
+          <span>Консультация завершена</span>
         </div>
       )}
       
@@ -99,54 +99,60 @@ export function ChatInput({
       )}
       
       {canSendMessages ? (
-        <div className="flex items-end gap-2">
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            onChange={handleFileSelect}
-            accept="image/*,.pdf,.doc,.docx,.txt"
-          />
+        <div className="flex flex-col gap-2">
+          {/* Attach file button - visible */}
+          <div className="flex items-center">
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleFileSelect}
+              accept="image/*,.pdf,.doc,.docx,.txt"
+            />
+            
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 text-muted-foreground hover:text-foreground"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!isConnected || isUploading}
+            >
+              <Paperclip className="w-4 h-4" />
+              <span>Прикрепить файл</span>
+            </Button>
+          </div>
           
-          {/* Attach button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0 mb-0.5"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={!isConnected || isUploading}
-          >
-            <Paperclip className="w-4 h-4" />
-          </Button>
-          
-          <textarea
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value)
-              handleTyping()
-            }}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder="Введите сообщение..."
-            className="flex-1 min-h-[40px] max-h-[120px] px-3 py-2 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!isConnected}
-            rows={1}
-            style={{ height: 'auto' }}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement
-              target.style.height = 'auto'
-              target.style.height = Math.min(target.scrollHeight, 120) + 'px'
-            }}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={(!inputValue.trim() && !uploadedAttachment) || !isConnected || isUploading}
-            size="icon"
-            className="shrink-0 mb-0.5"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+          {/* Message input row */}
+          <div className="flex items-end gap-2">
+            <textarea
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value)
+                handleTyping()
+              }}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder="Введите сообщение..."
+              className="flex-1 min-h-[40px] max-h-[120px] px-3 py-2 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!isConnected}
+              rows={1}
+              style={{ height: 'auto' }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement
+                target.style.height = 'auto'
+                target.style.height = Math.min(target.scrollHeight, 120) + 'px'
+              }}
+            />
+            <Button
+              onClick={handleSend}
+              disabled={(!inputValue.trim() && !uploadedAttachment) || !isConnected || isUploading}
+              size="icon"
+              className="shrink-0 mb-0.5"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       ) : null}
       {!isConnected && canSendMessages && (
