@@ -55,10 +55,10 @@ async function createDoctors() {
     limit: 1,
   })
 
-  let organisationId: number | string
+  let organisationId: number
 
   if (organisation.docs.length > 0) {
-    organisationId = organisation.docs[0].id
+    organisationId = organisation.docs[0].id as number
     console.log(`✅ Организация найдена: ${DEFAULT_ORGANISATION.name} (ID: ${organisationId})`)
   } else {
     const created = await payload.create({
@@ -70,7 +70,7 @@ async function createDoctors() {
       },
       overrideAccess: true,
     })
-    organisationId = created.id
+    organisationId = created.id as number
     console.log(`✅ Создана организация: ${DEFAULT_ORGANISATION.name} (ID: ${organisationId})`)
   }
 
@@ -82,9 +82,9 @@ async function createDoctors() {
     limit: 100,
   })
 
-  const categoryMap = new Map<string, number | string>()
+  const categoryMap = new Map<string, number>()
   for (const cat of categoriesResult.docs) {
-    categoryMap.set(cat.slug, cat.id)
+    categoryMap.set(cat.slug, cat.id as number)
   }
 
   if (categoryMap.size === 0) {
@@ -109,8 +109,8 @@ async function createDoctors() {
       })
 
       // Получаем ID категории
-      const categoryId = categoryMap.get(doctor.categorySlug)
-      if (!categoryId) {
+      const categoryId = categoryMap.get(doctor.categorySlug) as number | undefined
+      if (categoryId === undefined) {
         console.error(`❌ Категория "${doctor.categorySlug}" не найдена для врача "${doctor.name}"`)
         continue
       }
