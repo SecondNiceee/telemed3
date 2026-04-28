@@ -78,4 +78,34 @@ export class CategoriesApi {
       body: JSON.stringify(data),
     })
   }
+
+  /**
+   * Update a category by ID (from organisation)
+   */
+  static async update(id: number, data: Partial<CreateCategoryPayload>): Promise<ApiCategory> {
+    return apiFetch<ApiCategory>(`/api/organisations/categories/${id}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /**
+   * Delete a category by ID (from organisation)
+   */
+  static async delete(id: number): Promise<void> {
+    await apiFetch<{ success: boolean }>(`/api/organisations/categories/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+  }
+
+  /**
+   * Fetch category by ID for organisation (includes auth check)
+   */
+  static async fetchByIdForOrg(id: number): Promise<ApiCategory> {
+    return apiFetch<ApiCategory>(`/api/organisations/categories/${id}`, {
+      credentials: 'include',
+    })
+  }
 }

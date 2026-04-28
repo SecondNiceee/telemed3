@@ -205,18 +205,18 @@ export function MinimizedView({
           ? "bg-gradient-to-t from-gray-100/80 via-transparent to-gray-100/60" 
           : "bg-gradient-to-t from-black/60 via-transparent to-black/40"
       )}>
-        {/* Drag handle */}
+        {/* Drag handle - centered */}
         <div
           data-drag-handle
           className={cn(
-            "absolute left-1/2 top-2 -translate-x-1/2 flex items-center justify-center",
-            "w-10 h-10 rounded-full backdrop-blur-sm",
+            "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center",
+            "w-12 h-12 rounded-full backdrop-blur-sm",
             isAudioOnly ? "bg-gray-300/50" : "bg-white/30",
             "opacity-0 group-hover:opacity-100 transition-opacity",
             isDragging ? "opacity-100 cursor-grabbing" : "cursor-grab"
           )}
         >
-          <Hand className={cn("h-5 w-5", isAudioOnly ? "text-gray-700" : "text-white")} />
+          <Hand className={cn("h-6 w-6", isAudioOnly ? "text-gray-700" : "text-white")} />
         </div>
 
         {/* Top info */}
