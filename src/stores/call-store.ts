@@ -30,6 +30,7 @@ interface CallState {
   remotePeerId: string | null
   callerName: string | null
   remoteAnswered: boolean // Flag to indicate remote peer has answered
+  isIncomingAudioOnly: boolean // Flag to indicate this incoming call is audio-only
   
   // Video/Audio toggles
   isVideoEnabled: boolean
@@ -59,7 +60,7 @@ interface CallState {
   
   // Complex actions
   startCall: (appointmentId: number, remotePeerId: string) => void
-  receiveCall: (call: MediaConnection, callerName: string, appointmentId: number) => void
+  receiveCall: (call: MediaConnection, callerName: string, appointmentId: number, isAudioOnly?: boolean) => void
   endCall: () => void
   reset: () => void
   checkActiveCall: () => Promise<ActiveCallAppointment | null>
@@ -77,6 +78,7 @@ const initialState = {
   remotePeerId: null as string | null,
   callerName: null as string | null,
   remoteAnswered: false,
+  isIncomingAudioOnly: false,
   isVideoEnabled: true,
   isAudioEnabled: true,
   currentSenderType: null as 'user' | 'doctor' | null,
@@ -147,12 +149,13 @@ export const useCallStore = create<CallState>((set, get) => ({
     })
   },
 
-  receiveCall: (call, callerName, appointmentId) => {
+  receiveCall: (call, callerName, appointmentId, isAudioOnly) => {
     set({
       currentCall: call,
       callerName,
       appointmentId,
       status: 'incoming',
+      isIncomingAudioOnly: isAudioOnly ?? false,
     })
   },
 
@@ -186,6 +189,7 @@ export const useCallStore = create<CallState>((set, get) => ({
       isVideoEnabled: true,
       isAudioEnabled: true,
       remoteAnswered: false,
+      isIncomingAudioOnly: false,
     })
     
     // Reset to idle after a short delay

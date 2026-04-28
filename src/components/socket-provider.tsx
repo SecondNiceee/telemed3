@@ -19,7 +19,7 @@ interface SocketContextValue {
   startTyping: (appointmentId: number) => void
   stopTyping: (appointmentId: number) => void
   // Video call signaling
-  initiateCall: (appointmentId: number, callerPeerId: string, callerName: string) => void
+  initiateCall: (appointmentId: number, callerPeerId: string, callerName: string, isAudioOnly?: boolean) => void
   answerCall: (appointmentId: number, answerPeerId: string) => void
   rejectCall: (appointmentId: number) => void
   endCall: (appointmentId: number) => void
@@ -188,12 +188,13 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     })
 
     // Video call signaling events
-    newSocket.on('incoming-call', ({ appointmentId, callerPeerId, callerName, callerType }) => {
+    newSocket.on('incoming-call', ({ appointmentId, callerPeerId, callerName, callerType, isAudioOnly }) => {
       console.log('[v0] ======= INCOMING CALL EVENT =======')
       console.log('[v0] appointmentId:', appointmentId)
       console.log('[v0] callerPeerId:', callerPeerId)
       console.log('[v0] callerName:', callerName)
       console.log('[v0] callerType:', callerType)
+      console.log('[v0] isAudioOnly:', isAudioOnly)
       console.log('[v0] currentSenderType:', currentSenderTypeRef.current)
       console.log('[v0] currentSenderId:', currentSenderIdRef.current)
       // Only handle if we're not the caller (different sender type)
@@ -202,7 +203,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
         console.log('[v0] This is an incoming call for us! Triggering receiveCall in callStore')
         // IMPORTANT: First trigger receiveCall to set status to 'incoming'
         // Then set remotePeerId - this order prevents the outgoing call effect from triggering
-        callStoreRef.current.receiveCall(null as never, callerName, appointmentId)
+        callStoreRef.current.receiveCall(null as never, callerName, appointmentId, isAudioOnly)
         console.log('[v0] receiveCall called, now setting remotePeerId after timeout')
         // Set remote peer ID after status is set to 'incoming'
         // This ensures the video-call-provider won't mistake this for an answered outgoing call
@@ -366,12 +367,12 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   }, [socket])
 
   // Video call signaling functions
-  const initiateCall = useCallback((appointmentId: number, callerPeerId: string, callerName: string) => {
-    console.log('[v0] initiateCall called, socket?.connected:', socket?.connected, 'socket?.id:', socket?.id)
+  const initiateCall = useCallback((appointmentId: number, callerPeerId: string, callerName: string, isAudioOnly?: boolean) => {
+    console.log('[v0] initiateCall called, socket?.connected:', socket?.connected, 'socket?.id:', socket?.id, 'isAudioOnly:', isAudioOnly)
     if (socket?.connected) {
       console.log('[v0] Emitting call-initiate event to socket server')
-      console.log('[v0] Payload:', { appointmentId, callerPeerId, callerName })
-      socket.emit('call-initiate', { appointmentId, callerPeerId, callerName })
+      console.log('[v0] Payload:', { appointmentId, callerPeerId, callerName, isAudioOnly })
+      socket.emit('call-initiate', { appointmentId, callerPeerId, callerName, isAudioOnly })
       console.log('[v0] call-initiate event emitted successfully')
     } else {
       console.warn('[v0] Cannot initiate call - socket not connected, socket:', socket)

@@ -53,6 +53,7 @@ export interface CallSignalPayload {
   appointmentId: number
   callerPeerId: string
   callerName: string
+  isAudioOnly?: boolean
 }
 
 export interface CallAnswerPayload {

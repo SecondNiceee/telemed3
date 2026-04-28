@@ -495,7 +495,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     
     callStore.setLocalStream(stream)
     
-    // Signal call via socket
+    // Signal call via socket (with isAudioOnly=true)
     console.log('[v0] ======= STARTING AUDIO CALL =======')
     console.log('[v0] socket.isConnected:', socket.isConnected)
     console.log('[v0] socket.socket?.connected:', socket.socket?.connected)
@@ -503,9 +503,10 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
     console.log('[v0] peerId (my peer):', peerId)
     console.log('[v0] callee.peerId (remote peer):', callee.peerId)
     console.log('[v0] currentUser.odooPartnerName:', currentUser.odooPartnerName)
+    console.log('[v0] isAudioOnly: true')
     
-    socket.initiateCall(appointmentId, peerId, currentUser.odooPartnerName)
-    console.log('[v0] initiateCall emitted')
+    socket.initiateCall(appointmentId, peerId, currentUser.odooPartnerName, true)
+    console.log('[v0] initiateCall emitted with isAudioOnly=true')
     
     callStore.startCall(appointmentId, callee.peerId)
     
@@ -631,12 +632,12 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
   // Handle incoming call from socket
   useEffect(() => {
     const handleIncomingCall = () => {
-      const { status: storeStatus, callerName, appointmentId, remotePeerId } = callStore
+      const { status: storeStatus, callerName, appointmentId, remotePeerId, isIncomingAudioOnly } = callStore
       
-      console.log('[VideoCallProvider] Checking incoming call - storeStatus:', storeStatus, 'callerName:', callerName, 'localStatus:', status)
+      console.log('[VideoCallProvider] Checking incoming call - storeStatus:', storeStatus, 'callerName:', callerName, 'localStatus:', status, 'isAudioOnly:', isIncomingAudioOnly)
       
       if (storeStatus === 'incoming' && callerName && appointmentId && status === 'idle') {
-        console.log('[VideoCallProvider] Incoming call detected from store, showing UI')
+        console.log('[VideoCallProvider] Incoming call detected from store, showing UI, isAudioOnly:', isIncomingAudioOnly)
         
         // Create participant from store data
         const caller: CallParticipant = {
@@ -647,6 +648,8 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
           role: currentUser?.role === 'doctor' ? 'patient' : 'doctor',
         }
         
+        // Set isAudioOnly based on incoming call type
+        setIsAudioOnly(isIncomingAudioOnly)
         setStatus('incoming')
         setCallData({
           appointmentId,
