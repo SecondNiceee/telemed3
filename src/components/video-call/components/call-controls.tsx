@@ -24,6 +24,7 @@ export function CallControls({
   onEndCall,
   onToggleMinimize,
   isMinimized,
+  isAudioOnly,
 }: CallControlsProps) {
   return (
     <div className="flex items-center justify-center gap-3">
@@ -53,31 +54,33 @@ export function CallControls({
         </TooltipContent>
       </Tooltip>
 
-      {/* Video toggle */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant={isVideoEnabled ? 'secondary' : 'destructive'}
-            size="icon"
-            className="h-12 w-12 rounded-full"
-            onClick={onToggleVideo}
-            disabled={!isCameraAvailable}
-          >
-            {isVideoEnabled ? (
-              <Video className="h-5 w-5" />
-            ) : (
-              <VideoOff className="h-5 w-5" />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          {!isCameraAvailable
-            ? 'Камера недоступна'
-            : isVideoEnabled
-              ? 'Выключить камеру'
-              : 'Включить камеру'}
-        </TooltipContent>
-      </Tooltip>
+      {/* Video toggle - hidden in audio-only mode */}
+      {!isAudioOnly && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={isVideoEnabled ? 'secondary' : 'destructive'}
+              size="icon"
+              className="h-12 w-12 rounded-full"
+              onClick={onToggleVideo}
+              disabled={!isCameraAvailable}
+            >
+              {isVideoEnabled ? (
+                <Video className="h-5 w-5" />
+              ) : (
+                <VideoOff className="h-5 w-5" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {!isCameraAvailable
+              ? 'Камера недоступна'
+              : isVideoEnabled
+                ? 'Выключить камеру'
+                : 'Включить камеру'}
+          </TooltipContent>
+        </Tooltip>
+      )}
 
       {/* End call */}
       <Tooltip>

@@ -106,6 +106,7 @@ export interface CallControlsProps {
   onEndCall: () => void
   onToggleMinimize?: () => void
   isMinimized?: boolean
+  isAudioOnly?: boolean
 }
 
 /**
@@ -173,6 +174,7 @@ export interface ConnectedViewProps {
   remainingSeconds: number
   isPaused: boolean
   isMinimized: boolean
+  isAudioOnly?: boolean
   onToggleVideo: () => void
   onToggleAudio: () => void
   onEndCall: () => void
@@ -187,6 +189,7 @@ export interface MinimizedViewProps {
   remoteStream: MediaStream | null
   participantName: string
   remainingSeconds: number
+  isAudioOnly?: boolean
   onExpand: () => void
   onEndCall: () => void
 }

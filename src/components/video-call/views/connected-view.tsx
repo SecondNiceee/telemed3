@@ -13,6 +13,7 @@ import type { ConnectedViewProps } from '@/lib/video-call/types'
 
 interface ExtendedConnectedViewProps extends ConnectedViewProps {
   isServerRecording?: boolean
+  isAudioOnly?: boolean
 }
 
 export function ConnectedView({
@@ -29,6 +30,7 @@ export function ConnectedView({
   onEndCall,
   onToggleMinimize,
   isServerRecording,
+  isAudioOnly,
 }: ExtendedConnectedViewProps) {
   const [showEndDialog, setShowEndDialog] = useState(false)
   const [showControls, setShowControls] = useState(true)
