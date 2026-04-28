@@ -14,6 +14,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import type { CallControlsProps } from '@/lib/video-call/types'
 
+interface ExtendedCallControlsProps extends CallControlsProps {
+  isAudioOnly?: boolean
+}
+
 export function CallControls({
   isVideoEnabled,
   isAudioEnabled,
@@ -24,7 +28,8 @@ export function CallControls({
   onEndCall,
   onToggleMinimize,
   isMinimized,
-}: CallControlsProps) {
+  isAudioOnly,
+}: ExtendedCallControlsProps) {
   return (
     <div className="flex items-center justify-center gap-3">
       {/* Audio toggle */}
@@ -53,31 +58,33 @@ export function CallControls({
         </TooltipContent>
       </Tooltip>
 
-      {/* Video toggle */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant={isVideoEnabled ? 'secondary' : 'destructive'}
-            size="icon"
-            className="h-12 w-12 rounded-full"
-            onClick={onToggleVideo}
-            disabled={!isCameraAvailable}
-          >
-            {isVideoEnabled ? (
-              <Video className="h-5 w-5" />
-            ) : (
-              <VideoOff className="h-5 w-5" />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          {!isCameraAvailable
-            ? 'Камера недоступна'
-            : isVideoEnabled
-              ? 'Выключить камеру'
-              : 'Включить камеру'}
-        </TooltipContent>
-      </Tooltip>
+      {/* Video toggle - hidden for audio-only calls */}
+      {!isAudioOnly && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={isVideoEnabled ? 'secondary' : 'destructive'}
+              size="icon"
+              className="h-12 w-12 rounded-full"
+              onClick={onToggleVideo}
+              disabled={!isCameraAvailable}
+            >
+              {isVideoEnabled ? (
+                <Video className="h-5 w-5" />
+              ) : (
+                <VideoOff className="h-5 w-5" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {!isCameraAvailable
+              ? 'Камера недоступна'
+              : isVideoEnabled
+                ? 'Выключить камеру'
+                : 'Включить камеру'}
+          </TooltipContent>
+        </Tooltip>
+      )}
 
       {/* End call */}
       <Tooltip>

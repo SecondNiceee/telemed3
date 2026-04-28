@@ -13,6 +13,7 @@ import type { ConnectedViewProps } from '@/lib/video-call/types'
 
 interface ExtendedConnectedViewProps extends ConnectedViewProps {
   isServerRecording?: boolean
+  isAudioOnly?: boolean
 }
 
 export function ConnectedView({
@@ -29,6 +30,7 @@ export function ConnectedView({
   onEndCall,
   onToggleMinimize,
   isServerRecording,
+  isAudioOnly,
 }: ExtendedConnectedViewProps) {
   const [showEndDialog, setShowEndDialog] = useState(false)
   const [showControls, setShowControls] = useState(true)
@@ -44,17 +46,35 @@ export function ConnectedView({
 
   return (
     <div
-      className="relative h-full w-full bg-black"
+      className={cn(
+        "relative h-full w-full",
+        isAudioOnly ? "bg-white" : "bg-black"
+      )}
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
       onClick={() => setShowControls((prev) => !prev)}
     >
-      {/* Remote video (full screen) */}
-      <RemoteVideo
-        stream={remoteStream}
-        participantName={participant.odooPartnerName}
-        className="h-full w-full"
-      />
+      {/* For audio calls: white background with participant name */}
+      {isAudioOnly ? (
+        <div className="flex h-full w-full flex-col items-center justify-center">
+          <div className="flex h-32 w-32 items-center justify-center rounded-full bg-primary/10">
+            <span className="text-5xl font-semibold text-primary">
+              {participant.odooPartnerName.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <p className="mt-6 text-2xl font-medium text-foreground">
+            {participant.odooPartnerName}
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">Аудиозвонок</p>
+        </div>
+      ) : (
+        /* Remote video (full screen) */
+        <RemoteVideo
+          stream={remoteStream}
+          participantName={participant.odooPartnerName}
+          className="h-full w-full"
+        />
+      )}
 
       {/* Top overlay - timer, recording indicator and quality */}
       <div
@@ -79,19 +99,22 @@ export function ConnectedView({
         <ConnectionQualityIndicator quality={connectionQuality} showLabel />
       </div>
 
-      {/* Local video (PiP) */}
-      <div className="absolute bottom-24 right-4">
-        <LocalVideo
-          stream={localStream}
-          isVideoEnabled={mediaState.isVideoEnabled}
-          className="shadow-lg"
-        />
-      </div>
+      {/* Local video (PiP) - hidden for audio-only calls */}
+      {!isAudioOnly && (
+        <div className="absolute bottom-24 right-4">
+          <LocalVideo
+            stream={localStream}
+            isVideoEnabled={mediaState.isVideoEnabled}
+            className="shadow-lg"
+          />
+        </div>
+      )}
 
       {/* Bottom overlay - controls */}
       <div
         className={cn(
-          'absolute bottom-0 left-0 right-0 flex flex-col items-center gap-4 bg-gradient-to-t from-black/80 to-transparent p-4 pb-6 transition-opacity duration-300',
+          'absolute bottom-0 left-0 right-0 flex flex-col items-center gap-4 p-4 pb-6 transition-opacity duration-300',
+          isAudioOnly ? 'bg-gradient-to-t from-white/80 to-transparent' : 'bg-gradient-to-t from-black/80 to-transparent',
           showControls ? 'opacity-100' : 'opacity-0'
         )}
       >
@@ -106,15 +129,18 @@ export function ConnectedView({
           onEndCall={handleEndCallClick}
           onToggleMinimize={onToggleMinimize}
           isMinimized={isMinimized}
+          isAudioOnly={isAudioOnly}
         />
       </div>
 
-      {/* Participant name overlay */}
-      <div className="absolute bottom-4 left-4">
-        <div className="rounded-full bg-background/80 px-3 py-1.5 backdrop-blur-sm">
-          <span className="text-sm font-medium">{participant.odooPartnerName}</span>
+      {/* Participant name overlay - hidden for audio-only (shown in center instead) */}
+      {!isAudioOnly && (
+        <div className="absolute bottom-4 left-4">
+          <div className="rounded-full bg-background/80 px-3 py-1.5 backdrop-blur-sm">
+            <span className="text-sm font-medium">{participant.odooPartnerName}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* End call confirmation dialog */}
       <EndCallDialog
