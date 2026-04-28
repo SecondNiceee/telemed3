@@ -31,9 +31,11 @@ export function createAuthMiddleware() {
 
     // 🔹 Проверяем токен доктора
     const doctorToken = getCookieValue(cookies, 'doctors-token')
+    console.log('[v0] doctorToken extracted:', doctorToken ? `${doctorToken.substring(0, 20)}...` : null)
     if (doctorToken) {
       // 🔴 Используем decode вместо verify
       const decoded = decodeToken(doctorToken)  // ← здесь подмена
+      console.log('[v0] doctorToken decoded:', decoded)
       if (decoded?.id) {
         doctorId = decoded.id
       
@@ -69,10 +71,14 @@ export function createAuthMiddleware() {
       typingInRooms: new Set(),
     }
     
-    console.log('[DEBUG] Auth success:', {
+    console.log('[v0] Auth success:', {
       socketId: socket.id,
       senderType,
       senderId,
+      userId,
+      doctorId,
+      hasDoctorToken: !!doctorToken,
+      hasUserToken: !!userToken,
     })
     
     return next()
