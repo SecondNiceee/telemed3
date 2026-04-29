@@ -15,6 +15,12 @@ const LISTEN_IP = process.env.MEDIASOUP_LISTEN_IP || '0.0.0.0'
 /**
  * MediaSoup Worker settings
  * Workers are separate processes that handle media
+ * 
+ * Port range calculation for telemedicine:
+ * - 1 call = ~8 ports (2 participants × 4 streams each)
+ * - 50 concurrent calls = ~400 ports
+ * - Default range: 40000-40499 (500 ports = ~60 concurrent calls)
+ * - Can be expanded via environment variables if needed
  */
 export const workerSettings: WorkerSettings = {
   logLevel: (process.env.MEDIASOUP_LOG_LEVEL as 'debug' | 'warn' | 'error' | 'none') || 'warn',
@@ -27,7 +33,7 @@ export const workerSettings: WorkerSettings = {
     'rtcp',
   ],
   rtcMinPort: parseInt(process.env.MEDIASOUP_RTC_MIN_PORT || '40000', 10),
-  rtcMaxPort: parseInt(process.env.MEDIASOUP_RTC_MAX_PORT || '49999', 10),
+  rtcMaxPort: parseInt(process.env.MEDIASOUP_RTC_MAX_PORT || '40499', 10),
 }
 
 /**

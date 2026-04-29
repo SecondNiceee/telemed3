@@ -101,8 +101,11 @@ MediaSoup (SFU):
 sudo apt update
 sudo apt install -y build-essential python3 python3-pip ffmpeg
 
-# Открыть UDP порты для RTP медиа
-sudo ufw allow 40000:49999/udp
+# Открыть UDP порты для RTP медиа (500 портов = ~60 одновременных звонков)
+sudo ufw allow 40000:40499/udp
+
+# Или если нужно больше (например, 100+ звонков):
+# sudo ufw allow 40000:40999/udp
 ```
 
 ### Шаг 2: Установить npm пакеты
@@ -294,7 +297,7 @@ function VideoCallUI() {
 
 ---
 
-## Требования к серверу
+## Тре��ования к серверу
 
 ### Минимальные требования
 
