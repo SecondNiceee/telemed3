@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react'
 import { Send, Paperclip, X, FileIcon, Loader2, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useFileUpload } from '../hooks/use-file-upload'
 import { useTyping } from '../hooks/use-typing'
 import type { ChatInputProps } from '../types'
 
@@ -17,19 +16,17 @@ export function ChatInput({
   onSendMessage,
   onStartTyping,
   onStopTyping,
+  // File upload state from ChatWindow
+  selectedFile,
+  uploadedAttachment,
+  isUploading,
+  fileInputRef,
+  onFileSelect,
+  onRemoveAttachment,
+  onPaste,
+  onResetAfterSend,
 }: ChatInputProps) {
   const [inputValue, setInputValue] = useState('')
-  
-  const {
-    selectedFile,
-    uploadedAttachment,
-    isUploading,
-    fileInputRef,
-    handleFileSelect,
-    handleRemoveAttachment,
-    handlePaste,
-    resetAfterSend,
-  } = useFileUpload(appointmentId)
   
   const { handleTyping, resetTyping } = useTyping(appointmentId, onStartTyping, onStopTyping)
 
@@ -42,9 +39,9 @@ export function ChatInput({
 
     onSendMessage(text, uploadedAttachment?.id)
     setInputValue('')
-    resetAfterSend()
+    onResetAfterSend()
     resetTyping()
-  }, [inputValue, uploadedAttachment, isUploading, onSendMessage, resetAfterSend, resetTyping])
+  }, [inputValue, uploadedAttachment, isUploading, onSendMessage, onResetAfterSend, resetTyping])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -90,7 +87,7 @@ export function ChatInput({
               variant="ghost"
               size="icon"
               className="shrink-0"
-              onClick={handleRemoveAttachment}
+              onClick={onRemoveAttachment}
             >
               <X className="w-4 h-4" />
             </Button>
@@ -107,7 +104,7 @@ export function ChatInput({
               ref={fileInputRef}
               type="file"
               className="hidden"
-              onChange={handleFileSelect}
+              onChange={onFileSelect}
               accept="image/*,.pdf,.doc,.docx,.txt"
             />
             

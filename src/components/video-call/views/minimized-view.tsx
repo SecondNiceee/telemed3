@@ -31,11 +31,13 @@ export function MinimizedView({
   isAudioOnly,
 }: ExtendedMinimizedViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<Position>({ x: 16, y: 16 }) // bottom-right with 16px padding
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState<Position>({ x: 0, y: 0 })
 
+  // Video stream setup
   useEffect(() => {
     const videoElement = videoRef.current
     // Show remote stream if available, otherwise local
@@ -49,6 +51,26 @@ export function MinimizedView({
       }
     }
   }, [remoteStream, localStream])
+
+  // Audio stream setup - critical for minimized mode to keep audio playing
+  useEffect(() => {
+    const audioElement = audioRef.current
+    if (audioElement && remoteStream) {
+      console.log('[v0] MinimizedView: Setting up audio playback')
+      console.log('[v0] MinimizedView: Audio tracks:', remoteStream.getAudioTracks().length)
+      audioElement.srcObject = remoteStream
+      audioElement.muted = false
+      audioElement.volume = 1.0
+      audioElement.play().catch(err => {
+        console.error('[v0] MinimizedView: Failed to play audio:', err)
+      })
+    }
+    return () => {
+      if (audioElement) {
+        audioElement.srcObject = null
+      }
+    }
+  }, [remoteStream])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Only start drag if clicking on the drag handle area
@@ -175,6 +197,9 @@ export function MinimizedView({
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
     >
+      {/* Hidden audio element - keeps audio playing in minimized mode */}
+      <audio ref={audioRef} autoPlay playsInline className="hidden" />
+
       {/* Video or Audio-only display */}
       {isAudioOnly ? (
         <div className="flex h-full w-full flex-col items-center justify-center bg-white">

@@ -65,6 +65,15 @@ export interface ChatInputProps {
   onSendMessage: (text: string, attachmentId?: number) => void
   onStartTyping: () => void
   onStopTyping: () => void
+  // File upload state passed from ChatWindow (shared with drag-drop)
+  selectedFile: File | null
+  uploadedAttachment: { id: number; url: string; mimeType?: string } | null
+  isUploading: boolean
+  fileInputRef: React.RefObject<HTMLInputElement | null>
+  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onRemoveAttachment: () => void
+  onPaste: (e: React.ClipboardEvent) => void
+  onResetAfterSend: () => void
 }
 
 export interface VideoSaveSidebarProps {
