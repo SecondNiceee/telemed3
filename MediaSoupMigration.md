@@ -2,8 +2,67 @@
 
 > **Статус:** Фаза 1-4 завершены, готово к тестированию  
 > **Дата создания:** 27.04.2026  
-> **Обновлено:** 27.04.2026  
+> **Обновлено:** 29.04.2026  
 > **Цель:** Перенос записи видеозвонков на сторону сервера
+
+---
+
+## TURN серверы и порт 3002
+
+### Вопрос: Будут ли работать те же TURN серверы?
+
+**Да!** MediaSoup использует стандартный WebRTC, поэтому те же TURN серверы (`nice-sites.online`) будут работать без изменений.
+
+### Текущая конфигурация TURN (используется и для PeerJS, и для MediaSoup):
+
+```typescript
+// src/lib/video-call/config.ts
+export const ICE_SERVERS = [
+  { urls: 'stun:nice-sites.online:3478' },
+  {
+    urls: 'turn:nice-sites.online:3478',
+    username: 'testuser',
+    credential: 'TestPass123',
+  },
+  {
+    urls: 'turn:nice-sites.online:3478?transport=tcp',
+    username: 'testuser',
+    credential: 'TestPass123',
+  },
+  {
+    urls: 'turns:nice-sites.online:5349',
+    username: 'testuser',
+    credential: 'TestPass123',
+  },
+]
+```
+
+### Порт 3002: PeerJS vs MediaSoup
+
+| Параметр | PeerJS (сейчас) | MediaSoup (цель) |
+|----------|-----------------|------------------|
+| **Порт** | 3002 | 3002 (тот же!) |
+| **Протокол** | HTTP + WebSocket | HTTP + WebSocket |
+| **Роль** | Signaling only | SFU + Signaling |
+| **Файл сервера** | `src/peer-server.ts` | `src/mediasoup-server.ts` |
+| **npm script** | `pnpm peer` | `pnpm mediasoup` |
+
+### Как TURN используется по-разному:
+
+```
+PeerJS (P2P):
+  Пациент ◄──── TURN relay ────► Врач
+  (медиа через TURN если прямое P2P не работает)
+
+MediaSoup (SFU):
+  Пациент ──── TURN ────► MediaSoup Server ◄──── TURN ──── Врач
+  (TURN помогает клиентам подключиться к серверу через NAT)
+```
+
+**Вывод:** Замена PeerJS на MediaSoup на порту 3002 будет работать с теми же TURN серверами. Нужно только:
+1. Остановить `peer-server.ts`
+2. Запустить `mediasoup-server.ts` на том же порту 3002
+3. Обновить клиентский код (уже сделано через feature flag)
 
 ## Прогресс
 
@@ -30,6 +89,65 @@
 - `src/components/video-call/video-call-provider-mediasoup.tsx` - провайдер с MediaSoup
 - `src/components/video-call/video-call-provider-wrapper.tsx` - обертка с feature flag
 - Обновлен `src/components/video-call/views/connected-view.tsx` - индикатор записи
+
+---
+
+## Быстрый старт (порт 3002)
+
+### Шаг 1: Установить зависимости на сервере
+
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install -y build-essential python3 python3-pip ffmpeg
+
+# Открыть ОДИН порт для всех WebRTC соединений (благодаря WebRtcServer)
+sudo ufw allow 40000/udp
+sudo ufw allow 40000/tcp
+
+# Порт 3002 для Socket.IO signaling
+sudo ufw allow 3002/tcp
+```
+
+> **Важно:** Теперь нужен только ОДИН порт (40000) для неограниченного количества звонков!
+> Это работает благодаря WebRtcServer, который мультиплексирует все транспорты на один порт.
+
+### Шаг 2: Установить npm пакеты
+
+```bash
+pnpm add mediasoup mediasoup-client
+```
+
+### Шаг 3: Запустить MediaSoup сервер (порт 3002)
+
+```bash
+# Остановить PeerJS если запущен
+# pkill -f peer-server
+
+# Запустить MediaSoup на порту 3002
+pnpm mediasoup
+
+# Или с указанием публичного IP (для production)
+MEDIASOUP_ANNOUNCED_IP=your.server.ip pnpm mediasoup
+```
+
+### Шаг 4: Включить MediaSoup на клиенте
+
+```bash
+# В .env.local
+NEXT_PUBLIC_USE_MEDIASOUP=true
+NEXT_PUBLIC_MEDIASOUP_URL=http://localhost:3002
+
+# Для production
+NEXT_PUBLIC_USE_MEDIASOUP=true  
+NEXT_PUBLIC_MEDIASOUP_URL=https://your-domain.com:3002
+```
+
+### Шаг 5: Проверить что TURN работает
+
+TURN серверы (`nice-sites.online`) уже настроены в `src/lib/video-call/config.ts` и автоматически используются MediaSoup.
+
+---
 
 ### Как запустить MediaSoup сервер:
 
@@ -183,7 +301,7 @@ function VideoCallUI() {
 
 ---
 
-## Требования к серверу
+## Тре��ования к серверу
 
 ### Минимальные требования
 
@@ -199,13 +317,19 @@ function VideoCallUI() {
 | **GCC/G++** | 8+ | 11+ |
 | **FFmpeg** | 4.0+ | 5.0+ |
 
-### Необходимые порты
+### Необходимые порты (SINGLE PORT MODE)
 
-| Пор�� | Протокол | Назначение |
+| Порт | Протокол | Назначение |
 |------|----------|------------|
-| 3003 | TCP | MediaSoup Signaling API |
-| 40000-49999 | UDP | WebRTC Media (RTP/RTCP) |
-| 3478 | UDP/TCP | TURN Server |
+| **3002** | TCP | MediaSoup Signaling API (Socket.IO) |
+| **40000** | UDP + TCP | WebRTC Media (все транспорты через WebRtcServer) |
+| **3478** | UDP/TCP | TURN Server (уже настроен на nice-sites.online) |
+| **5349** | TCP | TURNS (TLS) (уже настроен на nice-sites.online) |
+
+> **WebRtcServer:** Благодаря WebRtcServer все WebRTC соединения мультиплексируются на ОДИН порт (40000).
+> Это значит неограниченное количество одновременных звонков на одном порту!
+> 
+> TURN серверы на `nice-sites.online` уже работают и не требуют изменений.
 
 ---
 
@@ -227,9 +351,10 @@ sudo apt install -y build-essential python3 python3-pip ffmpeg
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 
-# Открытие портов
-sudo ufw allow 3003/tcp
-sudo ufw allow 40000:49999/udp
+# Открытие портов (single port mode)
+sudo ufw allow 3002/tcp   # Signaling
+sudo ufw allow 40000/udp  # WebRTC media
+sudo ufw allow 40000/tcp  # WebRTC media (TCP fallback)
 ```
 
 ---

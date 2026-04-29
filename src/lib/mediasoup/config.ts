@@ -15,6 +15,11 @@ const LISTEN_IP = process.env.MEDIASOUP_LISTEN_IP || '0.0.0.0'
 /**
  * MediaSoup Worker settings
  * Workers are separate processes that handle media
+ * 
+ * With WebRtcServer enabled, ALL transports share a SINGLE port (40000).
+ * This is much simpler than the old approach with port ranges.
+ * 
+ * rtcMinPort/rtcMaxPort are only used as fallback if WebRtcServer fails.
  */
 export const workerSettings: WorkerSettings = {
   logLevel: (process.env.MEDIASOUP_LOG_LEVEL as 'debug' | 'warn' | 'error' | 'none') || 'warn',
@@ -26,8 +31,9 @@ export const workerSettings: WorkerSettings = {
     'srtp',
     'rtcp',
   ],
+  // Fallback port range (only used if WebRtcServer is disabled)
   rtcMinPort: parseInt(process.env.MEDIASOUP_RTC_MIN_PORT || '40000', 10),
-  rtcMaxPort: parseInt(process.env.MEDIASOUP_RTC_MAX_PORT || '49999', 10),
+  rtcMaxPort: parseInt(process.env.MEDIASOUP_RTC_MAX_PORT || '40099', 10),
 }
 
 /**
@@ -93,21 +99,30 @@ export const routerOptions: RouterOptions = {
 }
 
 /**
- * WebRTC Server options for bundled ICE/DTLS/RTP
+ * Single port for ALL WebRTC connections (via WebRtcServer)
+ * 
+ * This is the key optimization - instead of 1 port per transport,
+ * ALL transports share this single port. Supports unlimited concurrent calls!
+ * 
+ * Default: 40000 (UDP + TCP)
+ * 
+ * Firewall rule needed: sudo ufw allow 40000/udp && sudo ufw allow 40000/tcp
  */
+export const WEBRTC_SERVER_PORT = parseInt(process.env.MEDIASOUP_WEBRTC_PORT || '40000', 10)
+
 export const webRtcServerOptions: WebRtcServerOptions = {
   listenInfos: [
     {
       protocol: 'udp',
       ip: LISTEN_IP,
       announcedAddress: ANNOUNCED_IP,
-      port: parseInt(process.env.MEDIASOUP_WEBRTC_PORT || '44444', 10),
+      port: WEBRTC_SERVER_PORT,
     },
     {
       protocol: 'tcp',
       ip: LISTEN_IP,
       announcedAddress: ANNOUNCED_IP,
-      port: parseInt(process.env.MEDIASOUP_WEBRTC_PORT || '44444', 10),
+      port: WEBRTC_SERVER_PORT,
     },
   ],
 }
