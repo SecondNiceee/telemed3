@@ -101,12 +101,16 @@ MediaSoup (SFU):
 sudo apt update
 sudo apt install -y build-essential python3 python3-pip ffmpeg
 
-# Открыть UDP порты для RTP медиа (500 портов = ~60 одновременных звонков)
-sudo ufw allow 40000:40499/udp
+# Открыть ОДИН порт для всех WebRTC соединений (благодаря WebRtcServer)
+sudo ufw allow 40000/udp
+sudo ufw allow 40000/tcp
 
-# Или если нужно больше (например, 100+ звонков):
-# sudo ufw allow 40000:40999/udp
+# Порт 3002 для Socket.IO signaling
+sudo ufw allow 3002/tcp
 ```
+
+> **Важно:** Теперь нужен только ОДИН порт (40000) для неограниченного количества звонков!
+> Это работает благодаря WebRtcServer, который мультиплексирует все транспорты на один порт.
 
 ### Шаг 2: Установить npm пакеты
 
@@ -313,17 +317,19 @@ function VideoCallUI() {
 | **GCC/G++** | 8+ | 11+ |
 | **FFmpeg** | 4.0+ | 5.0+ |
 
-### Необходимые порты
+### Необходимые порты (SINGLE PORT MODE)
 
 | Порт | Протокол | Назначение |
 |------|----------|------------|
 | **3002** | TCP | MediaSoup Signaling API (Socket.IO) |
-| **40000-49999** | UDP | WebRTC Media (RTP/RTCP) |
+| **40000** | UDP + TCP | WebRTC Media (все транспорты через WebRtcServer) |
 | **3478** | UDP/TCP | TURN Server (уже настроен на nice-sites.online) |
 | **5349** | TCP | TURNS (TLS) (уже настроен на nice-sites.online) |
 
-> **Важно:** TURN серверы на `nice-sites.online` уже работают и не требуют изменений.  
-> MediaSoup использует их автоматически через ICE_SERVERS из `src/lib/video-call/config.ts`.
+> **WebRtcServer:** Благодаря WebRtcServer все WebRTC соединения мультиплексируются на ОДИН порт (40000).
+> Это значит неограниченное количество одновременных звонков на одном порту!
+> 
+> TURN серверы на `nice-sites.online` уже работают и не требуют изменений.
 
 ---
 
@@ -345,9 +351,10 @@ sudo apt install -y build-essential python3 python3-pip ffmpeg
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 
-# Открытие портов
-sudo ufw allow 3003/tcp
-sudo ufw allow 40000:49999/udp
+# Открытие портов (single port mode)
+sudo ufw allow 3002/tcp   # Signaling
+sudo ufw allow 40000/udp  # WebRTC media
+sudo ufw allow 40000/tcp  # WebRTC media (TCP fallback)
 ```
 
 ---

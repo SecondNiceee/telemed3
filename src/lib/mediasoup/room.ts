@@ -3,6 +3,10 @@
  * 
  * Manages rooms (video call sessions) and participants (peers).
  * Each room has its own Router for media routing.
+ * 
+ * SINGLE PORT MODE:
+ * All transports are created via WebRtcServer, sharing a single port (40000).
+ * No need to open thousands of UDP ports!
  */
 
 import type { 
@@ -15,6 +19,7 @@ import type {
   RtpCapabilities,
   RtpParameters,
   MediaKind,
+  WebRtcServer,
 } from 'mediasoup/node/lib/types'
 import { workerManager } from './worker-manager'
 import { routerOptions, webRtcTransportOptions, plainTransportOptions } from './config'
@@ -38,6 +43,8 @@ export interface Peer {
 export interface Room {
   id: string // appointmentId
   router: Router
+  webRtcServer?: WebRtcServer // Shared WebRtcServer for single-port mode
+  workerIndex: number // Which worker this room is assigned to
   peers: Map<string, Peer>
   createdAt: Date
   // For server-side recording
@@ -50,6 +57,8 @@ class RoomManager {
 
   /**
    * Create a new room for an appointment
+   * 
+   * Uses WebRtcServer for single-port mode (all transports share port 40000)
    */
   async createRoom(appointmentId: string): Promise<Room> {
     // Check if room already exists
@@ -63,15 +72,25 @@ class RoomManager {
     const worker = workerManager.getNextWorker()
     const router = await worker.createRouter(routerOptions)
 
+    // Get WebRtcServer for single-port mode
+    const webRtcServerInfo = workerManager.getNextWebRtcServer()
+    
     const room: Room = {
       id: appointmentId,
       router,
+      webRtcServer: webRtcServerInfo?.server,
+      workerIndex: webRtcServerInfo?.workerIndex ?? 0,
       peers: new Map(),
       createdAt: new Date(),
     }
 
     this.rooms.set(appointmentId, room)
-    console.log(`[Room] Created room ${appointmentId}`)
+    
+    if (room.webRtcServer) {
+      console.log(`[Room] Created room ${appointmentId} (single-port mode via WebRtcServer)`)
+    } else {
+      console.log(`[Room] Created room ${appointmentId} (fallback: individual ports)`)
+    }
 
     return room
   }
@@ -151,6 +170,9 @@ class RoomManager {
 
   /**
    * Create a WebRTC transport for a peer
+   * 
+   * SINGLE PORT MODE: Uses WebRtcServer so all transports share one port (40000)
+   * FALLBACK MODE: Uses individual ports from rtcMinPort-rtcMaxPort range
    */
   async createWebRtcTransport(
     room: Room, 
@@ -168,7 +190,21 @@ class RoomManager {
       throw new Error(`Peer ${peerId} not found in room ${room.id}`)
     }
 
-    const transport = await room.router.createWebRtcTransport(webRtcTransportOptions)
+    let transport: WebRtcTransport
+
+    // Use WebRtcServer for single-port mode (preferred)
+    if (room.webRtcServer) {
+      transport = await room.router.createWebRtcTransport({
+        ...webRtcTransportOptions,
+        webRtcServer: room.webRtcServer,
+        // listenInfos is ignored when webRtcServer is provided
+      })
+      console.log(`[Room] Created ${direction} transport ${transport.id} for peer ${peerId} (single-port mode)`)
+    } else {
+      // Fallback: individual ports
+      transport = await room.router.createWebRtcTransport(webRtcTransportOptions)
+      console.log(`[Room] Created ${direction} transport ${transport.id} for peer ${peerId} (fallback mode)`)
+    }
 
     // Store transport with direction suffix
     const transportKey = `${transport.id}-${direction}`
@@ -184,8 +220,6 @@ class RoomManager {
     transport.on('@close', () => {
       peer.transports.delete(transportKey)
     })
-
-    console.log(`[Room] Created ${direction} transport ${transport.id} for peer ${peerId}`)
 
     return {
       id: transport.id,

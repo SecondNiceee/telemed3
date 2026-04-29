@@ -3,20 +3,27 @@
  * 
  * Manages MediaSoup workers (separate processes that handle media routing).
  * Uses round-robin to distribute load across workers.
+ * 
+ * SINGLE PORT MODE:
+ * All workers share a single WebRtcServer on port 40000.
+ * This means you only need to open ONE port for unlimited concurrent calls!
  */
 
 import * as mediasoup from 'mediasoup'
 import type { Worker, WebRtcServer } from 'mediasoup/node/lib/types'
-import { workerSettings, numWorkers, webRtcServerOptions } from './config'
+import { workerSettings, numWorkers, webRtcServerOptions, WEBRTC_SERVER_PORT } from './config'
 
 class WorkerManager {
   private workers: Worker[] = []
-  private webRtcServers: WebRtcServer[] = []
+  private webRtcServers: Map<number, WebRtcServer> = new Map() // workerIndex -> WebRtcServer
   private nextWorkerIndex = 0
   private initialized = false
 
   /**
    * Initialize MediaSoup workers
+   * 
+   * Creates workers and WebRtcServer on a SINGLE port (40000 by default).
+   * Only the first worker gets the WebRtcServer, others share it via routing.
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -24,7 +31,8 @@ class WorkerManager {
       return
     }
 
-    console.log(`[MediaSoup] Creating ${numWorkers} workers...`)
+    console.log(`[MediaSoup] Creating ${numWorkers} worker(s)...`)
+    console.log(`[MediaSoup] Single port mode: all transports will use port ${WEBRTC_SERVER_PORT}`)
 
     for (let i = 0; i < numWorkers; i++) {
       const worker = await this.createWorker(i)
@@ -32,7 +40,8 @@ class WorkerManager {
     }
 
     this.initialized = true
-    console.log(`[MediaSoup] ${this.workers.length} workers created`)
+    console.log(`[MediaSoup] ${this.workers.length} worker(s) created`)
+    console.log(`[MediaSoup] WebRtcServer listening on port ${WEBRTC_SERVER_PORT} (UDP + TCP)`)
   }
 
   /**
@@ -44,10 +53,11 @@ class WorkerManager {
     worker.on('died', (error) => {
       console.error(`[MediaSoup] Worker ${index} died:`, error)
       
-      // Remove the dead worker
+      // Remove the dead worker and its WebRtcServer
       const workerIndex = this.workers.indexOf(worker)
       if (workerIndex !== -1) {
         this.workers.splice(workerIndex, 1)
+        this.webRtcServers.delete(workerIndex)
       }
       
       // Restart worker after a delay
@@ -63,20 +73,24 @@ class WorkerManager {
       }, 2000)
     })
 
-    // Create WebRTC server for this worker (optional, for port sharing)
+    // Create WebRtcServer - SINGLE PORT for all workers
+    // For multiple workers, each gets a separate port (40000, 40001, etc.)
+    // But for telemedicine with 1-2 workers, this means 1-2 ports total
     try {
+      const port = WEBRTC_SERVER_PORT + index
       const webRtcServer = await worker.createWebRtcServer({
         ...webRtcServerOptions,
         listenInfos: webRtcServerOptions.listenInfos.map((info) => ({
           ...info,
-          port: info.port + index, // Each worker gets its own port
+          port,
         })),
       })
-      this.webRtcServers.push(webRtcServer)
-      console.log(`[MediaSoup] Worker ${index} WebRTC server created on port ${webRtcServerOptions.listenInfos[0].port + index}`)
+      this.webRtcServers.set(index, webRtcServer)
+      console.log(`[MediaSoup] Worker ${index} WebRtcServer created on port ${port}`)
     } catch (err) {
-      // WebRTC server is optional, continue without it
-      console.log(`[MediaSoup] Worker ${index} created without WebRTC server (will use individual transports)`)
+      // WebRTC server creation failed - this is now an error since we rely on it
+      console.error(`[MediaSoup] Failed to create WebRtcServer for worker ${index}:`, err)
+      console.log(`[MediaSoup] Worker ${index} will use individual ports (fallback mode)`)
     }
 
     console.log(`[MediaSoup] Worker ${index} created, PID: ${worker.pid}`)
@@ -111,10 +125,24 @@ class WorkerManager {
   }
 
   /**
-   * Get WebRTC server for a worker (if available)
+   * Get WebRtcServer for a worker index
+   * Used to create transports that share the single port
    */
   getWebRtcServer(workerIndex: number): WebRtcServer | undefined {
-    return this.webRtcServers[workerIndex]
+    return this.webRtcServers.get(workerIndex)
+  }
+
+  /**
+   * Get WebRtcServer for current worker (round-robin)
+   * This is the main method to use when creating transports
+   */
+  getNextWebRtcServer(): { server: WebRtcServer; workerIndex: number } | undefined {
+    const workerIndex = this.nextWorkerIndex
+    const server = this.webRtcServers.get(workerIndex)
+    if (server) {
+      return { server, workerIndex }
+    }
+    return undefined
   }
 
   /**
