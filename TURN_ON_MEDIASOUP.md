@@ -21,8 +21,8 @@ pm2 stop peer-server
 ```bash
 # Открыть порты для MediaSoup
 sudo ufw allow 3002/tcp    # Signaling (Socket.IO)
-sudo ufw allow 40000/udp   # WebRTC media
-sudo ufw allow 40000/tcp   # WebRTC media (TCP fallback)
+sudo ufw allow 13478/udp   # WebRTC media
+sudo ufw allow 13478/tcp   # WebRTC media (TCP fallback)
 ```
 
 ---
@@ -98,7 +98,10 @@ pm2 restart nextjs-app
 | Порт | Протокол | Назначение |
 |------|----------|------------|
 | 3002 | TCP | Socket.IO signaling |
-| 40000 | UDP/TCP | WebRTC media (все соединения через WebRtcServer) |
+| 13478 | UDP/TCP | WebRTC media (все соединения через WebRtcServer) |
+
+> **TURN/STUN серверы:** Используются те же серверы что и для PeerJS (`nice-sites.online:3478`).
+> Они настроены в `src/lib/video-call/config.ts` и работают для обоих вариантов.
 
 ---
 

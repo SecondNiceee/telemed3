@@ -102,14 +102,14 @@ sudo apt update
 sudo apt install -y build-essential python3 python3-pip ffmpeg
 
 # Открыть ОДИН порт для всех WebRTC соединений (благодаря WebRtcServer)
-sudo ufw allow 40000/udp
-sudo ufw allow 40000/tcp
+sudo ufw allow 13478/udp
+sudo ufw allow 13478/tcp
 
 # Порт 3002 для Socket.IO signaling
 sudo ufw allow 3002/tcp
 ```
 
-> **Важно:** Теперь нужен только ОДИН порт (40000) для неограниченного количества звонков!
+> **Важно:** Теперь нужен только ОДИН порт (13478) для неограниченного количества звонков!
 > Это работает благодаря WebRtcServer, который мультиплексирует все транспорты на один порт.
 
 ### Шаг 2: Установить npm пакеты
@@ -322,11 +322,11 @@ function VideoCallUI() {
 | Порт | Протокол | Назначение |
 |------|----------|------------|
 | **3002** | TCP | MediaSoup Signaling API (Socket.IO) |
-| **40000** | UDP + TCP | WebRTC Media (все транспорты через WebRtcServer) |
+| **13478** | UDP + TCP | WebRTC Media (все транспорты через WebRtcServer) |
 | **3478** | UDP/TCP | TURN Server (уже настроен на nice-sites.online) |
 | **5349** | TCP | TURNS (TLS) (уже настроен на nice-sites.online) |
 
-> **WebRtcServer:** Благодаря WebRtcServer все WebRTC соединения мультиплексируются на ОДИН порт (40000).
+> **WebRtcServer:** Благодаря WebRtcServer все WebRTC соединения мультиплексируются на ОДИН порт (13478).
 > Это значит неограниченное количество одновременных звонков на одном порту!
 > 
 > TURN серверы на `nice-sites.online` уже работают и не требуют изменений.
@@ -353,8 +353,8 @@ sudo apt install -y nodejs
 
 # Открытие портов (single port mode)
 sudo ufw allow 3002/tcp   # Signaling
-sudo ufw allow 40000/udp  # WebRTC media
-sudo ufw allow 40000/tcp  # WebRTC media (TCP fallback)
+sudo ufw allow 13478/udp  # WebRTC media
+sudo ufw allow 13478/tcp  # WebRTC media (TCP fallback)
 ```
 
 ---
