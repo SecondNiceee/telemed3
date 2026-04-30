@@ -19,10 +19,16 @@ pm2 stop peer-server
 ## Шаг 2: Настроить firewall (один раз)
 
 ```bash
-# Открыть порты для MediaSoup
-sudo ufw allow 3002/tcp    # Signaling (Socket.IO)
-sudo ufw allow 40000/udp   # WebRTC media
-sudo ufw allow 40000/tcp   # WebRTC media (TCP fallback)
+# Открыть порт для WebRTC media (обязательно!)
+sudo ufw allow 13478/udp   # WebRTC media
+sudo ufw allow 13478/tcp   # WebRTC media (TCP fallback)
+
+# Порт 3002 (Socket.IO signaling) - открывать НЕ нужно если:
+# - Используете nginx как reverse proxy (рекомендуется)
+# - Nginx проксирует /socket.io/ на localhost:3002
+# 
+# Если напрямую без nginx - тогда раскомментируйте:
+# sudo ufw allow 3002/tcp
 ```
 
 ---
@@ -95,10 +101,17 @@ pm2 restart nextjs-app
 
 ## Порты
 
-| Порт | Протокол | Назначение |
-|------|----------|------------|
-| 3002 | TCP | Socket.IO signaling |
-| 40000 | UDP/TCP | WebRTC media (все соединения через WebRtcServer) |
+| Порт | Протокол | Назначение | Firewall |
+|------|----------|------------|----------|
+| 3002 | TCP | Socket.IO signaling | Не нужно (через nginx) |
+| 13478 | UDP/TCP | WebRTC media (WebRtcServer) | **Обязательно открыть** |
+
+> **Почему 3002 не нужно открывать?**
+> Socket.IO signaling идёт через HTTPS (порт 443), nginx проксирует его на localhost:3002.
+> WebRTC media (UDP/TCP) идёт напрямую - поэтому 13478 нужно открыть.
+
+> **TURN/STUN серверы:** Используются те же серверы что и для PeerJS (`nice-sites.online:3478`).
+> Они настроены в `src/lib/video-call/config.ts` и работают для обоих вариантов.
 
 ---
 
