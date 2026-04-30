@@ -105,12 +105,12 @@ sudo apt install -y build-essential python3 python3-pip ffmpeg
 sudo ufw allow 13478/udp
 sudo ufw allow 13478/tcp
 
-# Порт 3002 для Socket.IO signaling
-sudo ufw allow 3002/tcp
+# Порт 3002 (signaling) открывать НЕ нужно - nginx проксирует его
+# Если без nginx - раскомментируйте: sudo ufw allow 3002/tcp
 ```
 
-> **Важно:** Теперь нужен только ОДИН порт (13478) для неограниченного количества звонков!
-> Это работает благодаря WebRtcServer, который мультиплексирует все транспорты на один порт.
+> **Важно:** Нужен только ОДИН порт (13478) для WebRTC media!
+> Порт 3002 (signaling) идёт через nginx/HTTPS, открывать его в firewall не нужно.
 
 ### Шаг 2: Установить npm пакеты
 
