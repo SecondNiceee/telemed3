@@ -41,26 +41,31 @@ export async function CategoriesSection() {
         </div>
 
         {categories.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {categories.map((category) => (
               <Link key={category.id} href={`/category/${category.slug}`}>
-                <Card className="group h-full py-0 hover:shadow-lg transition-all duration-300 hover:border-primary/50 cursor-pointer hover:scale-[1.01]">
-                  <CardContent className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
-                        <CategoryIcon category={category} className="w-5 h-5" />
+                <Card className="group h-full py-0 border-border/60 bg-card hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 hover:border-primary/40 cursor-pointer hover:-translate-y-1">
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-4">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center shrink-0 group-hover:from-primary/25 group-hover:to-primary/10 transition-all duration-300 shadow-sm">
+                        <CategoryIcon category={category} className="w-7 h-7 text-primary" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                      <div className="flex-1 min-w-0 pt-1">
+                        <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
                           {category.name}
                         </h3>
                         {category.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                          <p className="text-sm text-muted-foreground line-clamp-2 mt-1.5 leading-relaxed">
                             {category.description}
                           </p>
                         )}
                       </div>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
+                    </div>
+                    <div className="flex items-center justify-end mt-4 pt-3 border-t border-border/50">
+                      <span className="text-sm font-medium text-primary/80 group-hover:text-primary transition-colors flex items-center gap-1.5">
+                        Подробнее
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
