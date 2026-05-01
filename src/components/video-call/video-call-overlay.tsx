@@ -1,6 +1,6 @@
 'use client'
 
-import { useVideoCallSafe } from './video-call-provider'
+import { useVideoCallSafe } from './video-call-provider-wrapper'
 import { IncomingCallView } from './views/incoming-call-view'
 import { CallingView } from './views/calling-view'
 import { ConnectingView } from './views/connecting-view'

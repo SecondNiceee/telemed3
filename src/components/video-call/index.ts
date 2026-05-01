@@ -1,15 +1,15 @@
-// Main exports - PeerJS (legacy)
-export { VideoCallProvider, useVideoCall, useVideoCallSafe } from './video-call-provider'
+// PeerJS provider (legacy, direct access)
+export { VideoCallProvider } from './video-call-provider'
 
-// Main exports - MediaSoup (new)
+// MediaSoup provider (new, direct access)
 export { 
   VideoCallProviderMediaSoup, 
   useVideoCallMediaSoup, 
   useVideoCallMediaSoupSafe 
 } from './video-call-provider-mediasoup'
 
-// Provider wrapper with feature flag
-export { VideoCallProviderWrapper } from './video-call-provider-wrapper'
+// Provider wrapper with feature flag - RECOMMENDED for use
+export { VideoCallProviderWrapper, USE_MEDIASOUP, useVideoCall, useVideoCallSafe } from './video-call-provider-wrapper'
 
 export { VideoCallOverlay } from './video-call-overlay'
 
