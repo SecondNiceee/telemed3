@@ -156,7 +156,7 @@ class WorkerManager {
     }
     
     this.workers = []
-    this.webRtcServers = []
+    this.webRtcServers = new Map()
     this.initialized = false
     
     console.log('[MediaSoup] All workers closed')
