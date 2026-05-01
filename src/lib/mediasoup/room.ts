@@ -194,9 +194,9 @@ class RoomManager {
 
     // Use WebRtcServer for single-port mode (preferred)
     if (room.webRtcServer) {
-      const { listenInfos: _, ...optionsWithoutListenInfos } = webRtcTransportOptions
+      const { listenInfos: _, listenIps: __, port: ___, ...optionsWithoutListen } = webRtcTransportOptions
       transport = await room.router.createWebRtcTransport({
-        ...optionsWithoutListenInfos,
+        ...optionsWithoutListen,
         webRtcServer: room.webRtcServer,
       })
       console.log(`[Room] Created ${direction} transport ${transport.id} for peer ${peerId} (single-port mode)`)
