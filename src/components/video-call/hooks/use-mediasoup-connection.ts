@@ -318,10 +318,12 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
     setError(null)
 
     try {
-      // Connect to MediaSoup server via /mediasoup path (nginx proxies to port 3002)
-      console.log('[MediaSoup Client] Connecting to:', serverUrl, 'path: /mediasoup')
+      // Connect to MediaSoup server via basePath + /mediasoup path (nginx proxies to port 3002)
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
+      const socketPath = `${basePath}/mediasoup`
+      console.log('[MediaSoup Client] Connecting to:', serverUrl, 'path:', socketPath)
       const socket = io(serverUrl, {
-        path: '/mediasoup',
+        path: socketPath,
         transports: ['websocket', 'polling'],
       })
 
