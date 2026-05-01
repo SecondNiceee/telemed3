@@ -5,7 +5,12 @@
  * The server handles WebRTC media routing and enables server-side recording.
  */
 
-import type { WorkerSettings, RouterOptions, WebRtcServerOptions, WebRtcTransportOptions } from 'mediasoup/node/lib/types'
+import type { types as mediasoupTypes } from 'mediasoup'
+
+type WorkerSettings = mediasoupTypes.WorkerSettings
+type RouterOptions = mediasoupTypes.RouterOptions
+type WebRtcServerOptions = mediasoupTypes.WebRtcServerOptions
+type WebRtcTransportOptions = mediasoupTypes.WebRtcTransportOptions
 import os from 'os'
 
 // Get the server's public IP - will be set from environment or detected
