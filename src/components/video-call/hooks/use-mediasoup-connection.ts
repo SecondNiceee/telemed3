@@ -52,25 +52,14 @@ export interface UseMediasoupConnectionReturn {
 // Build MediaSoup server URL from env variables
 function getMediasoupServerUrl(): string {
   const baseUrl = process.env.NEXT_PUBLIC_MEDIASOUP_URL
-  const port = process.env.NEXT_PUBLIC_MEDIASOUP_PORT
   
   if (baseUrl) {
-    // If port is specified separately, append it
-    if (port) {
-      try {
-        const url = new URL(baseUrl)
-        url.port = port
-        return url.toString().replace(/\/$/, '') // Remove trailing slash
-      } catch {
-        // If URL parsing fails, just append port
-        return `${baseUrl}:${port}`
-      }
-    }
-    return baseUrl
+    // Remove trailing slash and return
+    return baseUrl.replace(/\/$/, '')
   }
   
   // Default for local development
-  return `http://localhost:${port || '3002'}`
+  return 'http://localhost:3002'
 }
 
 export function useMediasoupConnection(options: UseMediasoupConnectionOptions): UseMediasoupConnectionReturn {
@@ -329,9 +318,10 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
     setError(null)
 
     try {
-      // Connect to MediaSoup server
-      console.log('[MediaSoup Client] Connecting to:', serverUrl)
+      // Connect to MediaSoup server via /mediasoup path (nginx proxies to port 3002)
+      console.log('[MediaSoup Client] Connecting to:', serverUrl, 'path: /mediasoup')
       const socket = io(serverUrl, {
+        path: '/mediasoup',
         transports: ['websocket', 'polling'],
       })
 
