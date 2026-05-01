@@ -20,7 +20,7 @@ import type {
   RtpParameters,
   MediaKind,
   WebRtcServer,
-} from 'mediasoup/node/lib/types'
+} from 'mediasoup/types'
 import { workerManager } from './worker-manager'
 import { routerOptions, webRtcTransportOptions, plainTransportOptions } from './config'
 

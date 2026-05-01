@@ -10,7 +10,7 @@
  */
 
 import * as mediasoup from 'mediasoup'
-import type { Worker, WebRtcServer } from 'mediasoup/node/lib/types'
+import type { Worker, WebRtcServer } from 'mediasoup/types'
 import { workerSettings, numWorkers, webRtcServerOptions, WEBRTC_SERVER_PORT } from './config'
 
 class WorkerManager {

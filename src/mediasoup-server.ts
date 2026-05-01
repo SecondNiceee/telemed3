@@ -14,7 +14,7 @@ import 'dotenv/config'
 import { createServer } from 'http'
 import { Server as SocketIOServer } from 'socket.io'
 import type { Socket } from 'socket.io'
-import type { RtpCapabilities, DtlsParameters, RtpParameters, MediaKind } from 'mediasoup/node/lib/types'
+import type { RtpCapabilities, DtlsParameters, RtpParameters, MediaKind } from 'mediasoup/types'
 import { workerManager } from './lib/mediasoup/worker-manager'
 import { roomManager } from './lib/mediasoup/room'
 import { serverConfig } from './lib/mediasoup/config'
@@ -500,7 +500,7 @@ async function main() {
         }
 
         // Start recording
-        const session = await recorder.startRecording(roomId, room.router, allProducers as Map<string, import('mediasoup/node/lib/types').Producer>)
+        const session = await recorder.startRecording(roomId, room.router, allProducers as Map<string, import('mediasoup/types').Producer>)
 
         callback({
           success: true,
