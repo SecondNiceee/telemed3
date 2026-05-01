@@ -98,16 +98,24 @@ class WorkerManager {
   }
 
   /**
-   * Get the next available worker (round-robin)
+   * Get the next available worker index (round-robin)
    */
-  getNextWorker(): Worker {
+  private getNextWorkerIndex(): number {
     if (this.workers.length === 0) {
       throw new Error('[MediaSoup] No workers available')
     }
 
-    const worker = this.workers[this.nextWorkerIndex]
+    const index = this.nextWorkerIndex
     this.nextWorkerIndex = (this.nextWorkerIndex + 1) % this.workers.length
-    return worker
+    return index
+  }
+
+  /**
+   * Get the next available worker (round-robin)
+   */
+  getNextWorker(): Worker {
+    const index = this.getNextWorkerIndex()
+    return this.workers[index]
   }
 
   /**
@@ -137,7 +145,7 @@ class WorkerManager {
    * This is the main method to use when creating transports
    */
   getNextWebRtcServer(): { server: WebRtcServer; workerIndex: number } | undefined {
-    const workerIndex = this.nextWorkerIndex
+    const workerIndex = this.getNextWorkerIndex()
     const server = this.webRtcServers.get(workerIndex)
     if (server) {
       return { server, workerIndex }
