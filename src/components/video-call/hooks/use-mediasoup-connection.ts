@@ -12,6 +12,7 @@ import type { Device, types as mediasoupTypes } from 'mediasoup-client'
 import { io, Socket } from 'socket.io-client'
 
 type Transport = mediasoupTypes.Transport
+type TransportOptions = mediasoupTypes.TransportOptions
 type Producer = mediasoupTypes.Producer
 type Consumer = mediasoupTypes.Consumer
 type RtpCapabilities = mediasoupTypes.RtpCapabilities
@@ -120,10 +121,10 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
 
         const transport = device.createSendTransport({
           id: transportData.id,
-          iceParameters: transportData.iceParameters as Transport['iceParameters'],
-          iceCandidates: transportData.iceCandidates as Transport['iceCandidates'],
-          dtlsParameters: transportData.dtlsParameters as Transport['dtlsParameters'],
-          sctpParameters: transportData.sctpParameters as Transport['sctpParameters'],
+          iceParameters: transportData.iceParameters as TransportOptions['iceParameters'],
+          iceCandidates: transportData.iceCandidates as TransportOptions['iceCandidates'],
+          dtlsParameters: transportData.dtlsParameters as TransportOptions['dtlsParameters'],
+          sctpParameters: transportData.sctpParameters as TransportOptions['sctpParameters'],
         })
 
         transport.on('connect', ({ dtlsParameters }, callback, errback) => {
@@ -186,10 +187,10 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
 
         const transport = device.createRecvTransport({
           id: transportData.id,
-          iceParameters: transportData.iceParameters as Transport['iceParameters'],
-          iceCandidates: transportData.iceCandidates as Transport['iceCandidates'],
-          dtlsParameters: transportData.dtlsParameters as Transport['dtlsParameters'],
-          sctpParameters: transportData.sctpParameters as Transport['sctpParameters'],
+          iceParameters: transportData.iceParameters as TransportOptions['iceParameters'],
+          iceCandidates: transportData.iceCandidates as TransportOptions['iceCandidates'],
+          dtlsParameters: transportData.dtlsParameters as TransportOptions['dtlsParameters'],
+          sctpParameters: transportData.sctpParameters as TransportOptions['sctpParameters'],
         })
 
         transport.on('connect', ({ dtlsParameters }, callback, errback) => {
@@ -256,7 +257,7 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
             id: response.consumer.id,
             producerId: response.consumer.producerId,
             kind: response.consumer.kind,
-            rtpParameters: response.consumer.rtpParameters as Consumer['rtpParameters'],
+            rtpParameters: response.consumer.rtpParameters as mediasoupTypes.RtpParameters,
           })
 
           consumersRef.current.set(consumer.id, consumer)
