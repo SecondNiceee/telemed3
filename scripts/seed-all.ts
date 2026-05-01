@@ -318,6 +318,27 @@ async function seedAll() {
   await createUsers(payload)
 
   // Summary
+  // Step 6: Trigger cache revalidation
+  console.log('\n📌 ШАГ 6: Ревалидация кэша')
+  console.log('─'.repeat(40))
+  
+  const serverUrl = process.env.SERVER_URL || 'http://localhost:3000'
+  try {
+    const revalidateUrl = `${serverUrl}/api/revalidate?all=true`
+    const response = await fetch(revalidateUrl, { method: 'POST' })
+    
+    if (response.ok) {
+      const data = await response.json()
+      console.log(`✅ Кэш ревалидирован: ${data.tags?.join(', ') || 'all'}`)
+    } else {
+      console.log(`⚠️  Не удалось ревалидировать кэш (сервер не запущен?)`)
+      console.log(`   Запустите сервер и вызовите: curl -X POST "${revalidateUrl}"`)
+    }
+  } catch {
+    console.log(`⚠️  Сервер недоступен для ревалидации`)
+    console.log(`   После запуска сервера выполните: curl -X POST "${serverUrl}/api/revalidate?all=true"`)
+  }
+
   console.log('\n╔════════════════════════════════════════════════════════════╗')
   console.log('║                    ✅ ГОТОВО!                              ║')
   console.log('╚════════════════════════════════════════════════════════════╝')
