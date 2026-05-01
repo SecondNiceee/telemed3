@@ -50,6 +50,21 @@ async function createCategories() {
     }
   }
 
+  // Trigger cache revalidation
+  console.log('\n🔄 Ревалидация кэша...')
+  const serverUrl = process.env.SERVER_URL || 'http://localhost:3000'
+  try {
+    const response = await fetch(`${serverUrl}/api/revalidate?tag=categories`, { method: 'POST' })
+    if (response.ok) {
+      console.log('✅ Кэш категорий ревалидирован')
+    } else {
+      console.log(`⚠️  Кэш не ревалидирован (сервер не запущен?)`)
+      console.log(`   После запуска: curl -X POST "${serverUrl}/api/revalidate?tag=categories"`)
+    }
+  } catch {
+    console.log(`⚠️  Сервер недоступен. Ревалидируйте вручную после запуска сервера.`)
+  }
+
   console.log('\n🎉 Готово!')
   process.exit(0)
 }
