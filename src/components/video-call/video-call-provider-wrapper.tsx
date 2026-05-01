@@ -8,15 +8,15 @@
  */
 
 import type { ReactNode } from 'react'
-import { VideoCallProvider } from './video-call-provider'
-import { VideoCallProviderMediaSoup } from './video-call-provider-mediasoup'
+import { VideoCallProvider, useVideoCall as usePeerJSVideoCall, useVideoCallSafe as usePeerJSVideoCallSafe } from './video-call-provider'
+import { VideoCallProviderMediaSoup, useVideoCallMediaSoup, useVideoCallMediaSoupSafe } from './video-call-provider-mediasoup'
 
 interface VideoCallProviderWrapperProps {
   children: ReactNode
 }
 
 // Feature flag для включения MediaSoup
-const USE_MEDIASOUP = process.env.NEXT_PUBLIC_USE_MEDIASOUP === 'true'
+export const USE_MEDIASOUP = process.env.NEXT_PUBLIC_USE_MEDIASOUP === 'true'
 
 export function VideoCallProviderWrapper({ children }: VideoCallProviderWrapperProps) {
   if (USE_MEDIASOUP) {
@@ -34,5 +34,18 @@ export function VideoCallProviderWrapper({ children }: VideoCallProviderWrapperP
   )
 }
 
-// Export the hook that works with both providers
-export { useVideoCall, useVideoCallSafe } from './video-call-provider'
+// Universal hook that works with both providers
+export function useVideoCall() {
+  if (USE_MEDIASOUP) {
+    return useVideoCallMediaSoup()
+  }
+  return usePeerJSVideoCall()
+}
+
+// Universal safe hook that works with both providers
+export function useVideoCallSafe() {
+  if (USE_MEDIASOUP) {
+    return useVideoCallMediaSoupSafe()
+  }
+  return usePeerJSVideoCallSafe()
+}

@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { AppInit } from '@/components/app-init'
 import { Toaster } from '@/components/ui/sonner'
 import { GlobalSocketProvider } from '@/components/socket-provider'
-import { VideoCallProvider, VideoCallOverlay } from '@/components/video-call'
+import { VideoCallProviderWrapper, VideoCallOverlay } from '@/components/video-call'
 
 import './globals.css'
 
@@ -23,11 +23,11 @@ export default function RootLayout({
       <body className={`font-sans antialiased`} >
         <AppInit />
         <GlobalSocketProvider>
-          <VideoCallProvider>
+          <VideoCallProviderWrapper>
             <Toaster position="top-center" richColors />
             <VideoCallOverlay />
             {children}
-          </VideoCallProvider>
+          </VideoCallProviderWrapper>
         </GlobalSocketProvider>
       </body>
     </html>
