@@ -4,7 +4,11 @@
  * Shared types for mediasoup-client integration.
  */
 
-import type { RtpCapabilities, RtpParameters, DtlsParameters } from 'mediasoup-client/lib/types'
+import type { types as mediasoupTypes } from 'mediasoup-client'
+
+type RtpCapabilities = mediasoupTypes.RtpCapabilities
+type RtpParameters = mediasoupTypes.RtpParameters
+type DtlsParameters = mediasoupTypes.DtlsParameters
 
 /**
  * Socket events sent TO the MediaSoup server
