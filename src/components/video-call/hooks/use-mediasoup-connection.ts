@@ -49,12 +49,25 @@ export interface UseMediasoupConnectionReturn {
   remoteStreams: Map<string, MediaStream>
 }
 
+// Build MediaSoup server URL from env variables
+function getMediasoupServerUrl(): string {
+  const baseUrl = process.env.NEXT_PUBLIC_MEDIASOUP_URL
+  
+  if (baseUrl) {
+    // Remove trailing slash and return
+    return baseUrl.replace(/\/$/, '')
+  }
+  
+  // Default for local development
+  return 'http://localhost:3002'
+}
+
 export function useMediasoupConnection(options: UseMediasoupConnectionOptions): UseMediasoupConnectionReturn {
   const { 
     peerId, 
     peerName, 
     role, 
-    serverUrl = process.env.NEXT_PUBLIC_MEDIASOUP_URL || 'http://localhost:3002',
+    serverUrl = getMediasoupServerUrl(),
     onRemoteStream,
     onPeerJoined,
     onPeerLeft,
@@ -305,8 +318,10 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
     setError(null)
 
     try {
-      // Connect to MediaSoup server
+      // Connect to MediaSoup server via /mediasoup path (nginx proxies to port 3002)
+      console.log('[MediaSoup Client] Connecting to:', serverUrl, 'path: /mediasoup')
       const socket = io(serverUrl, {
+        path: '/mediasoup',
         transports: ['websocket', 'polling'],
       })
 
