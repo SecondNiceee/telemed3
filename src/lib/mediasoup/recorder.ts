@@ -8,13 +8,13 @@
 import { spawn, ChildProcess, execSync } from 'child_process'
 import { createWriteStream, existsSync, mkdirSync } from 'fs'
 import path from 'path'
-import type {
-  Router,
-  Producer,
-  PlainTransport,
-  Consumer,
-  RtpParameters,
-} from 'mediasoup/node/lib/types'
+import type { types as mediasoupTypes } from 'mediasoup'
+
+type Router = mediasoupTypes.Router
+type Producer = mediasoupTypes.Producer
+type PlainTransport = mediasoupTypes.PlainTransport
+type Consumer = mediasoupTypes.Consumer
+type RtpParameters = mediasoupTypes.RtpParameters
 import { recordingConfig, plainTransportOptions } from './config'
 
 /**
