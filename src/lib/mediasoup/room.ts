@@ -68,18 +68,16 @@ class RoomManager {
       return existingRoom
     }
 
-    // Get a worker and create a router
-    const worker = workerManager.getNextWorker()
+    // Get worker WITH its WebRtcServer to ensure they match!
+    // This is critical - Router and WebRtcServer MUST be from the same worker
+    const { worker, webRtcServer, workerIndex } = workerManager.getNextWorkerWithServer()
     const router = await worker.createRouter(routerOptions)
-
-    // Get WebRtcServer for single-port mode
-    const webRtcServerInfo = workerManager.getNextWebRtcServer()
     
     const room: Room = {
       id: appointmentId,
       router,
-      webRtcServer: webRtcServerInfo?.server,
-      workerIndex: webRtcServerInfo?.workerIndex ?? 0,
+      webRtcServer,
+      workerIndex,
       peers: new Map(),
       createdAt: new Date(),
     }
@@ -87,9 +85,9 @@ class RoomManager {
     this.rooms.set(appointmentId, room)
     
     if (room.webRtcServer) {
-      console.log(`[Room] Created room ${appointmentId} (single-port mode via WebRtcServer)`)
+      console.log(`[Room] Created room ${appointmentId} on worker ${workerIndex} (single-port mode via WebRtcServer)`)
     } else {
-      console.log(`[Room] Created room ${appointmentId} (fallback: individual ports)`)
+      console.log(`[Room] Created room ${appointmentId} on worker ${workerIndex} (fallback: individual ports)`)
     }
 
     return room

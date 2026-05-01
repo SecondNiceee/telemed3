@@ -119,6 +119,18 @@ class WorkerManager {
   }
 
   /**
+   * Get the next available worker WITH its WebRtcServer (round-robin)
+   * This ensures Router and WebRtcServer are from the SAME worker
+   */
+  getNextWorkerWithServer(): { worker: Worker; webRtcServer?: WebRtcServer; workerIndex: number } {
+    const workerIndex = this.getNextWorkerIndex()
+    const worker = this.workers[workerIndex]
+    const webRtcServer = this.webRtcServers.get(workerIndex)
+    
+    return { worker, webRtcServer, workerIndex }
+  }
+
+  /**
    * Get worker by index
    */
   getWorker(index: number): Worker | undefined {
