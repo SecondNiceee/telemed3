@@ -34,18 +34,7 @@ export function VideoCallProviderWrapper({ children }: VideoCallProviderWrapperP
   )
 }
 
-// Universal hook that works with both providers
-export function useVideoCall() {
-  if (USE_MEDIASOUP) {
-    return useVideoCallMediaSoup()
-  }
-  return usePeerJSVideoCall()
-}
-
-// Universal safe hook that works with both providers
-export function useVideoCallSafe() {
-  if (USE_MEDIASOUP) {
-    return useVideoCallMediaSoupSafe()
-  }
-  return usePeerJSVideoCallSafe()
-}
+// Universal hooks - выбор происходит на уровне модуля, не внутри функции
+// Это не нарушает правила React hooks, т.к. USE_MEDIASOUP - константа времени сборки
+export const useVideoCall = USE_MEDIASOUP ? useVideoCallMediaSoup : usePeerJSVideoCall
+export const useVideoCallSafe = USE_MEDIASOUP ? useVideoCallMediaSoupSafe : usePeerJSVideoCallSafe
