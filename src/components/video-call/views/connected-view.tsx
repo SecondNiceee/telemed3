@@ -52,32 +52,38 @@ export function ConnectedView({
     console.log('[v0] ConnectedView: Setting up audio element for audio-only call')
     console.log('[v0] ConnectedView: Audio tracks:', remoteStream.getAudioTracks().length)
     
-    // Only set srcObject if it's different
-    if (audioElement.srcObject !== remoteStream) {
+    // Compare by stream id, not reference
+    const currentStreamId = (audioElement.srcObject as MediaStream)?.id
+    if (currentStreamId !== remoteStream.id) {
+      console.log('[v0] ConnectedView: Setting new audio srcObject, old:', currentStreamId, 'new:', remoteStream.id)
       audioElement.srcObject = remoteStream
     }
-    audioElement.muted = false
     audioElement.volume = 1.0
     
     const playAudio = async () => {
       if (isCancelled) return
       
       try {
-        // Skip if already playing
-        if (!audioElement.paused && audioElement.readyState >= 2) {
-          console.log('[v0] ConnectedView: Audio already playing, skipping play()')
-          return
-        }
-        
+        // First try muted (always allowed)
+        audioElement.muted = true
+        console.log('[v0] ConnectedView: Attempting audio play (muted first)')
         await audioElement.play()
-        console.log('[v0] ConnectedView: Audio playing successfully')
+        console.log('[v0] ConnectedView: Audio playing successfully (muted)')
+        
+        // Now unmute
+        try {
+          audioElement.muted = false
+          console.log('[v0] ConnectedView: Audio unmuted successfully')
+        } catch {
+          console.log('[v0] ConnectedView: Could not unmute audio')
+        }
       } catch (err) {
         // Silently ignore AbortError - it's expected when stream updates
         if (err instanceof Error && err.name === 'AbortError') {
           return
         }
         if (err instanceof Error && err.name === 'NotAllowedError') {
-          console.log('[v0] ConnectedView: Audio autoplay blocked')
+          console.log('[v0] ConnectedView: Audio autoplay blocked even muted')
           return
         }
         console.error('[v0] ConnectedView: Failed to play audio:', err)
