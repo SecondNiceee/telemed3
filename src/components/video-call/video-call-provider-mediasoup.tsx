@@ -180,13 +180,12 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
       }
     },
   onPeerJoined: (peerId, peerName, role) => {
-      console.log('[MediaSoup Provider] Peer joined:', peerId, peerName, role)
-      toast.info(`${peerName} присоединился к звонку`)
-      
-      // If we're calling and the other peer joined, change to connecting
-      if (statusRef.current === 'calling') {
-        console.log('[MediaSoup Provider] Peer joined while calling, changing to connecting')
-        setStatus('connecting')
+      console.log('[MediaSoup Provider] Peer joined:', peerId, peerName, role, 'current status:', statusRef.current)
+      // Only show toast and consider it a real join when we're already connected or connecting
+      // Don't change status here - wait for 'call-answered' event from socket
+      // The peer might have joined the MediaSoup room but hasn't answered the call yet
+      if (statusRef.current === 'connected' || statusRef.current === 'connecting') {
+        toast.info(`${peerName} присоединился к звонку`)
       }
     },
     onPeerLeft: (peerId) => {

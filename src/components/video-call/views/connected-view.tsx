@@ -36,31 +36,47 @@ export function ConnectedView({
   const [showControls, setShowControls] = useState(true)
   const audioRef = useRef<HTMLAudioElement>(null)
 
-  // For audio-only calls, we need to play the remote audio stream
-  // For video calls, the audio element serves as a backup
+  // For audio-only calls, we need to play the remote audio stream via audio element
+  // For video calls, the video element handles both audio and video, so we don't need backup audio
   useEffect(() => {
-    if (remoteStream && audioRef.current) {
-      console.log('[v0] ConnectedView: Setting up audio element')
-      console.log('[v0] ConnectedView: isAudioOnly:', isAudioOnly)
-      console.log('[v0] ConnectedView: Audio tracks:', remoteStream.getAudioTracks().length)
-      console.log('[v0] ConnectedView: Video tracks:', remoteStream.getVideoTracks().length)
+    const audioElement = audioRef.current
+    if (!audioElement || !remoteStream) return
+    
+    // Only use audio element for audio-only calls
+    // For video calls, the RemoteVideo component handles playback
+    if (!isAudioOnly) return
+    
+    let isCancelled = false
+    
+    console.log('[v0] ConnectedView: Setting up audio element for audio-only call')
+    console.log('[v0] ConnectedView: Audio tracks:', remoteStream.getAudioTracks().length)
+    
+    audioElement.srcObject = remoteStream
+    audioElement.muted = false
+    audioElement.volume = 1.0
+    
+    const playAudio = async () => {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      if (isCancelled) return
       
-      // Log track details
-      remoteStream.getAudioTracks().forEach((track, i) => {
-        console.log(`[v0] ConnectedView: Audio track ${i}: id=${track.id}, enabled=${track.enabled}, readyState=${track.readyState}`)
-      })
-      
-      audioRef.current.srcObject = remoteStream
-      audioRef.current.muted = false
-      audioRef.current.volume = 1.0
-      audioRef.current.play().catch(err => {
-        console.error('[v0] ConnectedView: Failed to play audio:', err)
-      })
+      try {
+        await audioElement.play()
+        console.log('[v0] ConnectedView: Audio playing successfully')
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          console.log('[v0] ConnectedView: Audio play interrupted, will retry')
+        } else {
+          console.error('[v0] ConnectedView: Failed to play audio:', err)
+        }
+      }
     }
+    
+    playAudio()
+    
     return () => {
-      if (audioRef.current) {
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        audioRef.current.srcObject = null
+      isCancelled = true
+      if (audioElement) {
+        audioElement.srcObject = null
       }
     }
   }, [isAudioOnly, remoteStream])
@@ -84,8 +100,8 @@ export function ConnectedView({
       onMouseLeave={() => setShowControls(false)}
       onClick={() => setShowControls((prev) => !prev)}
     >
-      {/* Hidden audio element for audio playback (both audio-only and video calls need this as backup) */}
-      <audio ref={audioRef} autoPlay playsInline className="hidden" />
+      {/* Hidden audio element for audio-only calls */}
+      {isAudioOnly && <audio ref={audioRef} autoPlay playsInline className="hidden" />}
 
       {/* For audio calls: white background with participant name */}
       {isAudioOnly ? (
