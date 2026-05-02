@@ -14,8 +14,14 @@ type WebRtcTransportOptions = mediasoupTypes.WebRtcTransportOptions
 import os from 'os'
 
 // Get the server's public IP - will be set from environment or detected
+// Can be either an IP address or a domain name
 const ANNOUNCED_IP = process.env.MEDIASOUP_ANNOUNCED_IP || '127.0.0.1'
 const LISTEN_IP = process.env.MEDIASOUP_LISTEN_IP || '0.0.0.0'
+
+// Log the configuration on startup for debugging
+console.log('[MediaSoup Config] ANNOUNCED_IP:', ANNOUNCED_IP)
+console.log('[MediaSoup Config] LISTEN_IP:', LISTEN_IP)
+console.log('[MediaSoup Config] WEBRTC_PORT:', process.env.MEDIASOUP_WEBRTC_PORT || '13478')
 
 /**
  * MediaSoup Worker settings
