@@ -284,18 +284,22 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
           // Get existing stream or create new one
           const existingStream = remoteStreamsRef.current.get(producerPeerId)
           
-          // Create a new MediaStream with all existing tracks + new track
+          // Create a new MediaStream with existing tracks + new track
           // This ensures React sees the change (new object reference)
           const newStream = new MediaStream()
           
-          // Add existing tracks from old stream
+          // Add existing tracks from old stream (avoid duplicates by checking track kind)
           if (existingStream) {
             existingStream.getTracks().forEach((track) => {
-              newStream.addTrack(track)
+              // Only add tracks of different kind than the new one
+              // This prevents duplicates when we receive audio then video
+              if (track.kind !== kind) {
+                newStream.addTrack(track)
+              }
             })
           }
           
-          // Add the new track
+          // Add the new track (this is always the latest for this kind)
           newStream.addTrack(consumer.track)
           
           // Update refs and state

@@ -10,30 +10,52 @@ export function RemoteVideo({ stream, participantName, className }: RemoteVideoP
 
   useEffect(() => {
     const videoElement = videoRef.current
-    if (videoElement && stream) {
-      console.log('[v0] RemoteVideo: Setting stream to video element')
-      console.log('[v0] RemoteVideo: Stream ID:', stream.id)
-      console.log('[v0] RemoteVideo: Audio tracks:', stream.getAudioTracks().length)
-      console.log('[v0] RemoteVideo: Video tracks:', stream.getVideoTracks().length)
+    if (!videoElement || !stream) return
+    
+    let isCancelled = false
+    
+    console.log('[v0] RemoteVideo: Setting stream to video element')
+    console.log('[v0] RemoteVideo: Stream ID:', stream.id)
+    console.log('[v0] RemoteVideo: Audio tracks:', stream.getAudioTracks().length)
+    console.log('[v0] RemoteVideo: Video tracks:', stream.getVideoTracks().length)
+    
+    // Log track details
+    stream.getAudioTracks().forEach((track, i) => {
+      console.log(`[v0] RemoteVideo: Audio track ${i}: id=${track.id}, enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`)
+    })
+    stream.getVideoTracks().forEach((track, i) => {
+      console.log(`[v0] RemoteVideo: Video track ${i}: id=${track.id}, enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`)
+    })
+    
+    videoElement.srcObject = stream
+    // Ensure audio playback
+    videoElement.muted = false
+    videoElement.volume = 1.0
+    
+    // Use a small delay to avoid AbortError when stream updates rapidly
+    const playVideo = async () => {
+      // Wait a tick to allow previous play requests to settle
+      await new Promise(resolve => setTimeout(resolve, 50))
       
-      // Log track details
-      stream.getAudioTracks().forEach((track, i) => {
-        console.log(`[v0] RemoteVideo: Audio track ${i}: id=${track.id}, enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`)
-      })
-      stream.getVideoTracks().forEach((track, i) => {
-        console.log(`[v0] RemoteVideo: Video track ${i}: id=${track.id}, enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`)
-      })
+      if (isCancelled) return
       
-      videoElement.srcObject = stream
-      // Ensure audio playback
-      videoElement.muted = false
-      videoElement.volume = 1.0
-      videoElement.play().catch(err => {
-        console.error('[v0] RemoteVideo: Failed to play:', err)
-      })
+      try {
+        await videoElement.play()
+        console.log('[v0] RemoteVideo: Playing successfully')
+      } catch (err) {
+        // AbortError is expected when stream updates quickly - ignore it
+        if (err instanceof Error && err.name === 'AbortError') {
+          console.log('[v0] RemoteVideo: Play interrupted, will retry on next stream update')
+        } else {
+          console.error('[v0] RemoteVideo: Failed to play:', err)
+        }
+      }
     }
+    
+    playVideo()
 
     return () => {
+      isCancelled = true
       if (videoElement) {
         videoElement.srcObject = null
       }
