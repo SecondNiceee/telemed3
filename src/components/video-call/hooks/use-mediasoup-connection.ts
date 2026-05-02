@@ -172,8 +172,17 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
             }
           })
         })
+        
+        // ICE connection state monitoring
+        transport.on('connectionstatechange', (state) => {
+          console.log('[MediaSoup Client] Send transport connection state:', state)
+          if (state === 'failed') {
+            console.error('[MediaSoup Client] Send transport ICE connection FAILED - check TURN server and firewall')
+          }
+        })
 
         console.log('[MediaSoup Client] Send transport created:', transport.id)
+        console.log('[MediaSoup Client] ICE candidates received:', JSON.stringify(transportData.iceCandidates))
         resolve(transport)
       })
     })
@@ -222,8 +231,17 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
             }
           })
         })
+        
+        // ICE connection state monitoring
+        transport.on('connectionstatechange', (state) => {
+          console.log('[MediaSoup Client] Recv transport connection state:', state)
+          if (state === 'failed') {
+            console.error('[MediaSoup Client] Recv transport ICE connection FAILED - check TURN server and firewall')
+          }
+        })
 
         console.log('[MediaSoup Client] Recv transport created:', transport.id)
+        console.log('[MediaSoup Client] Recv ICE candidates:', JSON.stringify(transportData.iceCandidates))
         resolve(transport)
       })
     })
