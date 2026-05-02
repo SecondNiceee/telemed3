@@ -37,10 +37,19 @@ export function ConnectedView({
   const audioRef = useRef<HTMLAudioElement>(null)
 
   // For audio-only calls, we need to play the remote audio stream
+  // For video calls, the audio element serves as a backup
   useEffect(() => {
-    if (isAudioOnly && remoteStream && audioRef.current) {
-      console.log('[v0] ConnectedView: Setting up audio-only playback')
+    if (remoteStream && audioRef.current) {
+      console.log('[v0] ConnectedView: Setting up audio element')
+      console.log('[v0] ConnectedView: isAudioOnly:', isAudioOnly)
       console.log('[v0] ConnectedView: Audio tracks:', remoteStream.getAudioTracks().length)
+      console.log('[v0] ConnectedView: Video tracks:', remoteStream.getVideoTracks().length)
+      
+      // Log track details
+      remoteStream.getAudioTracks().forEach((track, i) => {
+        console.log(`[v0] ConnectedView: Audio track ${i}: id=${track.id}, enabled=${track.enabled}, readyState=${track.readyState}`)
+      })
+      
       audioRef.current.srcObject = remoteStream
       audioRef.current.muted = false
       audioRef.current.volume = 1.0
@@ -50,6 +59,7 @@ export function ConnectedView({
     }
     return () => {
       if (audioRef.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         audioRef.current.srcObject = null
       }
     }

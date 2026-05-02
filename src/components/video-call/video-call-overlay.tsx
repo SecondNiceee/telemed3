@@ -59,6 +59,9 @@ export function VideoCallOverlay() {
     isAudioOnly,
   } = videoCall
   
+  // Get isServerRecording if available (MediaSoup provider only)
+  const isServerRecording = 'isServerRecording' in videoCall ? (videoCall as { isServerRecording?: boolean }).isServerRecording : false
+  
   // Get the other participant
   const participant: CallParticipant | null = callData
     ? (currentUser?.peerId === callData.caller.peerId ? callData.callee : callData.caller)
@@ -126,6 +129,7 @@ export function VideoCallOverlay() {
             onEndCall={endCall}
             onToggleMinimize={toggleMinimize}
             isAudioOnly={isAudioOnly}
+            isServerRecording={isServerRecording}
           />
         )}
         

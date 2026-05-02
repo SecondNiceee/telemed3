@@ -281,21 +281,32 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
             consumerId: consumer.id,
           }, () => {})
 
-          // Get or create MediaStream for this peer
-          let stream = remoteStreamsRef.current.get(producerPeerId)
-          if (!stream) {
-            stream = new MediaStream()
-            remoteStreamsRef.current.set(producerPeerId, stream)
-            remoteStreams.set(producerPeerId, stream)
+          // Get existing stream or create new one
+          const existingStream = remoteStreamsRef.current.get(producerPeerId)
+          
+          // Create a new MediaStream with all existing tracks + new track
+          // This ensures React sees the change (new object reference)
+          const newStream = new MediaStream()
+          
+          // Add existing tracks from old stream
+          if (existingStream) {
+            existingStream.getTracks().forEach((track) => {
+              newStream.addTrack(track)
+            })
           }
-
-          // Add track to stream
-          stream.addTrack(consumer.track)
+          
+          // Add the new track
+          newStream.addTrack(consumer.track)
+          
+          // Update refs and state
+          remoteStreamsRef.current.set(producerPeerId, newStream)
+          remoteStreams.set(producerPeerId, newStream)
 
           console.log(`[MediaSoup Client] Consuming ${kind} from peer ${producerPeerId}`)
+          console.log(`[MediaSoup Client] Stream now has audio: ${newStream.getAudioTracks().length}, video: ${newStream.getVideoTracks().length}`)
 
-          // Notify about remote stream
-          onRemoteStream?.(stream, producerPeerId)
+          // Notify about remote stream (new object reference triggers React update)
+          onRemoteStream?.(newStream, producerPeerId)
 
           resolve()
         } catch (err) {
