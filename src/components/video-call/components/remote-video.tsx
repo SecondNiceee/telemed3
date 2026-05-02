@@ -13,6 +13,7 @@ export function RemoteVideo({ stream, participantName, className }: RemoteVideoP
     if (!videoElement || !stream) return
     
     let isCancelled = false
+    let playAttemptTimeout: NodeJS.Timeout | null = null
     
     console.log('[v0] RemoteVideo: Setting stream to video element')
     console.log('[v0] RemoteVideo: Stream ID:', stream.id)
@@ -27,38 +28,51 @@ export function RemoteVideo({ stream, participantName, className }: RemoteVideoP
       console.log(`[v0] RemoteVideo: Video track ${i}: id=${track.id}, enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`)
     })
     
-    videoElement.srcObject = stream
+    // Only set srcObject if it's different to avoid unnecessary reloads
+    if (videoElement.srcObject !== stream) {
+      videoElement.srcObject = stream
+    }
     // Ensure audio playback
     videoElement.muted = false
     videoElement.volume = 1.0
     
-    // Use a small delay to avoid AbortError when stream updates rapidly
+    // Use a small delay and proper cleanup to avoid AbortError when stream updates rapidly
     const playVideo = async () => {
-      // Wait a tick to allow previous play requests to settle
-      await new Promise(resolve => setTimeout(resolve, 50))
-      
       if (isCancelled) return
       
       try {
+        // If video is already playing, don't call play() again
+        if (!videoElement.paused && videoElement.readyState >= 2) {
+          console.log('[v0] RemoteVideo: Already playing, skipping play()')
+          return
+        }
+        
         await videoElement.play()
         console.log('[v0] RemoteVideo: Playing successfully')
       } catch (err) {
-        // AbortError is expected when stream updates quickly - ignore it
+        // AbortError is expected when stream updates quickly - silently ignore
         if (err instanceof Error && err.name === 'AbortError') {
-          console.log('[v0] RemoteVideo: Play interrupted, will retry on next stream update')
-        } else {
-          console.error('[v0] RemoteVideo: Failed to play:', err)
+          // Don't log AbortError to reduce noise - it's expected behavior
+          return
         }
+        // NotAllowedError might need user interaction
+        if (err instanceof Error && err.name === 'NotAllowedError') {
+          console.log('[v0] RemoteVideo: Autoplay blocked, waiting for user interaction')
+          return
+        }
+        console.error('[v0] RemoteVideo: Failed to play:', err)
       }
     }
     
-    playVideo()
+    // Wait a bit before playing to allow the stream to stabilize
+    playAttemptTimeout = setTimeout(playVideo, 100)
 
     return () => {
       isCancelled = true
-      if (videoElement) {
-        videoElement.srcObject = null
+      if (playAttemptTimeout) {
+        clearTimeout(playAttemptTimeout)
       }
+      // Don't null out srcObject immediately - let the new effect set it
     }
   }, [stream])
 
