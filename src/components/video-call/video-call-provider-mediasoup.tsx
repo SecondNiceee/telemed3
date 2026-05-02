@@ -179,9 +179,15 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
         timer.start()
       }
     },
-    onPeerJoined: (peerId, peerName, role) => {
+  onPeerJoined: (peerId, peerName, role) => {
       console.log('[MediaSoup Provider] Peer joined:', peerId, peerName, role)
       toast.info(`${peerName} присоединился к звонку`)
+      
+      // If we're calling and the other peer joined, change to connecting
+      if (statusRef.current === 'calling') {
+        console.log('[MediaSoup Provider] Peer joined while calling, changing to connecting')
+        setStatus('connecting')
+      }
     },
     onPeerLeft: (peerId) => {
       console.log('[MediaSoup Provider] Peer left:', peerId)
@@ -309,7 +315,9 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
     socket.initiateCall(appointmentId, peerId, currentUser.odooPartnerName)
     callStore.startCall(appointmentId, callee.peerId)
     
-    setStatus('connecting')
+    // Stay in 'calling' status until the remote peer answers
+    // Status will change to 'connecting' when we receive 'call-answered' event
+    // and then to 'connected' when remote stream is received
     
     // Set call timeout
     callTimeoutRef.current = setTimeout(() => {
@@ -384,10 +392,11 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
     await mediasoup.startProducing(stream)
     
     // Signal call via socket
-    socket.initiateCall(appointmentId, peerId, currentUser.odooPartnerName)
+    socket.initiateCall(appointmentId, peerId, currentUser.odooPartnerName, true) // true for audio only
     callStore.startCall(appointmentId, callee.peerId)
     
-    setStatus('connecting')
+    // Stay in 'calling' status until the remote peer answers
+    // Status will change to 'connecting' when we receive 'call-answered' event
     
     // Set call timeout
     callTimeoutRef.current = setTimeout(() => {
@@ -412,10 +421,12 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
   const answerCall = useCallback(async () => {
     if (!callData || !peerId || !currentUser) return
     
+    console.log('[MediaSoup Provider] Answering call, isAudioOnly:', isAudioOnly)
     setStatus('connecting')
     
     // Get media stream
     const useVideo = !isAudioOnly
+    console.log('[MediaSoup Provider] Requesting media stream, useVideo:', useVideo)
     const stream = await mediaStream.getStream(useVideo, true)
     if (!stream) {
       toast.error(useVideo ? 'Нет доступа к камере/микрофону' : 'Нет доступа к микрофону')
@@ -435,7 +446,8 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
       return
     }
     
-    // Start producing media
+  // Start producing media
+    console.log('[MediaSoup Provider] Got stream, video tracks:', stream.getVideoTracks().length, 'audio tracks:', stream.getAudioTracks().length)
     await mediasoup.startProducing(stream)
     
     // Signal answer via socket
@@ -513,7 +525,7 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
   // Handle incoming call from socket
   useEffect(() => {
     const handleIncomingCall = () => {
-      const { status: storeStatus, callerName, appointmentId, remotePeerId } = callStore
+      const { status: storeStatus, callerName, appointmentId, remotePeerId, isIncomingAudioOnly } = callStore
       
       if (storeStatus === 'incoming' && callerName && appointmentId && status === 'idle') {
         const caller: CallParticipant = {
@@ -524,6 +536,7 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
           role: currentUser?.role === 'doctor' ? 'patient' : 'doctor',
         }
         
+        setIsAudioOnly(isIncomingAudioOnly)
         setStatus('incoming')
         setCallData({
           appointmentId,
@@ -536,6 +549,23 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
     
     handleIncomingCall()
   }, [callStore, currentUser, status])
+  
+  // Handle call answered - change status from 'calling' to 'connecting'
+  useEffect(() => {
+    const { remoteAnswered } = callStore
+    
+    if (remoteAnswered && status === 'calling') {
+      console.log('[MediaSoup Provider] Remote answered, changing status to connecting')
+      setStatus('connecting')
+    }
+  }, [callStore, status])
+  
+  // Clear call timeout when status changes to connecting or connected
+  useEffect(() => {
+    if (status === 'connecting' || status === 'connected') {
+      clearCallTimeout()
+    }
+  }, [status, clearCallTimeout])
   
   // Handle call ended from remote side
   useEffect(() => {

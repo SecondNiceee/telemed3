@@ -12,8 +12,18 @@ export function RemoteVideo({ stream, participantName, className }: RemoteVideoP
     const videoElement = videoRef.current
     if (videoElement && stream) {
       console.log('[v0] RemoteVideo: Setting stream to video element')
+      console.log('[v0] RemoteVideo: Stream ID:', stream.id)
       console.log('[v0] RemoteVideo: Audio tracks:', stream.getAudioTracks().length)
       console.log('[v0] RemoteVideo: Video tracks:', stream.getVideoTracks().length)
+      
+      // Log track details
+      stream.getAudioTracks().forEach((track, i) => {
+        console.log(`[v0] RemoteVideo: Audio track ${i}: id=${track.id}, enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`)
+      })
+      stream.getVideoTracks().forEach((track, i) => {
+        console.log(`[v0] RemoteVideo: Video track ${i}: id=${track.id}, enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`)
+      })
+      
       videoElement.srcObject = stream
       // Ensure audio playback
       videoElement.muted = false
