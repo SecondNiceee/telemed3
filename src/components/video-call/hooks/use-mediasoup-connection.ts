@@ -91,6 +91,9 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
   const consumersRef = useRef<Map<string, Consumer>>(new Map())
   const remoteStreamsRef = useRef<Map<string, MediaStream>>(new Map())
   const roomIdRef = useRef<string | null>(null)
+  
+  // Debounce timers for remote stream updates (prevents rapid play() calls)
+  const streamUpdateTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
 
   const [localProducers] = useState(() => new Map<string, Producer>())
   const [remoteStreams] = useState(() => new Map<string, MediaStream>())
@@ -309,8 +312,24 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
           console.log(`[MediaSoup Client] Consuming ${kind} from peer ${producerPeerId}`)
           console.log(`[MediaSoup Client] Stream now has audio: ${newStream.getAudioTracks().length}, video: ${newStream.getVideoTracks().length}`)
 
-          // Notify about remote stream (new object reference triggers React update)
-          onRemoteStream?.(newStream, producerPeerId)
+          // Debounce the onRemoteStream callback to prevent rapid play() calls
+          // When audio and video arrive in quick succession, we wait for both
+          // before notifying React, avoiding AbortError on play()
+          const existingTimer = streamUpdateTimersRef.current.get(producerPeerId)
+          if (existingTimer) {
+            clearTimeout(existingTimer)
+          }
+          
+          const timer = setTimeout(() => {
+            streamUpdateTimersRef.current.delete(producerPeerId)
+            const latestStream = remoteStreamsRef.current.get(producerPeerId)
+            if (latestStream) {
+              console.log(`[MediaSoup Client] Notifying remote stream (debounced): audio=${latestStream.getAudioTracks().length}, video=${latestStream.getVideoTracks().length}`)
+              onRemoteStream?.(latestStream, producerPeerId)
+            }
+          }, 150) // Wait 150ms for additional tracks before notifying
+          
+          streamUpdateTimersRef.current.set(producerPeerId, timer)
 
           resolve()
         } catch (err) {
@@ -633,6 +652,12 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
     }
     remoteStreamsRef.current.clear()
     remoteStreams.clear()
+    
+    // Clear stream update debounce timers
+    for (const timer of streamUpdateTimersRef.current.values()) {
+      clearTimeout(timer)
+    }
+    streamUpdateTimersRef.current.clear()
 
     roomIdRef.current = null
     setIsConnected(false)

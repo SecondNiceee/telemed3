@@ -47,36 +47,50 @@ export function ConnectedView({
     if (!isAudioOnly) return
     
     let isCancelled = false
+    let playAttemptTimeout: NodeJS.Timeout | null = null
     
     console.log('[v0] ConnectedView: Setting up audio element for audio-only call')
     console.log('[v0] ConnectedView: Audio tracks:', remoteStream.getAudioTracks().length)
     
-    audioElement.srcObject = remoteStream
+    // Only set srcObject if it's different
+    if (audioElement.srcObject !== remoteStream) {
+      audioElement.srcObject = remoteStream
+    }
     audioElement.muted = false
     audioElement.volume = 1.0
     
     const playAudio = async () => {
-      await new Promise(resolve => setTimeout(resolve, 50))
       if (isCancelled) return
       
       try {
+        // Skip if already playing
+        if (!audioElement.paused && audioElement.readyState >= 2) {
+          console.log('[v0] ConnectedView: Audio already playing, skipping play()')
+          return
+        }
+        
         await audioElement.play()
         console.log('[v0] ConnectedView: Audio playing successfully')
       } catch (err) {
+        // Silently ignore AbortError - it's expected when stream updates
         if (err instanceof Error && err.name === 'AbortError') {
-          console.log('[v0] ConnectedView: Audio play interrupted, will retry')
-        } else {
-          console.error('[v0] ConnectedView: Failed to play audio:', err)
+          return
         }
+        if (err instanceof Error && err.name === 'NotAllowedError') {
+          console.log('[v0] ConnectedView: Audio autoplay blocked')
+          return
+        }
+        console.error('[v0] ConnectedView: Failed to play audio:', err)
       }
     }
     
-    playAudio()
+    // Wait a bit before playing to allow the stream to stabilize
+    playAttemptTimeout = setTimeout(playAudio, 100)
     
     return () => {
       isCancelled = true
-      if (audioElement) {
-        audioElement.srcObject = null
+      if (playAttemptTimeout) {
+        clearTimeout(playAttemptTimeout)
       }
     }
   }, [isAudioOnly, remoteStream])
