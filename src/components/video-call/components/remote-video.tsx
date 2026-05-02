@@ -14,19 +14,6 @@ export function RemoteVideo({ stream, participantName, className }: RemoteVideoP
     
     let isCancelled = false
     
-    console.log('[v0] RemoteVideo: Setting stream to video element')
-    console.log('[v0] RemoteVideo: Stream ID:', stream.id)
-    console.log('[v0] RemoteVideo: Audio tracks:', stream.getAudioTracks().length)
-    console.log('[v0] RemoteVideo: Video tracks:', stream.getVideoTracks().length)
-    
-    // Log track details
-    stream.getAudioTracks().forEach((track, i) => {
-      console.log(`[v0] RemoteVideo: Audio track ${i}: id=${track.id}, enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`)
-    })
-    stream.getVideoTracks().forEach((track, i) => {
-      console.log(`[v0] RemoteVideo: Video track ${i}: id=${track.id}, enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`)
-    })
-    
     videoElement.srcObject = stream
     // Ensure audio playback
     videoElement.muted = false
@@ -41,13 +28,11 @@ export function RemoteVideo({ stream, participantName, className }: RemoteVideoP
       
       try {
         await videoElement.play()
-        console.log('[v0] RemoteVideo: Playing successfully')
       } catch (err) {
         // AbortError is expected when stream updates quickly - ignore it
-        if (err instanceof Error && err.name === 'AbortError') {
-          console.log('[v0] RemoteVideo: Play interrupted, will retry on next stream update')
-        } else {
-          console.error('[v0] RemoteVideo: Failed to play:', err)
+        // Other errors are also not critical as autoPlay should handle playback
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.warn('[RemoteVideo] Play warning:', err.message)
         }
       }
     }

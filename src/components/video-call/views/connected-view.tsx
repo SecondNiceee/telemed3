@@ -48,9 +48,6 @@ export function ConnectedView({
     
     let isCancelled = false
     
-    console.log('[v0] ConnectedView: Setting up audio element for audio-only call')
-    console.log('[v0] ConnectedView: Audio tracks:', remoteStream.getAudioTracks().length)
-    
     audioElement.srcObject = remoteStream
     audioElement.muted = false
     audioElement.volume = 1.0
@@ -61,12 +58,10 @@ export function ConnectedView({
       
       try {
         await audioElement.play()
-        console.log('[v0] ConnectedView: Audio playing successfully')
       } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          console.log('[v0] ConnectedView: Audio play interrupted, will retry')
-        } else {
-          console.error('[v0] ConnectedView: Failed to play audio:', err)
+        // AbortError is expected, other errors are also not critical
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.warn('[ConnectedView] Audio play warning:', err.message)
         }
       }
     }
