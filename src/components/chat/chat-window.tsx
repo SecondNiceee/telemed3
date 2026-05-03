@@ -53,7 +53,17 @@ export function ChatWindow({
   const { messages, loadMessages, loadingMessages, typingUsers, setActiveChat, appointmentStatuses, chatBlocked, connectionTypes } = useChatStore()
   const { feedbackExistsByAppointment, checkFeedbackExists, setFeedbackExists } = useFeedbackStore()
   const videoCall = useVideoCall()
-  const { isDragging, handleDragOver, handleDragLeave, handleDrop, clearAttachment } = useFileUpload(appointment.id)
+  const { 
+    isDragging, 
+    handleDragOver, 
+    handleDragLeave, 
+    handleDrop, 
+    clearAttachment,
+    uploadedAttachment: dragDropAttachment,
+    selectedFile: dragDropSelectedFile,
+    isUploading: dragDropIsUploading,
+    handleRemoveAttachment: handleRemoveDragDropAttachment,
+  } = useFileUpload(appointment.id)
 
   // Derived state
   const appointmentMessages = messages[appointment.id] || []
@@ -177,7 +187,7 @@ export function ChatWindow({
       toast.success('Пациент может писать сообщения')
     } else {
       blockChat(appointment.id)
-      toast.success('Пациент больше не может писать сообщения')
+      toast.success('Пациент боль��е не может писать сообщения')
     }
   }
 
@@ -487,6 +497,10 @@ export function ChatWindow({
   onSendMessage={handleSendMessage}
   onStartTyping={handleStartTyping}
   onStopTyping={handleStopTyping}
+  externalAttachment={dragDropAttachment}
+  externalSelectedFile={dragDropSelectedFile}
+  externalIsUploading={dragDropIsUploading}
+  onRemoveExternalAttachment={handleRemoveDragDropAttachment}
   />
   
   {/* Feedback Dialog for patient */}

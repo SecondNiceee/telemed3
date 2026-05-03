@@ -65,6 +65,11 @@ export interface ChatInputProps {
   onSendMessage: (text: string, attachmentId?: number) => void
   onStartTyping: () => void
   onStopTyping: () => void
+  // External attachment from drag-drop
+  externalAttachment?: ApiMessageAttachment | null
+  externalSelectedFile?: File | null
+  externalIsUploading?: boolean
+  onRemoveExternalAttachment?: () => void
 }
 
 export interface VideoSaveSidebarProps {

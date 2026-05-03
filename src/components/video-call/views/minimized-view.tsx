@@ -31,24 +31,45 @@ export function MinimizedView({
   isAudioOnly,
 }: ExtendedMinimizedViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<Position>({ x: 16, y: 16 }) // bottom-right with 16px padding
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState<Position>({ x: 0, y: 0 })
 
+  // Set up video element for video calls
   useEffect(() => {
     const videoElement = videoRef.current
-    // Show remote stream if available, otherwise local
-    const streamToShow = remoteStream || localStream
-    if (videoElement && streamToShow) {
-      videoElement.srcObject = streamToShow
+    // Show remote stream if available, otherwise local (only for video calls)
+    if (!isAudioOnly) {
+      const streamToShow = remoteStream || localStream
+      if (videoElement && streamToShow) {
+        videoElement.srcObject = streamToShow
+      }
     }
     return () => {
       if (videoElement) {
         videoElement.srcObject = null
       }
     }
-  }, [remoteStream, localStream])
+  }, [remoteStream, localStream, isAudioOnly])
+
+  // Set up audio element for audio-only calls (critical for minimized view)
+  useEffect(() => {
+    const audioElement = audioRef.current
+    if (isAudioOnly && audioElement && remoteStream) {
+      audioElement.srcObject = remoteStream
+      // Ensure audio plays
+      audioElement.play().catch((err) => {
+        console.warn('[MinimizedView] Failed to play audio:', err)
+      })
+    }
+    return () => {
+      if (audioElement) {
+        audioElement.srcObject = null
+      }
+    }
+  }, [remoteStream, isAudioOnly])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Only start drag if clicking on the drag handle area
@@ -175,6 +196,16 @@ export function MinimizedView({
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
     >
+      {/* Hidden audio element for audio-only calls - critical for sound in minimized mode */}
+      {isAudioOnly && remoteStream && (
+        <audio
+          ref={audioRef}
+          autoPlay
+          playsInline
+          className="hidden"
+        />
+      )}
+      
       {/* Video or Audio-only display */}
       {isAudioOnly ? (
         <div className="flex h-full w-full flex-col items-center justify-center bg-white">
