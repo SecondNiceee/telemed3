@@ -3,7 +3,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
-import { sendAppointmentEmail } from '@/utils/sendAppointmentEmail'
+import { sendAppointmentEmail, sendPatientAppointmentEmail } from '@/utils/sendAppointmentEmail'
 
 // Safe wrapper for revalidateTag that works in build time
 const revalidateDoctorsCache = async () => {
@@ -156,6 +156,36 @@ export const Appointments: CollectionConfig = {
                 } catch (emailErr) {
                   console.error('Failed to send appointment email to doctor:', emailErr)
                 }
+              }
+
+              // Send notification email to patient
+              const userRaw: unknown = doc.user
+              const userId: number =
+                typeof userRaw === 'object' && userRaw !== null
+                  ? (userRaw as { id: number }).id
+                  : Number(userRaw)
+              
+              try {
+                const user = await payload.findByID({
+                  collection: 'users',
+                  id: userId,
+                  overrideAccess: true,
+                })
+                
+                if (user?.email) {
+                  await sendPatientAppointmentEmail({
+                    payload,
+                    patientEmail: user.email,
+                    patientName: (doc.userName as string) || user.name || 'Пациент',
+                    doctorName: (doc.doctorName as string) || doctor?.name || 'Врач',
+                    specialty: (doc.specialty as string) || '',
+                    date: appointmentDate,
+                    time: appointmentTime,
+                    price: (doc.price as number) || 0,
+                  })
+                }
+              } catch (emailErr) {
+                console.error('Failed to send appointment email to patient:', emailErr)
               }
             } catch (err) {
               console.error('Failed to update doctor schedule after booking:', err)

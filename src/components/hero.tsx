@@ -95,7 +95,7 @@ export function Hero({ title, subtitle }: HeroProps) {
           {/* CTA */}
           <div className="flex flex-col sm:flex-row gap-3 animate-fade-up" style={{ animationDelay: "0.2s" }}>
             <Link
-              href="/#categories"
+              href="/appointment"
               className="inline-flex items-center justify-center gap-2 text-[15px] font-semibold text-primary-foreground bg-primary px-8 py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:brightness-110 hover:shadow-primary/35 transition-all duration-200"
             >
               Записаться на приём

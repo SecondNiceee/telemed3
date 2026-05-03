@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Send, Paperclip, X, FileIcon, Loader2, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useFileUpload } from '../hooks/use-file-upload'
@@ -17,21 +17,54 @@ export function ChatInput({
   onSendMessage,
   onStartTyping,
   onStopTyping,
+  externalAttachment,
+  externalSelectedFile,
+  externalIsUploading,
+  onRemoveExternalAttachment,
 }: ChatInputProps) {
   const [inputValue, setInputValue] = useState('')
   
   const {
-    selectedFile,
-    uploadedAttachment,
-    isUploading,
+    selectedFile: internalSelectedFile,
+    uploadedAttachment: internalUploadedAttachment,
+    isUploading: internalIsUploading,
     fileInputRef,
     handleFileSelect,
-    handleRemoveAttachment,
+    handleRemoveAttachment: handleRemoveInternalAttachment,
     handlePaste,
     resetAfterSend,
   } = useFileUpload(appointmentId)
   
   const { handleTyping, resetTyping } = useTyping(appointmentId, onStartTyping, onStopTyping)
+
+  // Combine internal and external attachment - external (drag-drop) takes priority
+  const { selectedFile, uploadedAttachment, isUploading, handleRemoveAttachment } = useMemo(() => {
+    // If there's an external attachment from drag-drop, use it
+    if (externalAttachment || externalSelectedFile) {
+      return {
+        selectedFile: externalSelectedFile ?? null,
+        uploadedAttachment: externalAttachment ?? null,
+        isUploading: externalIsUploading ?? false,
+        handleRemoveAttachment: onRemoveExternalAttachment ?? (() => {}),
+      }
+    }
+    // Otherwise use internal attachment from button click
+    return {
+      selectedFile: internalSelectedFile,
+      uploadedAttachment: internalUploadedAttachment,
+      isUploading: internalIsUploading,
+      handleRemoveAttachment: handleRemoveInternalAttachment,
+    }
+  }, [
+    externalAttachment, 
+    externalSelectedFile, 
+    externalIsUploading, 
+    onRemoveExternalAttachment, 
+    internalSelectedFile, 
+    internalUploadedAttachment, 
+    internalIsUploading, 
+    handleRemoveInternalAttachment
+  ])
 
   const handleSend = useCallback(() => {
     const text = inputValue.trim()
@@ -43,8 +76,12 @@ export function ChatInput({
     onSendMessage(text, uploadedAttachment?.id)
     setInputValue('')
     resetAfterSend()
+    // Also clear external attachment if any
+    if (externalAttachment && onRemoveExternalAttachment) {
+      onRemoveExternalAttachment()
+    }
     resetTyping()
-  }, [inputValue, uploadedAttachment, isUploading, onSendMessage, resetAfterSend, resetTyping])
+  }, [inputValue, uploadedAttachment, isUploading, onSendMessage, resetAfterSend, resetTyping, externalAttachment, onRemoveExternalAttachment])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
