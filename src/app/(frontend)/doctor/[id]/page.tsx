@@ -87,8 +87,8 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
         <DoctorPageClient
           doctor={{
             id: doctor.id,
-            name: doctor.name,
-            email: doctor.email,
+            name: doctor.name ?? null,
+            email: doctor.email ?? null,
             price: doctor.price ?? null,
             experience: doctor.experience ?? null,
             degree: doctor.degree ?? null,
