@@ -11,6 +11,7 @@ import { User } from "@/payload-types"
 import { UserHeroBanner } from "@/components/user-hero-banner"
 import { UserAppointmentCard } from "@/components/user-appointment-card"
 import { FeedbackPrompt } from "@/components/feedback-prompt"
+import { ConsultationGuide } from "@/components/consultation-guide"
 import { cn } from "@/lib/utils"
 
 interface LkContentProps {
@@ -79,6 +80,13 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
 
       {/* Appointments list */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Consultation guide for upcoming/active appointments */}
+        {(activeAppointments.length > 0 || upcomingAppointments.length > 0) && (
+          <ConsultationGuide 
+            appointment={activeAppointments[0] || upcomingAppointments[0]} 
+          />
+        )}
+
         {/* Feedback prompt for completed consultations */}
         <FeedbackPrompt appointments={appointments} userId={user.id} />
 
