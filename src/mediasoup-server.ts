@@ -462,13 +462,14 @@ async function main() {
      */
     socket.on('start-recording', async (data: {
       roomId: string
+      recordingType?: 'video' | 'audio'
     }, callback: (response: {
       success: boolean
       sessionId?: string
       error?: string
     }) => void) => {
       try {
-        const { roomId } = data
+        const { roomId, recordingType = 'video' } = data
         const peerId = authSocket.data.peerId
         const role = authSocket.data.role
 
@@ -486,6 +487,14 @@ async function main() {
           throw new Error(`Room ${roomId} not found`)
         }
 
+        // Extract appointmentId from roomId (format: "appointment_123")
+        const appointmentIdStr = roomId.replace('appointment_', '')
+        const appointmentId = parseInt(appointmentIdStr, 10)
+        
+        if (isNaN(appointmentId)) {
+          throw new Error(`Invalid roomId format: ${roomId}`)
+        }
+
         // Collect all producers from all peers in the room
         const allProducers = new Map<string, typeof room.peers extends Map<string, infer P> ? P extends { producers: infer Pr } ? Pr extends Map<string, infer Producer> ? Producer : never : never : never>()
         
@@ -499,8 +508,8 @@ async function main() {
           throw new Error('No producers to record')
         }
 
-        // Start recording
-        const session = await recorder.startRecording(roomId, room.router, allProducers as Map<string, import('mediasoup/types').Producer>)
+        // Start recording with appointmentId for server-side finalization
+        const session = await recorder.startRecording(roomId, room.router, allProducers as Map<string, import('mediasoup/types').Producer>, appointmentId, recordingType)
 
         callback({
           success: true,
@@ -525,13 +534,14 @@ async function main() {
     })
 
     /**
-     * Stop recording a room
+     * Stop recording a room - also finalizes recording to Payload CMS
      */
     socket.on('stop-recording', async (data: {
       roomId: string
     }, callback: (response: {
       success: boolean
       filePath?: string
+      recordingId?: number
       error?: string
     }) => void) => {
       try {
@@ -554,18 +564,94 @@ async function main() {
           throw new Error('No active recording found')
         }
 
-        callback({
-          success: true,
-          filePath: session.filePath,
-        })
-
-        // Notify all peers in room that recording stopped
-        io.to(roomId).emit('recording-stopped', {
-          sessionId: session.id,
-          filePath: session.filePath,
-        })
-
         console.log(`[MediaSoup] Recording stopped for room ${roomId}, file: ${session.filePath}`)
+
+        // Server-side finalization - always finalize on the server
+        const appointmentId = session.appointmentId
+        if (appointmentId) {
+          const nextJsUrl = process.env.NEXTJS_URL || 'http://localhost:3000'
+          const serverSecret = process.env.MEDIASOUP_SERVER_SECRET || 'mediasoup-internal-secret'
+          
+          const durationSeconds = session.startedAt 
+            ? Math.round((Date.now() - session.startedAt.getTime()) / 1000)
+            : undefined
+          
+          console.log(`[MediaSoup] Finalizing recording for appointment ${appointmentId}...`)
+          
+          try {
+            const finalizeResponse = await fetch(`${nextJsUrl}/api/mediasoup-recording/finalize-server`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                appointmentId,
+                sessionId: session.id,
+                durationSeconds,
+                recordingType: session.recordingType || 'video',
+                serverSecret,
+              }),
+            })
+            
+            const finalizeData = await finalizeResponse.json()
+            
+            if (finalizeData.success) {
+              console.log(`[MediaSoup] Recording finalized successfully: recordingId=${finalizeData.recordingId}`)
+              
+              callback({
+                success: true,
+                filePath: session.filePath,
+                recordingId: finalizeData.recordingId,
+              })
+              
+              // Notify all peers in room that recording stopped and finalized
+              io.to(roomId).emit('recording-stopped', {
+                sessionId: session.id,
+                filePath: session.filePath,
+                recordingId: finalizeData.recordingId,
+                finalized: true,
+              })
+            } else {
+              console.error(`[MediaSoup] Failed to finalize recording:`, finalizeData.error)
+              callback({
+                success: true, // Recording stopped successfully, but finalization failed
+                filePath: session.filePath,
+                error: `Recording stopped but finalization failed: ${finalizeData.error}`,
+              })
+              
+              io.to(roomId).emit('recording-stopped', {
+                sessionId: session.id,
+                filePath: session.filePath,
+                finalized: false,
+                error: finalizeData.error,
+              })
+            }
+          } catch (finalizeError) {
+            console.error(`[MediaSoup] Error calling finalize API:`, finalizeError)
+            callback({
+              success: true, // Recording stopped successfully
+              filePath: session.filePath,
+              error: 'Recording stopped but finalization failed',
+            })
+            
+            io.to(roomId).emit('recording-stopped', {
+              sessionId: session.id,
+              filePath: session.filePath,
+              finalized: false,
+            })
+          }
+        } else {
+          console.warn(`[MediaSoup] No appointmentId found for session ${session.id}, cannot finalize`)
+          callback({
+            success: true,
+            filePath: session.filePath,
+          })
+          
+          // Notify all peers in room that recording stopped (without finalization)
+          io.to(roomId).emit('recording-stopped', {
+            sessionId: session.id,
+            filePath: session.filePath,
+            finalized: false,
+          })
+        }
 
       } catch (error) {
         console.error('[MediaSoup] Stop recording error:', error)

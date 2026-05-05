@@ -1,156 +1,182 @@
-# MediaSoup Recording Fix - Проблема и Решение
+# MediaSoup Recording - Серверная финализация
 
-## 🔴 Проблема
+## Архитектура
 
-Записи MediaSoup сохранялись в файловую систему (`/tmp/mediasoup-recordings/`), но:
-- ❌ Файлы НЕ загружались в коллекцию `Media` Payload CMS
-- ❌ Записи НЕ появлялись на странице `/lk-org/consultation?id={}`
-- ❌ В коллекции `call-recordings` Payload не создавались записи
+Записи видео/аудио консультаций теперь **полностью управляются на сервере**:
 
-Это произошло потому, что **процесс записи отделен от логики создания записей в базе данных**.
+1. **При старте записи** (`start-recording`) - сервер извлекает `appointmentId` из `roomId` и сохраняет его в сессии записи
+2. **При остановке записи** (`stop-recording`) - сервер **автоматически** загружает файл в Payload CMS и создает `CallRecording`
+3. **При отключении врача** - сервер тоже автоматически финализирует запись
 
-## ✅ Решение
+## Преимущества
 
-Добавлена интеграция между MediaSoup сервером и Next.js API для **финализации записей**:
+- **Надежность**: запись всегда сохраняется, даже если врач закрыл вкладку
+- **Безопасность**: клиент не участвует в процессе сохранения записи
+- **Простота**: меньше кода на клиенте, меньше точек отказа
 
-### 1. Два новых API endpoints:
-
-#### `/api/mediasoup-recording/finalize` (клиент → сервер)
-- Вызывается **клиентом** (врачом) при ручной остановке записи
-- Требует **JWT токен врача** для аутентификации
-- Загружает файл записи в Media коллекцию
-- Создает CallRecording в базе данных
-- **Файл:** `src/app/api/mediasoup-recording/finalize/route.ts`
-
-#### `/api/mediasoup-recording/finalize-server` (сервер → сервер)
-- Вызывается **MediaSoup сервером** при отключении врача
-- Требует **MEDIASOUP_SERVER_SECRET** для аутентификации
-- Используется когда врач разорвет соединение без явной остановки записи
-- **Файл:** `src/app/api/mediasoup-recording/finalize-server/route.ts`
-
-### 2. Изменения в MediaSoup провайдере
-
-**Файл:** `src/components/video-call/video-call-provider-mediasoup.tsx`
-
-- Добавлены refs для отслеживания времени начала записи:
-  - `recordingStartTimeRef` - момент начала записи
-  - `isAudioOnlyRef` - тип записи (видео/аудио)
-  
-- Обновлен `onRecordingStarted`:
-  - Сохраняет время начала записи
-  
-- Обновлен `onRecordingStopped`:
-  - Вызывает `/api/mediasoup-recording/finalize` для загрузки в Payload
-  - Вычисляет длительность консультации
-  - Показывает тост об успехе/ошибке
-  
-- Обновлен `handleCallEnded`:
-  - Врач перед выходом останавливает запись (если она активна)
-  - Это гарантирует, что финализация произойдет
-
-### 3. Изменения в MediaSoup сервере
-
-**Файл:** `src/mediasoup-server.ts`
-
-Добавлена финализация в двух местах:
-
-1. **При отключении врача** (disconnect handler):
-   - Извлекает `appointmentId` из `roomId`
-   - Вычисляет длительность записи
-   - Вызывает `/api/mediasoup-recording/finalize-server`
-   - Логирует успех/ошибку
-
-2. **При пустой комнате** (последний пользователь вышел):
-   - Аналогично, финализирует оставшуюся запись
-
-## 🔧 Требуемые переменные окружения
-
-Добавьте в `.env`:
-
-```env
-# Для внутреннего общения между MediaSoup сервером и Next.js
-NEXTJS_URL=http://localhost:3000
-MEDIASOUP_SERVER_SECRET=your-secret-key-here
-RECORDING_OUTPUT_DIR=/tmp/mediasoup-recordings
-```
-
-### Важные замечания:
-- `NEXTJS_URL` должен быть доступен из окружения, где запущен MediaSoup сервер
-- `MEDIASOUP_SERVER_SECRET` должен быть **одинаковым** везде
-- Если не установлены, используются defaults (но это небезопасно в продакшене)
-
-## 📊 Процесс записи (с исправлением)
+## Поток данных
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ВРАЧ ИНИЦИИРУЕТ ЗАПИСЬ                        │
+│                    ВРАЧ НАЧИНАЕТ ЗАПИСЬ                         │
+│               emit('start-recording', { roomId })               │
 └──────────────────────────────┬──────────────────────────────────┘
                                │
                                ▼
                     ┌──────────────────────┐
                     │  MediaSoup Server    │
-                    │  Начинает запись     │
-                    │ /tmp/mediasoup-      │
-                    │  recordings/         │
-                    │  {sessionId}.webm    │
-                    └──────────────────────┘
+                    │                      │
+                    │  1. Извлекает        │
+                    │     appointmentId    │
+                    │     из roomId        │
+                    │                      │
+                    │  2. Сохраняет в      │
+                    │     RecordingSession │
+                    │                      │
+                    │  3. Начинает запись  │
+                    │     через FFmpeg     │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │   Запись идет...     │
+                    │   /tmp/mediasoup-    │
+                    │   recordings/        │
+                    │   {sessionId}.webm   │
+                    └──────────┬───────────┘
                                │
         ┌──────────────────────┼──────────────────────┐
         │                      │                      │
         ▼                      ▼                      ▼
  СЦЕНАРИЙ 1:          СЦЕНАРИЙ 2:           СЦЕНАРИЙ 3:
- Врач сам             Врач закрывает        Врач отключается
- останавливает        браузер/вкладку       неожиданно
- запись               (но соединение жив)
-        │                      │                      │
-        ▼                      ▼                      ▼
- Client API           Client + Server        Server API
- POST /finalize       POST /finalize         POST /finalize-server
+ Врач вызывает        Врач отключается      Комната пустеет
+ stop-recording       (disconnect)
         │                      │                      │
         └──────────────────────┼──────────────────────┘
                                │
                                ▼
                     ┌──────────────────────┐
-                    │  Payload CMS API     │
-                    │  1. Создает Media    │
-                    │  2. Создает          │
-                    │     CallRecording    │
-                    │  3. Удаляет temp.    │
-                    │     файл             │
-                    └──────────────────────┘
+                    │  СЕРВЕР вызывает     │
+                    │  /api/mediasoup-     │
+                    │  recording/          │
+                    │  finalize-server     │
+                    └──────────┬───────────┘
                                │
                                ▼
-             ┌────────────────────────────────┐
-             │ Запись видна на странице:      │
-             │ /lk-org/consultation?id={id}   │
-             └────────────────────────────────┘
+                    ┌──────────────────────┐
+                    │  Payload CMS API     │
+                    │                      │
+                    │  1. Находит doctor   │
+                    │     из appointment   │
+                    │                      │
+                    │  2. Загружает файл   │
+                    │     в Media          │
+                    │                      │
+                    │  3. Создает          │
+                    │     CallRecording    │
+                    │                      │
+                    │  4. Удаляет temp     │
+                    │     файл             │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │  emit('recording-    │
+                    │  stopped', {         │
+                    │    finalized: true,  │
+                    │    recordingId: 123  │
+                    │  })                  │
+                    └──────────────────────┘
 ```
 
-## ✨ Результат
+## Измененные файлы
 
-Теперь запись консультации:
-1. ✅ Сохраняется в файловую систему (как и раньше)
-2. ✅ Загружается в Media коллекцию Payload CMS
-3. ✅ Создается запись в коллекции `call-recordings`
-4. ✅ **Видна на странице `/lk-org/consultation?id={}`**
+### Сервер
 
-## 🐛 Отладка
+**`src/lib/mediasoup/recorder.ts`**
+- `RecordingSession` теперь содержит `appointmentId` и `recordingType`
+- `startRecording()` принимает `appointmentId` и `recordingType`
 
-Проверьте консоль/логи на наличие сообщений:
-- `[MediaSoup Provider] Recording stopped`
-- `[MediaSoup Provider] Finalizing recording`
-- `[MediaSoup Provider] Recording finalized`
-- `[MediaSoup] Finalizing recording for appointment`
+**`src/mediasoup-server.ts`**
+- `start-recording` - извлекает `appointmentId` из `roomId`, передает в recorder
+- `stop-recording` - **автоматически вызывает** `/api/mediasoup-recording/finalize-server`
+- Событие `recording-stopped` теперь содержит `finalized` и `recordingId`
 
-Если видите ошибки, проверьте:
-1. Переменные окружения (`NEXTJS_URL`, `MEDIASOUP_SERVER_SECRET`)
-2. Права доступа на `/tmp/mediasoup-recordings`
-3. Соединение между MediaSoup сервером и Next.js
-4. JWT токен доктора (для route `/finalize`)
+### Клиент
 
-## 📝 Дополнительно
+**`src/components/video-call/hooks/use-mediasoup-connection.ts`**
+- `startRecording(recordingType)` - принимает тип записи
+- `onRecordingStopped` - принимает `finalized` и `recordingId`
 
-- Файлы записи удаляются из `/tmp` после успешной загрузки в Payload
-- Пустые файлы автоматически удаляются без создания записи
-- Длительность вычисляется из `recordingStartTime` или размера файла
-- Тип записи (видео/аудио) сохраняется в `call-recordings.recordingType`
+**`src/components/video-call/video-call-provider-mediasoup.tsx`**
+- Убрана клиентская финализация из `onRecordingStopped`
+- Показывает toast в зависимости от `finalized` флага
+- `startServerRecording(recordingType)` - передает тип записи
+
+## Переменные окружения
+
+```env
+# URL Next.js приложения (для server-to-server вызовов)
+NEXTJS_URL=http://localhost:3000
+
+# Секрет для аутентификации server-to-server
+MEDIASOUP_SERVER_SECRET=your-secret-key-here
+
+# Директория для временных файлов записей
+RECORDING_OUTPUT_DIR=/tmp/mediasoup-recordings
+```
+
+## API Endpoints
+
+### `/api/mediasoup-recording/finalize-server` (POST)
+
+Вызывается **MediaSoup сервером** для финализации записи.
+
+**Тело запроса:**
+```json
+{
+  "appointmentId": 123,
+  "sessionId": "appointment_123-1234567890",
+  "durationSeconds": 300,
+  "recordingType": "video",
+  "serverSecret": "your-secret-key"
+}
+```
+
+**Ответ:**
+```json
+{
+  "success": true,
+  "recordingId": 456,
+  "mediaId": 789
+}
+```
+
+### `/api/mediasoup-recording/finalize` (POST)
+
+Устаревший endpoint для клиентской финализации (больше не используется).
+Требует JWT токен врача в cookie `doctors-token`.
+
+## Отладка
+
+Проверьте логи MediaSoup сервера:
+```
+[MediaSoup] Recording stopped for room appointment_123, file: /tmp/mediasoup-recordings/appointment_123-1234567890.webm
+[MediaSoup] Finalizing recording for appointment 123...
+[MediaSoup] Recording finalized successfully: recordingId=456
+```
+
+Проверьте логи Next.js:
+```
+[MediaSoupRecording/FinalizeServer] Starting server-side finalization
+[MediaSoupRecording/FinalizeServer] Request data: { appointmentId: 123, sessionId: '...', ... }
+[MediaSoupRecording/FinalizeServer] Recording file found, size: 12345678
+[MediaSoupRecording/FinalizeServer] Media uploaded, ID: 789
+[MediaSoupRecording/FinalizeServer] CallRecording created, ID: 456
+```
+
+Если финализация не работает:
+1. Проверьте `NEXTJS_URL` - должен быть доступен из MediaSoup сервера
+2. Проверьте `MEDIASOUP_SERVER_SECRET` - должен совпадать
+3. Проверьте права на `/tmp/mediasoup-recordings`
+4. Проверьте что файл записи существует и не пустой

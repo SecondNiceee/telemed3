@@ -27,7 +27,14 @@ export interface UseMediasoupConnectionOptions {
   onPeerLeft?: (peerId: string) => void
   onError?: (error: Error) => void
   onRecordingStarted?: (sessionId: string, startedBy: string) => void
-  onRecordingStopped?: (sessionId: string, filePath: string, reason?: string) => void
+  /** Called when recording stops. Server handles finalization automatically. */
+  onRecordingStopped?: (
+    sessionId: string, 
+    filePath: string, 
+    reason?: string,
+    finalized?: boolean,
+    recordingId?: number
+  ) => void
 }
 
 export interface UseMediasoupConnectionReturn {
@@ -41,7 +48,8 @@ export interface UseMediasoupConnectionReturn {
   leaveRoom: () => void
   startProducing: (stream: MediaStream) => Promise<void>
   stopProducing: () => void
-  startRecording: () => Promise<boolean>
+  /** Start recording. Server handles storage and finalization automatically. */
+  startRecording: (recordingType?: 'video' | 'audio') => Promise<boolean>
   stopRecording: () => Promise<string | null>
   cleanup: () => void
   // State
@@ -466,11 +474,18 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
         onRecordingStarted?.(data.sessionId, data.startedBy)
       })
 
-      socket.on('recording-stopped', (data: { sessionId: string; filePath: string; reason?: string }) => {
+      socket.on('recording-stopped', (data: { 
+        sessionId: string
+        filePath: string
+        reason?: string
+        finalized?: boolean
+        recordingId?: number
+        error?: string
+      }) => {
         console.log('[MediaSoup Client] Recording stopped:', data)
         setIsRecording(false)
         setRecordingSessionId(null)
-        onRecordingStopped?.(data.sessionId, data.filePath, data.reason)
+        onRecordingStopped?.(data.sessionId, data.filePath, data.reason, data.finalized, data.recordingId)
       })
 
       // Check if there's an active recording when joining
@@ -572,8 +587,9 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
 
   /**
    * Start recording (only doctors can do this)
+   * @param recordingType - 'video' or 'audio' (default: 'video')
    */
-  const startRecording = useCallback(async (): Promise<boolean> => {
+  const startRecording = useCallback(async (recordingType: 'video' | 'audio' = 'video'): Promise<boolean> => {
     const socket = socketRef.current
     const roomId = roomIdRef.current
 
@@ -588,7 +604,7 @@ export function useMediasoupConnection(options: UseMediasoupConnectionOptions): 
     }
 
     return new Promise((resolve) => {
-      socket.emit('start-recording', { roomId }, (response: {
+      socket.emit('start-recording', { roomId, recordingType }, (response: {
         success: boolean
         sessionId?: string
         error?: string
