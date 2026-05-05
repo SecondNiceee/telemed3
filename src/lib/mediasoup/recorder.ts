@@ -35,6 +35,8 @@ interface ProducerRecording {
 export interface RecordingSession {
   id: string
   roomId: string
+  appointmentId: number | null // Store appointment ID for server-side finalization
+  recordingType: 'video' | 'audio' // Type of recording
   startedAt: Date
   status: 'starting' | 'recording' | 'stopping' | 'completed' | 'failed'
   filePath: string
@@ -240,11 +242,18 @@ class Recorder {
 
   /**
    * Start recording a room
+   * @param roomId - The room ID (format: "appointment_123")
+   * @param router - MediaSoup router
+   * @param producers - Map of producers to record
+   * @param appointmentId - Optional appointment ID for server-side finalization
+   * @param recordingType - Type of recording ('video' or 'audio')
    */
   async startRecording(
     roomId: string,
     router: Router,
-    producers: Map<string, Producer>
+    producers: Map<string, Producer>,
+    appointmentId?: number,
+    recordingType: 'video' | 'audio' = 'video'
   ): Promise<RecordingSession> {
     // Check if FFmpeg is available
     if (!this.checkFfmpegAvailable()) {
@@ -272,6 +281,8 @@ class Recorder {
     const session: RecordingSession = {
       id: sessionId,
       roomId,
+      appointmentId: appointmentId ?? null,
+      recordingType,
       startedAt: new Date(),
       status: 'starting',
       filePath,

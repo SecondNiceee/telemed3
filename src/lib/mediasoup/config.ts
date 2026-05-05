@@ -6,6 +6,7 @@
  */
 
 import type { types as mediasoupTypes } from 'mediasoup'
+import path from 'path'
 
 type WorkerSettings = mediasoupTypes.WorkerSettings
 type RouterOptions = mediasoupTypes.RouterOptions
@@ -184,10 +185,18 @@ export const serverConfig = {
 
 /**
  * Recording configuration
+ * 
+ * NOTE: outputDir is a TEMPORARY directory for FFmpeg to write files.
+ * After recording stops, the file is uploaded to Payload CMS Media collection
+ * and the temp file is deleted.
+ * 
+ * Default path uses path.join to create a folder in the project root.
+ * You can override with RECORDING_OUTPUT_DIR env variable.
  */
 export const recordingConfig = {
-  // Directory to store recordings
-  outputDir: process.env.RECORDING_OUTPUT_DIR || '/tmp/mediasoup-recordings',
+  // Directory to store temporary recordings (before upload to Payload)
+  // Default: ./mediasoup-recordings in project root
+  outputDir: process.env.RECORDING_OUTPUT_DIR || path.join(process.cwd(), 'mediasoup-recordings'),
   // FFmpeg path
   ffmpegPath: process.env.FFMPEG_PATH || 'ffmpeg',
   // Recording format

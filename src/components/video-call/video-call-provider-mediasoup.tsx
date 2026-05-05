@@ -75,7 +75,8 @@ interface MediaSoupVideoCallContextValue {
   completeConsultation: () => void
   
   // MediaSoup-specific actions
-  startServerRecording: () => Promise<boolean>
+  /** Start recording. Server handles storage and finalization automatically. */
+  startServerRecording: (recordingType?: 'video' | 'audio') => Promise<boolean>
   stopServerRecording: () => Promise<string | null>
   
   // Info
@@ -210,48 +211,20 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
       recordingStartTimeRef.current = Date.now()
       toast.success('Запись консультации начата')
     },
-    onRecordingStopped: async (sessionId, filePath, reason) => {
-      console.log('[MediaSoup Provider] Recording stopped:', sessionId, filePath, reason)
+    onRecordingStopped: (sessionId, filePath, reason, finalized, recordingId) => {
+      console.log('[MediaSoup Provider] Recording stopped:', { sessionId, filePath, reason, finalized, recordingId })
       
-      // Finalize the recording by uploading to Payload CMS
-      if (sessionId && callDataRef.current) {
-        try {
-          const appointmentId = callDataRef.current.appointmentId
-          const doctorId = currentUser?.odooUserId
-          const durationSeconds = recordingStartTimeRef.current 
-            ? Math.round((Date.now() - recordingStartTimeRef.current) / 1000)
-            : undefined
-          
-          console.log('[MediaSoup Provider] Finalizing recording...', { sessionId, appointmentId, doctorId, durationSeconds })
-          
-          const response = await fetch('/api/mediasoup-recording/finalize', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              appointmentId,
-              doctorId,
-              sessionId,
-              durationSeconds,
-              recordingType: isAudioOnlyRef.current ? 'audio' : 'video',
-            }),
-          })
-          
-          if (response.ok) {
-            const data = await response.json()
-            console.log('[MediaSoup Provider] Recording finalized:', data)
-            toast.success('Запись консультации сохранена')
-          } else {
-            const errorData = await response.json().catch(() => ({}))
-            console.error('[MediaSoup Provider] Failed to finalize recording:', errorData)
-            toast.error('Не удалось сохранить запись')
-          }
-        } catch (err) {
-          console.error('[MediaSoup Provider] Error finalizing recording:', err)
-          toast.error('Ошибка сохранения записи')
-        }
+      // Server handles finalization automatically now
+      // We just need to show the appropriate toast based on the result
+      if (finalized && recordingId) {
+        toast.success('Запись консультации сохранена')
       } else if (reason === 'doctor-disconnected') {
         toast.info('Запись остановлена (врач отключился)')
+      } else if (finalized === false) {
+        toast.error('Не удалось сохранить запись')
+      } else {
+        // Recording stopped but we don't know if it was finalized
+        toast.info('Запись консультации остановлена')
       }
       
       recordingStartTimeRef.current = null
@@ -379,14 +352,14 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
       }
     }, CALL_TIMEOUTS.CALL_TIMEOUT)
     
-    // Auto-start recording for doctors
+    // Auto-start recording for doctors (video call)
     if (currentUser.role === 'doctor') {
       // Wait a bit for the other participant to join
       setTimeout(async () => {
         if (statusRef.current === 'connected') {
-          const started = await mediasoup.startRecording()
+          const started = await mediasoup.startRecording('video')
           if (started) {
-            console.log('[MediaSoup Provider] Auto-started recording for doctor')
+            console.log('[MediaSoup Provider] Auto-started video recording for doctor')
           }
         }
       }, 3000)
@@ -458,11 +431,14 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
       }
     }, CALL_TIMEOUTS.CALL_TIMEOUT)
     
-    // Auto-start recording for doctors
+    // Auto-start recording for doctors (audio call)
     if (currentUser.role === 'doctor') {
       setTimeout(async () => {
         if (statusRef.current === 'connected') {
-          await mediasoup.startRecording()
+          const started = await mediasoup.startRecording('audio')
+          if (started) {
+            console.log('[MediaSoup Provider] Auto-started audio recording for doctor')
+          }
         }
       }, 3000)
     }
@@ -557,13 +533,15 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
   }, [endCall])
   
   // Start server recording (doctor only)
-  const startServerRecording = useCallback(async (): Promise<boolean> => {
+  const startServerRecording = useCallback(async (recordingType?: 'video' | 'audio'): Promise<boolean> => {
     if (currentUser?.role !== 'doctor') {
       toast.error('Только врач может управлять записью')
       return false
     }
-    return mediasoup.startRecording()
-  }, [currentUser, mediasoup])
+    // Default to current call type if not specified
+    const type = recordingType || (isAudioOnly ? 'audio' : 'video')
+    return mediasoup.startRecording(type)
+  }, [currentUser, mediasoup, isAudioOnly])
   
   // Stop server recording (doctor only)
   const stopServerRecording = useCallback(async (): Promise<string | null> => {
