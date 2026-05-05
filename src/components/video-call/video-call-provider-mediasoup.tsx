@@ -150,6 +150,8 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
   } | null>(null)
   const callDataRef = useRef(callData)
   const callTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const recordingStartTimeRef = useRef<number | null>(null)
+  const isAudioOnlyRef = useRef(false)
   
   // Keep refs in sync
   useEffect(() => {
@@ -158,6 +160,9 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
   useEffect(() => {
     callDataRef.current = callData
   }, [callData])
+  useEffect(() => {
+    isAudioOnlyRef.current = isAudioOnly
+  }, [isAudioOnly])
   
   // Hooks
   const mediaStream = useMediaStream()
@@ -202,15 +207,54 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
     },
     onRecordingStarted: (sessionId, startedBy) => {
       console.log('[MediaSoup Provider] Recording started:', sessionId, 'by', startedBy)
+      recordingStartTimeRef.current = Date.now()
       toast.success('Запись консультации начата')
     },
-    onRecordingStopped: (sessionId, filePath, reason) => {
+    onRecordingStopped: async (sessionId, filePath, reason) => {
       console.log('[MediaSoup Provider] Recording stopped:', sessionId, filePath, reason)
-      if (reason === 'doctor-disconnected') {
+      
+      // Finalize the recording by uploading to Payload CMS
+      if (sessionId && callDataRef.current) {
+        try {
+          const appointmentId = callDataRef.current.appointmentId
+          const doctorId = currentUser?.odooUserId
+          const durationSeconds = recordingStartTimeRef.current 
+            ? Math.round((Date.now() - recordingStartTimeRef.current) / 1000)
+            : undefined
+          
+          console.log('[MediaSoup Provider] Finalizing recording...', { sessionId, appointmentId, doctorId, durationSeconds })
+          
+          const response = await fetch('/api/mediasoup-recording/finalize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              appointmentId,
+              doctorId,
+              sessionId,
+              durationSeconds,
+              recordingType: isAudioOnlyRef.current ? 'audio' : 'video',
+            }),
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            console.log('[MediaSoup Provider] Recording finalized:', data)
+            toast.success('Запись консультации сохранена')
+          } else {
+            const errorData = await response.json().catch(() => ({}))
+            console.error('[MediaSoup Provider] Failed to finalize recording:', errorData)
+            toast.error('Не удалось сохранить запись')
+          }
+        } catch (err) {
+          console.error('[MediaSoup Provider] Error finalizing recording:', err)
+          toast.error('Ошибка сохранения записи')
+        }
+      } else if (reason === 'doctor-disconnected') {
         toast.info('Запись остановлена (врач отключился)')
-      } else {
-        toast.success('Запись консультации сохранена')
       }
+      
+      recordingStartTimeRef.current = null
     },
   })
   
@@ -244,6 +288,15 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
     connectionQuality.stopMonitoring()
     timer.pause()
     
+    // If doctor is ending the call and recording is active, stop it first
+    // This will trigger onRecordingStopped which will finalize the recording
+    if (currentUser?.role === 'doctor' && mediasoup.isRecording) {
+      console.log('[MediaSoup Provider] Doctor ending call, stopping recording first...')
+      await mediasoup.stopRecording()
+      // Give a moment for the recording-stopped event to be processed
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+    
     // Stop MediaSoup connection
     mediasoup.leaveRoom()
     
@@ -261,7 +314,7 @@ export function VideoCallProviderMediaSoup({ children }: VideoCallProviderMediaS
       setViewMode('fullscreen')
       setIsAudioOnly(false)
     }, 1000)
-  }, [clearCallTimeout, connectionQuality, timer, mediasoup, mediaStream, callStore])
+  }, [clearCallTimeout, connectionQuality, timer, mediasoup, mediaStream, callStore, currentUser])
   
   // Start outgoing video call
   const startCall = useCallback(async (
