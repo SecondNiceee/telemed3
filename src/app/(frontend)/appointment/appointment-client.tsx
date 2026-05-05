@@ -12,10 +12,12 @@ import {
   Calendar, 
   ChevronLeft, 
   ChevronRight,
+  ChevronDown,
   X
 } from "lucide-react";
 import type { ApiCategory } from "@/lib/api/types";
 import { CategoryIcon } from "@/lib/utils/categoryIcon";
+import { cn } from "@/lib/utils";
 
 interface AppointmentPageClientProps {
   initialCategories: ApiCategory[];
@@ -24,6 +26,7 @@ interface AppointmentPageClientProps {
 export function AppointmentPageClient({ initialCategories }: AppointmentPageClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const today = new Date();
     const day = today.getDay();
@@ -104,6 +107,10 @@ export function AppointmentPageClient({ initialCategories }: AppointmentPageClie
     setSelectedDate(null);
   };
 
+  const toggleDateFilter = () => {
+    setIsDateFilterOpen(!isDateFilterOpen);
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
@@ -145,90 +152,137 @@ export function AppointmentPageClient({ initialCategories }: AppointmentPageClie
         </div>
       </div>
 
-      {/* Date Filter */}
-      <Card className="mb-6">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">
-              Фильтр по дате
-            </h2>
+      {/* Date Filter - Collapsible */}
+      <div className="mb-6">
+        {/* Toggle Button */}
+        <button
+          onClick={toggleDateFilter}
+          className={cn(
+            "w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all",
+            isDateFilterOpen || selectedDate
+              ? "border-primary/40 bg-primary/5"
+              : "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "w-10 h-10 rounded-lg flex items-center justify-center",
+              selectedDate ? "bg-primary text-primary-foreground" : "bg-secondary text-primary"
+            )}>
+              <Calendar className="w-5 h-5" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-medium text-foreground">
+                {selectedDate ? "Фильтр по дате" : "Фильтр по дате"}
+              </p>
+              {selectedDate ? (
+                <p className="text-xs text-primary">
+                  {new Date(selectedDate + "T00:00:00").toLocaleDateString("ru-RU", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Выберите дату для поиска доступных врачей
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             {selectedDate && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={clearDateFilter}
-                className="ml-auto text-muted-foreground hover:text-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearDateFilter();
+                }}
+                className="h-8 px-2 text-muted-foreground hover:text-foreground"
               >
-                <X className="w-4 h-4 mr-1" />
-                Сбросить
+                <X className="w-4 h-4" />
               </Button>
             )}
+            <ChevronDown className={cn(
+              "w-5 h-5 text-muted-foreground transition-transform duration-200",
+              isDateFilterOpen && "rotate-180"
+            )} />
           </div>
+        </button>
 
-          {/* Week Navigation */}
-          <div className="flex items-center justify-between mb-4">
-            <Button variant="ghost" size="icon" onClick={goToPreviousWeek}>
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <h3 className="text-sm font-medium text-muted-foreground capitalize">
-              {formatMonthYear()}
-            </h3>
-            <Button variant="ghost" size="icon" onClick={goToNextWeek}>
-              <ChevronRight className="w-5 h-5" />
-            </Button>
-          </div>
+        {/* Collapsible Content */}
+        <div className={cn(
+          "overflow-hidden transition-all duration-300 ease-in-out",
+          isDateFilterOpen ? "max-h-96 opacity-100 mt-3" : "max-h-0 opacity-0"
+        )}>
+          <Card className="border-border/60">
+            <CardContent className="p-4 sm:p-6">
+              {/* Week Navigation */}
+              <div className="flex items-center justify-between mb-4">
+                <Button variant="ghost" size="icon" onClick={goToPreviousWeek}>
+                  <ChevronLeft className="w-5 h-5" />
+                </Button>
+                <h3 className="text-sm font-medium text-muted-foreground capitalize">
+                  {formatMonthYear()}
+                </h3>
+                <Button variant="ghost" size="icon" onClick={goToNextWeek}>
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
+              </div>
 
-          {/* Days Row */}
-          <div className="grid grid-cols-7 gap-2">
-            {weekDays.map((date) => {
-              const dateStr = toDateStr(date);
-              const isPast = isDateInPast(date);
-              const isSelected = selectedDate === dateStr;
-              const isToday = toDateStr(new Date()) === dateStr;
+              {/* Days Row */}
+              <div className="grid grid-cols-7 gap-2">
+                {weekDays.map((date) => {
+                  const dateStr = toDateStr(date);
+                  const isPast = isDateInPast(date);
+                  const isSelected = selectedDate === dateStr;
+                  const isToday = toDateStr(new Date()) === dateStr;
 
-              return (
-                <button
-                  key={dateStr}
-                  onClick={() => handleDateSelect(date)}
-                  disabled={isPast}
-                  className={`
-                    flex flex-col items-center p-2 sm:p-3 rounded-xl transition-all
-                    ${
-                      isSelected
-                        ? "bg-primary text-primary-foreground"
-                        : isPast
-                          ? "bg-muted/50 text-muted-foreground cursor-not-allowed"
-                          : isToday
-                            ? "bg-primary/10 text-primary hover:bg-primary/20"
-                            : "bg-secondary hover:bg-primary/10 text-foreground"
-                    }
-                  `}
-                >
-                  <span className="text-xs uppercase mb-1">
-                    {formatDayName(date)}
-                  </span>
-                  <span className="text-base sm:text-lg font-semibold">
-                    {formatDayNumber(date)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {selectedDate && (
-            <p className="mt-4 text-sm text-center text-muted-foreground">
-              Показаны категории с врачами, доступными на{" "}
-              <span className="font-medium text-foreground">
-                {new Date(selectedDate + "T00:00:00").toLocaleDateString("ru-RU", {
-                  day: "numeric",
-                  month: "long",
+                  return (
+                    <button
+                      key={dateStr}
+                      onClick={() => handleDateSelect(date)}
+                      disabled={isPast}
+                      className={`
+                        flex flex-col items-center p-2 sm:p-3 rounded-xl transition-all
+                        ${
+                          isSelected
+                            ? "bg-primary text-primary-foreground"
+                            : isPast
+                              ? "bg-muted/50 text-muted-foreground cursor-not-allowed"
+                              : isToday
+                                ? "bg-primary/10 text-primary hover:bg-primary/20"
+                                : "bg-secondary hover:bg-primary/10 text-foreground"
+                        }
+                      `}
+                    >
+                      <span className="text-xs uppercase mb-1">
+                        {formatDayName(date)}
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold">
+                        {formatDayNumber(date)}
+                      </span>
+                    </button>
+                  );
                 })}
-              </span>
-            </p>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+
+              {selectedDate && (
+                <p className="mt-4 text-sm text-center text-muted-foreground">
+                  Показаны категории с врачами, доступными на{" "}
+                  <span className="font-medium text-foreground">
+                    {new Date(selectedDate + "T00:00:00").toLocaleDateString("ru-RU", {
+                      day: "numeric",
+                      month: "long",
+                    })}
+                  </span>
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       {/* Categories List */}
       <div className="space-y-3">
