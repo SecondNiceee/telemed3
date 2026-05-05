@@ -21,6 +21,7 @@ export interface UseMediasoupConnectionOptions {
   peerId: string
   peerName: string
   role: 'doctor' | 'patient'
+  doctorId?: number // Doctor's Odoo user ID for recording metadata
   serverUrl?: string
   onRemoteStream?: (stream: MediaStream, producerPeerId: string) => void
   onPeerJoined?: (peerId: string, peerName: string, role: string) => void

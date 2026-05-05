@@ -50,6 +50,13 @@ export interface Room {
   // For server-side recording
   recordingTransport?: PlainTransport
   recordingProducers?: Map<string, Producer>
+  // Recording metadata for automatic finalization
+  recordingMeta?: {
+    appointmentId: number
+    doctorId?: number
+    startedAt?: Date
+    isAudioOnly?: boolean
+  }
 }
 
 class RoomManager {

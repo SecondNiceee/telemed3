@@ -33,6 +33,70 @@ interface AuthenticatedSocket extends Socket {
   data: SocketData
 }
 
+/**
+ * Finalize recording by calling Next.js API
+ * This uploads the recording to Payload CMS
+ */
+async function finalizeRecording(
+  sessionId: string,
+  roomId: string,
+  recordingMeta?: {
+    appointmentId: number
+    doctorId?: number
+    startedAt?: Date
+    isAudioOnly?: boolean
+  }
+): Promise<void> {
+  const nextJsUrl = process.env.NEXTJS_URL || 'http://localhost:3000'
+  const serverSecret = process.env.MEDIASOUP_SERVER_SECRET || 'mediasoup-internal-secret'
+  
+  // Extract appointmentId from roomId if not in meta
+  const appointmentIdStr = roomId.replace('appointment_', '')
+  const appointmentId = recordingMeta?.appointmentId ?? parseInt(appointmentIdStr, 10)
+  
+  if (isNaN(appointmentId)) {
+    console.error(`[MediaSoup] Cannot finalize recording: invalid appointmentId from room ${roomId}`)
+    return
+  }
+  
+  // Calculate duration
+  const durationSeconds = recordingMeta?.startedAt 
+    ? Math.round((Date.now() - recordingMeta.startedAt.getTime()) / 1000)
+    : undefined
+  
+  console.log(`[MediaSoup] Finalizing recording for appointment ${appointmentId}...`, {
+    sessionId,
+    doctorId: recordingMeta?.doctorId,
+    durationSeconds,
+    recordingType: recordingMeta?.isAudioOnly ? 'audio' : 'video',
+  })
+  
+  try {
+    const response = await fetch(`${nextJsUrl}/api/mediasoup-recording/finalize-server`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        appointmentId,
+        doctorId: recordingMeta?.doctorId,
+        sessionId,
+        durationSeconds,
+        recordingType: recordingMeta?.isAudioOnly ? 'audio' : 'video',
+        serverSecret,
+      }),
+    })
+    
+    const data = await response.json()
+    
+    if (data.success) {
+      console.log(`[MediaSoup] Recording finalized successfully: recordingId=${data.recordingId}`)
+    } else {
+      console.error(`[MediaSoup] Failed to finalize recording:`, data.error)
+    }
+  } catch (err) {
+    console.error(`[MediaSoup] Error calling finalize API:`, err)
+  }
+}
+
 // Start server
 async function main() {
   console.log('[MediaSoup] Starting server...')
@@ -78,13 +142,14 @@ async function main() {
       peerId: string
       peerName: string
       role: 'doctor' | 'patient'
+      doctorId?: number // Doctor's Odoo user ID for recording metadata
     }, callback: (response: { 
       success: boolean
       routerRtpCapabilities?: RtpCapabilities
       error?: string 
     }) => void) => {
       try {
-        const { roomId, peerId, peerName, role } = data
+        const { roomId, peerId, peerName, role, doctorId } = data
         console.log(`[MediaSoup] Peer ${peerId} (${role}) joining room ${roomId}`)
 
         // Store peer info in socket
@@ -98,6 +163,20 @@ async function main() {
 
         // Get or create MediaSoup room
         const room = await roomManager.getOrCreateRoom(roomId)
+        
+        // If doctor joins, store doctorId and appointmentId for recording metadata
+        if (role === 'doctor' && doctorId) {
+          const appointmentIdStr = roomId.replace('appointment_', '')
+          const appointmentId = parseInt(appointmentIdStr, 10)
+          if (!isNaN(appointmentId)) {
+            room.recordingMeta = {
+              ...room.recordingMeta,
+              appointmentId,
+              doctorId,
+            }
+            console.log(`[MediaSoup] Stored recording metadata for room ${roomId}:`, room.recordingMeta)
+          }
+        }
 
         // Add peer to room
         await roomManager.addPeer(room, peerId, peerName, role)
@@ -501,6 +580,13 @@ async function main() {
 
         // Start recording
         const session = await recorder.startRecording(roomId, room.router, allProducers as Map<string, import('mediasoup/types').Producer>)
+        
+        // Store recording start time in room metadata
+        room.recordingMeta = {
+          ...room.recordingMeta,
+          appointmentId: room.recordingMeta?.appointmentId ?? parseInt(roomId.replace('appointment_', ''), 10),
+          startedAt: new Date(),
+        }
 
         callback({
           success: true,
@@ -553,6 +639,9 @@ async function main() {
         if (!session) {
           throw new Error('No active recording found')
         }
+        
+        // Get room for recording metadata
+        const room = roomManager.getRoom(roomId)
 
         callback({
           success: true,
@@ -566,6 +655,9 @@ async function main() {
         })
 
         console.log(`[MediaSoup] Recording stopped for room ${roomId}, file: ${session.filePath}`)
+        
+        // Finalize recording (upload to Payload CMS)
+        finalizeRecording(session.id, roomId, room?.recordingMeta)
 
       } catch (error) {
         console.error('[MediaSoup] Stop recording error:', error)
@@ -624,115 +716,48 @@ async function main() {
       if (peerId && roomId) {
         const room = roomManager.getRoom(roomId)
         if (room) {
+          // Store recording metadata before removing peer
+          const recordingMeta = room.recordingMeta
+          
           roomManager.removePeer(room, peerId)
           socket.to(roomId).emit('peer-left', { peerId })
 
-            // If doctor disconnected, stop recording
-            if (role === 'doctor') {
-              const session = recorder.getActiveRecordingForRoom(roomId)
-              if (session) {
-                console.log(`[MediaSoup] Doctor disconnected, stopping recording for room ${roomId}`)
-                try {
-                  await recorder.stopRecording(session.id)
-                  io.to(roomId).emit('recording-stopped', {
-                    sessionId: session.id,
-                    filePath: session.filePath,
-                    reason: 'doctor-disconnected',
-                  })
-                  
-                  // Finalize recording by calling Next.js API
-                  // Extract appointmentId from roomId (format: "appointment_123")
-                  const appointmentIdStr = roomId.replace('appointment_', '')
-                  const appointmentId = parseInt(appointmentIdStr, 10)
-                  
-                  if (!isNaN(appointmentId)) {
-                    const nextJsUrl = process.env.NEXTJS_URL || 'http://localhost:3000'
-                    const serverSecret = process.env.MEDIASOUP_SERVER_SECRET || 'mediasoup-internal-secret'
-                    
-                    console.log(`[MediaSoup] Finalizing recording for appointment ${appointmentId}...`)
-                    
-                    // Calculate duration from session start time
-                    const durationSeconds = session.startedAt 
-                      ? Math.round((Date.now() - session.startedAt.getTime()) / 1000)
-                      : undefined
-                    
-                    fetch(`${nextJsUrl}/api/mediasoup-recording/finalize-server`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        appointmentId,
-                        sessionId: session.id,
-                        durationSeconds,
-                        recordingType: 'video',
-                        serverSecret,
-                      }),
-                    })
-                      .then(res => res.json())
-                      .then(data => {
-                        if (data.success) {
-                          console.log(`[MediaSoup] Recording finalized successfully: recordingId=${data.recordingId}`)
-                        } else {
-                          console.error(`[MediaSoup] Failed to finalize recording:`, data.error)
-                        }
-                      })
-                      .catch(err => {
-                        console.error(`[MediaSoup] Error calling finalize API:`, err)
-                      })
-                  }
-                } catch (error) {
-                  console.error('[MediaSoup] Error stopping recording on disconnect:', error)
-                }
+          // If doctor disconnected, stop and finalize recording
+          if (role === 'doctor') {
+            const session = recorder.getActiveRecordingForRoom(roomId)
+            if (session) {
+              console.log(`[MediaSoup] Doctor disconnected, stopping recording for room ${roomId}`)
+              try {
+                await recorder.stopRecording(session.id)
+                io.to(roomId).emit('recording-stopped', {
+                  sessionId: session.id,
+                  filePath: session.filePath,
+                  reason: 'doctor-disconnected',
+                })
+                
+                // Finalize recording (upload to Payload CMS)
+                finalizeRecording(session.id, roomId, recordingMeta)
+              } catch (error) {
+                console.error('[MediaSoup] Error stopping recording on disconnect:', error)
               }
             }
+          }
 
-            // If room is now empty, ensure recording is stopped and finalized
-            if (room.peers.size === 0) {
-              const session = recorder.getActiveRecordingForRoom(roomId)
-              if (session) {
-                console.log(`[MediaSoup] Room ${roomId} is empty, stopping recording`)
-                try {
-                  await recorder.stopRecording(session.id)
-                  
-                  // Finalize recording by calling Next.js API
-                  const appointmentIdStr = roomId.replace('appointment_', '')
-                  const appointmentId = parseInt(appointmentIdStr, 10)
-                  
-                  if (!isNaN(appointmentId)) {
-                    const nextJsUrl = process.env.NEXTJS_URL || 'http://localhost:3000'
-                    const serverSecret = process.env.MEDIASOUP_SERVER_SECRET || 'mediasoup-internal-secret'
-                    
-                    const durationSeconds = session.startedAt 
-                      ? Math.round((Date.now() - session.startedAt.getTime()) / 1000)
-                      : undefined
-                    
-                    fetch(`${nextJsUrl}/api/mediasoup-recording/finalize-server`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        appointmentId,
-                        sessionId: session.id,
-                        durationSeconds,
-                        recordingType: 'video',
-                        serverSecret,
-                      }),
-                    })
-                      .then(res => res.json())
-                      .then(data => {
-                        if (data.success) {
-                          console.log(`[MediaSoup] Recording finalized on empty room: recordingId=${data.recordingId}`)
-                        } else {
-                          console.error(`[MediaSoup] Failed to finalize recording on empty room:`, data.error)
-                        }
-                      })
-                      .catch(err => {
-                        console.error(`[MediaSoup] Error calling finalize API on empty room:`, err)
-                      })
-                  }
-                } catch (error) {
-                  console.error('[MediaSoup] Error stopping recording on empty room:', error)
-                }
+          // If room is now empty, ensure recording is stopped and finalized
+          if (room.peers.size === 0) {
+            const session = recorder.getActiveRecordingForRoom(roomId)
+            if (session) {
+              console.log(`[MediaSoup] Room ${roomId} is empty, stopping recording`)
+              try {
+                await recorder.stopRecording(session.id)
+                
+                // Finalize recording (upload to Payload CMS)
+                finalizeRecording(session.id, roomId, recordingMeta)
+              } catch (error) {
+                console.error('[MediaSoup] Error stopping recording on empty room:', error)
               }
             }
+          }
         }
       }
     })
