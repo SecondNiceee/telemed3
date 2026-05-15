@@ -52,9 +52,9 @@ export function Header() {
   const authLoading = userLoading || !userFetched;
 
   return (
-    <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border/60">
+    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-[62px]">
+        <div className="flex items-center justify-between h-[68px]">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="flex-shrink-0 w-10 h-10 rounded-xl overflow-hidden ring-1 ring-border/60 shadow-sm shadow-primary/10">
               <img
@@ -127,7 +127,7 @@ export function Header() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-primary text-primary hover:bg-primary/5 transition-all"
+                  className="border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300 rounded-xl"
                   onClick={handleAuthClick}
                 >
                   Записаться

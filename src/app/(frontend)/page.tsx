@@ -23,10 +23,7 @@ export default async function HomePage() {
     <div className="min-h-screen flex flex-col">  
       <Header />
       <main className="flex-1">
-        <Hero
-          title={siteSettings?.heroTitle}
-          subtitle={siteSettings?.heroSubtitle}
-        />
+        <Hero />
         <SectionReveal delay={0}>
           <Suspense
             fallback={

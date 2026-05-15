@@ -28,46 +28,69 @@ const features = [
 
 export function EcgDeviceSection() {
   return (
-    <section className="py-16 sm:py-20 bg-gradient-to-b from-background via-primary/5 to-background relative overflow-hidden">
-      {/* Decorative elements */}
-      <div
-        className="pointer-events-none absolute top-1/4 right-0 w-[400px] h-[400px] opacity-20"
+    <section className="py-20 sm:py-28 bg-background relative overflow-hidden">
+      {/* Animated background */}
+      <div 
+        className="absolute inset-0 animate-gradient opacity-50"
         style={{
-          background: "radial-gradient(circle, oklch(0.55 0.18 155 / 0.3) 0%, transparent 70%)",
+          background: "linear-gradient(135deg, oklch(0.52 0.28 300 / 0.06) 0%, transparent 25%, oklch(0.58 0.25 320 / 0.04) 50%, transparent 75%, oklch(0.52 0.28 300 / 0.06) 100%)",
+          backgroundSize: "400% 400%",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* Floating blobs */}
+      <div
+        className="pointer-events-none absolute top-1/4 right-0 w-[500px] h-[500px] opacity-30 animate-blob"
+        style={{
+          background: "radial-gradient(circle, oklch(0.52 0.28 300 / 0.2) 0%, transparent 70%)",
+          filter: "blur(80px)",
+        }}
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute bottom-1/4 left-0 w-[400px] h-[400px] opacity-25 animate-blob"
+        style={{
+          background: "radial-gradient(circle, oklch(0.58 0.25 320 / 0.15) 0%, transparent 70%)",
           filter: "blur(60px)",
+          animationDelay: "-5s",
         }}
         aria-hidden="true"
       />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           {/* Image Side */}
           <div className="relative order-2 lg:order-1">
             <div className="relative aspect-square max-w-lg mx-auto">
-              {/* Glow effect behind image */}
+              {/* Animated glow effect */}
               <div 
-                className="absolute inset-0 rounded-3xl opacity-40"
+                className="absolute inset-0 rounded-3xl opacity-50 animate-pulse-glow"
                 style={{
-                  background: "radial-gradient(circle at center, oklch(0.55 0.18 155 / 0.3) 0%, transparent 70%)",
-                  filter: "blur(40px)",
+                  background: "radial-gradient(circle at center, oklch(0.52 0.28 300 / 0.3) 0%, transparent 70%)",
+                  filter: "blur(50px)",
                 }}
                 aria-hidden="true"
               />
               
+              {/* Floating decorative elements */}
+              <div className="absolute -top-4 -left-4 w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 animate-float" />
+              <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-xl bg-primary/5 border border-primary/10 animate-float-delayed" />
+              
               {/* Main image container */}
-              <div className="relative bg-card rounded-3xl p-8 shadow-2xl border border-border/50">
-                <Image
+              <div className="relative glass rounded-3xl p-8 shadow-2xl shadow-primary/10">
+                <img
                   src="/images/ecg-device.png"
                   alt="Портативный кардиограф SmartCardio для домашнего использования"
-                  width={500}
-                  height={500}
                   className="w-full h-auto object-contain rounded-2xl"
-                  priority
                 />
+                
+                {/* Shimmer effect */}
+                <div className="absolute inset-0 rounded-3xl animate-shimmer opacity-30" />
               </div>
               
               {/* Floating badge */}
-              <div className="absolute -bottom-4 -right-4 sm:bottom-4 sm:right-4 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+              <div className="absolute -bottom-3 right-8 bg-primary text-primary-foreground px-5 py-2.5 rounded-2xl text-sm font-bold shadow-xl shadow-primary/30 animate-float">
                 Новинка 2024
               </div>
             </div>
@@ -75,35 +98,38 @@ export function EcgDeviceSection() {
           
           {/* Content Side */}
           <div className="order-1 lg:order-2">
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 mb-6">
+            <span className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 backdrop-blur-sm mb-6 shadow-sm shadow-primary/10">
+              <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
               Наше устройство
             </span>
             
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-6 text-balance">
-              Полноценное ЭКГ дома
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-6">
+              <span className="text-balance">Полноценное</span>
+              <br />
+              <span className="gradient-text">ЭКГ дома</span>
             </h2>
             
-            <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
+            <p className="text-lg sm:text-xl text-muted-foreground mb-10 leading-relaxed">
               Портативный кардиограф SmartCardio позволяет снять профессиональную 
               электрокардиограмму в домашних условиях. Результаты мгновенно 
               передаются вашему врачу для анализа и консультации.
             </p>
             
             {/* Features grid */}
-            <div className="grid sm:grid-cols-2 gap-4 mb-8">
+            <div className="grid sm:grid-cols-2 gap-4 mb-10">
               {features.map((feature, index) => (
                 <div 
                   key={index}
-                  className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border/50 hover:border-primary/30 transition-colors"
+                  className="group flex items-start gap-4 p-5 rounded-2xl bg-card/70 backdrop-blur-sm border border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:-translate-y-1"
                 >
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <feature.icon className="w-5 h-5 text-primary" />
+                  <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
+                    <feature.icon className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground text-sm">
+                    <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
                       {feature.title}
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {feature.description}
                     </p>
                   </div>
@@ -112,10 +138,10 @@ export function EcgDeviceSection() {
             </div>
             
             {/* CTA Button */}
-            <Button asChild size="lg" className="group">
+            <Button asChild size="lg" className="group h-14 px-8 text-base rounded-2xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300">
               <Link href="https://smartcardio.ru/" target="_blank" rel="noopener noreferrer">
                 Узнать больше о приборе
-                <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
           </div>
