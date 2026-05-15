@@ -14,7 +14,7 @@ export function FaqSection({ items }: FaqSectionProps) {
   if (!items || items.length === 0) return null
 
   return (
-    <section className="py-16 sm:py-24 bg-secondary/30" id="faq">
+    <section className="py-12 sm:py-16 bg-secondary/30" id="faq">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 mb-4">

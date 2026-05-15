@@ -54,6 +54,21 @@ export function DoctorPageClient({
         </Link>
       </Button>
 
+      {/* Booking Section - at top */}
+      <div className="mb-4">
+        <DoctorBookingSection
+          doctorId={doctor.id}
+          doctorName={doctor.name || "Врач"}
+          doctorSpecialty={specialty}
+          doctorPrice={doctor.price ?? 0}
+          doctorExperience={doctor.experience}
+          doctorDegree={doctor.degree}
+          doctorBio={doctor.bio}
+          doctorEmail={doctor.email}
+          schedule={schedule}
+        />
+      </div>
+
       {/* Doctor Header */}
       <Card className="mb-2 py-0 px-0 overflow-hidden">
         <CardContent className="py-0 px-0">
@@ -215,21 +230,6 @@ export function DoctorPageClient({
 
       {/* Reviews Section */}
       <DoctorReviews doctorId={doctor.id} doctorName={doctor.name || 'Врач'} />
-
-      {/* Booking Section - integrated directly */}
-      <div className="mt-6">
-        <DoctorBookingSection
-          doctorId={doctor.id}
-          doctorName={doctor.name || "Врач"}
-          doctorSpecialty={specialty}
-          doctorPrice={doctor.price ?? 0}
-          doctorExperience={doctor.experience}
-          doctorDegree={doctor.degree}
-          doctorBio={doctor.bio}
-          doctorEmail={doctor.email}
-          schedule={schedule}
-        />
-      </div>
     </div>
   );
 }

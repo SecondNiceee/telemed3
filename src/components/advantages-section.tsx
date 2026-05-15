@@ -55,7 +55,7 @@ const ADVANTAGES = [
 
 export function AdvantagesSection() {
   return (
-    <section className="py-20 sm:py-28 bg-background relative overflow-hidden">
+    <section className="py-12 sm:py-16 bg-background relative overflow-hidden">
       {/* Animated background */}
       <div 
         className="absolute inset-0 animate-gradient opacity-40"
