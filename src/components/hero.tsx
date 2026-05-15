@@ -46,7 +46,7 @@ export function Hero() {
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         {/* ECG Line 1 - Top */}
         <svg 
-          className="absolute w-[200%] h-32 top-[15%] opacity-20"
+          className="absolute w-[200%] h-32 top-[15%] opacity-[0.08]"
           viewBox="0 0 1200 100"
           preserveAspectRatio="none"
         >
@@ -72,7 +72,7 @@ export function Hero() {
 
         {/* ECG Line 2 - Middle */}
         <svg 
-          className="absolute w-[200%] h-40 top-[45%] opacity-15"
+          className="absolute w-[200%] h-40 top-[45%] opacity-[0.06]"
           viewBox="0 0 1200 120"
           preserveAspectRatio="none"
         >
@@ -98,7 +98,7 @@ export function Hero() {
 
         {/* ECG Line 3 - Bottom */}
         <svg 
-          className="absolute w-[200%] h-28 bottom-[20%] opacity-10"
+          className="absolute w-[200%] h-28 bottom-[20%] opacity-[0.04]"
           viewBox="0 0 1200 80"
           preserveAspectRatio="none"
         >
