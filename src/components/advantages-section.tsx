@@ -153,31 +153,6 @@ export function AdvantagesSection() {
           })}
         </div>
 
-        {/* Bottom stats with animation */}
-        <div className="mt-20 relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent rounded-3xl" />
-          <div className="relative glass rounded-3xl p-8 sm:p-10">
-            <p className="text-center text-muted-foreground mb-8 text-lg">
-              Присоединяйтесь к тысячам пациентов, которые уже оценили качество нашего сервиса
-            </p>
-            <div className="flex items-center justify-center gap-12 sm:gap-20 flex-wrap">
-              <div className="flex items-center gap-4 group">
-                <span className="text-4xl sm:text-5xl font-bold gradient-text group-hover:scale-110 transition-transform">10 000+</span>
-                <span className="text-sm text-muted-foreground text-left leading-tight">довольных<br/>пациентов</span>
-              </div>
-              <div className="w-px h-12 bg-border hidden sm:block" />
-              <div className="flex items-center gap-4 group">
-                <span className="text-4xl sm:text-5xl font-bold gradient-text group-hover:scale-110 transition-transform">50+</span>
-                <span className="text-sm text-muted-foreground text-left leading-tight">опытных<br/>врачей</span>
-              </div>
-              <div className="w-px h-12 bg-border hidden sm:block" />
-              <div className="flex items-center gap-4 group">
-                <span className="text-4xl sm:text-5xl font-bold gradient-text group-hover:scale-110 transition-transform">4.9</span>
-                <span className="text-sm text-muted-foreground text-left leading-tight">средний<br/>рейтинг</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );

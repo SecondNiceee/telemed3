@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Heart, Smartphone, Shield, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -62,45 +61,9 @@ export function EcgDeviceSection() {
       />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-          {/* Image Side */}
-          <div className="relative order-2 lg:order-1">
-            <div className="relative aspect-square max-w-lg mx-auto">
-              {/* Animated glow effect */}
-              <div 
-                className="absolute inset-0 rounded-3xl opacity-50 animate-pulse-glow"
-                style={{
-                  background: "radial-gradient(circle at center, oklch(0.52 0.28 300 / 0.3) 0%, transparent 70%)",
-                  filter: "blur(50px)",
-                }}
-                aria-hidden="true"
-              />
-              
-              {/* Floating decorative elements */}
-              <div className="absolute -top-4 -left-4 w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 animate-float" />
-              <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-xl bg-primary/5 border border-primary/10 animate-float-delayed" />
-              
-              {/* Main image container */}
-              <div className="relative glass rounded-3xl p-8 shadow-2xl shadow-primary/10">
-                <img
-                  src={resolveImageUrl("/images/ecg-device.png")}
-                  alt="Портативный кардиограф SmartCardio для домашнего использования"
-                  className="w-full h-auto object-contain rounded-2xl"
-                />
-                
-                {/* Shimmer effect */}
-                <div className="absolute inset-0 rounded-3xl animate-shimmer opacity-30" />
-              </div>
-              
-              {/* Floating badge */}
-              <div className="absolute -bottom-3 right-8 bg-primary text-primary-foreground px-5 py-2.5 rounded-2xl text-sm font-bold shadow-xl shadow-primary/30 animate-float">
-                Новинка 2024
-              </div>
-            </div>
-          </div>
-          
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Content Side */}
-          <div className="order-1 lg:order-2">
+          <div className="order-2 lg:order-1">
             <span className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 backdrop-blur-sm mb-6 shadow-sm shadow-primary/10">
               <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
               Наше устройство
@@ -147,6 +110,39 @@ export function EcgDeviceSection() {
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
+          </div>
+
+          {/* Image Side - Full width */}
+          <div className="relative order-1 lg:order-2">
+            <div className="relative">
+              {/* Glow effect */}
+              <div 
+                className="absolute inset-0 rounded-3xl opacity-40"
+                style={{
+                  background: "radial-gradient(circle at center, oklch(0.52 0.28 300 / 0.3) 0%, transparent 70%)",
+                  filter: "blur(50px)",
+                }}
+                aria-hidden="true"
+              />
+              
+              {/* Static decorative elements */}
+              <div className="absolute -top-4 -left-4 w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20" />
+              <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-xl bg-primary/5 border border-primary/10" />
+              
+              {/* Badge - Новинка 2024 */}
+              <div className="absolute top-4 right-4 z-20 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-bold shadow-xl shadow-primary/30">
+                Новинка 2024
+              </div>
+              
+              {/* Main image container - full size */}
+              <div className="relative glass rounded-3xl p-4 sm:p-6 shadow-2xl shadow-primary/10">
+                <img
+                  src={resolveImageUrl("/images/ecg-device.png")}
+                  alt="Портативный кардиограф SmartCardio для домашнего использования"
+                  className="w-full h-auto object-contain rounded-2xl"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
