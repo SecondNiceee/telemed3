@@ -110,7 +110,7 @@ export function SearchBar() {
   return (
     <div ref={containerRef} className="relative w-full max-w-2xl mx-auto">
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
         <Input
           ref={inputRef}
           type="text"
@@ -121,7 +121,7 @@ export function SearchBar() {
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}
-          className="pl-12 pr-10 py-6 text-base rounded-2xl border-border/80 bg-card shadow-sm focus:border-primary/50 focus:ring-primary/20"
+          className="pl-14 pr-12 py-7 text-base rounded-2xl border-border/60 bg-card/80 backdrop-blur-sm shadow-lg shadow-primary/5 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
         />
         {query && (
           <button
@@ -136,7 +136,7 @@ export function SearchBar() {
 
       {/* Dropdown results */}
       {isOpen && query.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50">
+        <div className="absolute top-full left-0 right-0 mt-3 bg-card/95 backdrop-blur-lg border border-border/60 rounded-2xl shadow-2xl shadow-primary/10 overflow-hidden z-50">
           {loading ? (
             <div className="p-4 text-center text-muted-foreground">
               Поиск...

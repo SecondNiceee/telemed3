@@ -70,16 +70,26 @@ export function ReviewsSection() {
   };
 
   return (
-    <section className="py-16 sm:py-20 bg-secondary/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 mb-4">
+    <section className="py-20 sm:py-28 bg-gradient-to-b from-background via-secondary/20 to-background relative overflow-hidden">
+      {/* Background decoration */}
+      <div 
+        className="absolute inset-0 opacity-40"
+        style={{
+          background: "radial-gradient(ellipse 60% 40% at 50% 50%, oklch(0.52 0.28 300 / 0.06), transparent)",
+        }}
+        aria-hidden="true"
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="text-center mb-14">
+          <span className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 backdrop-blur-sm mb-6 shadow-sm shadow-primary/10">
+            <Star className="w-3.5 h-3.5 fill-primary" />
             Отзывы пациентов
           </span>
-          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-5">
             Что говорят наши пациенты
           </h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto">
             Более 10 000 довольных пациентов доверяют нам своё здоровье
           </p>
         </div>
@@ -87,16 +97,16 @@ export function ReviewsSection() {
         {/* Desktop Slider */}
         <div className="hidden md:block relative">
           <div className="flex gap-6 overflow-hidden">
-            {REVIEWS.slice(currentIndex, currentIndex + visibleCount).map((review) => (
-              <ReviewCard key={review.id} review={review} />
+            {REVIEWS.slice(currentIndex, currentIndex + visibleCount).map((review, index) => (
+              <ReviewCard key={review.id} review={review} index={index} />
             ))}
           </div>
 
           {/* Navigation */}
-          <div className="flex items-center justify-center gap-4 mt-8">
+          <div className="flex items-center justify-center gap-4 mt-10">
             <button
               onClick={prevSlide}
-              className="w-10 h-10 rounded-full border border-border bg-card flex items-center justify-center hover:bg-accent hover:border-primary/30 transition-colors"
+              className="w-12 h-12 rounded-2xl border border-border/60 bg-card/70 backdrop-blur-sm flex items-center justify-center hover:bg-primary/10 hover:border-primary/30 transition-all duration-300 shadow-sm"
               aria-label="Предыдущий отзыв"
             >
               <ChevronLeft className="w-5 h-5 text-foreground" />
@@ -107,8 +117,8 @@ export function ReviewsSection() {
                   key={i}
                   onClick={() => setCurrentIndex(i)}
                   className={cn(
-                    "w-2 h-2 rounded-full transition-all",
-                    currentIndex === i ? "bg-primary w-6" : "bg-border hover:bg-primary/50"
+                    "h-2 rounded-full transition-all duration-300",
+                    currentIndex === i ? "bg-primary w-8" : "bg-border/60 w-2 hover:bg-primary/50"
                   )}
                   aria-label={`Перейти к отзыву ${i + 1}`}
                 />
@@ -116,7 +126,7 @@ export function ReviewsSection() {
             </div>
             <button
               onClick={nextSlide}
-              className="w-10 h-10 rounded-full border border-border bg-card flex items-center justify-center hover:bg-accent hover:border-primary/30 transition-colors"
+              className="w-12 h-12 rounded-2xl border border-border/60 bg-card/70 backdrop-blur-sm flex items-center justify-center hover:bg-primary/10 hover:border-primary/30 transition-all duration-300 shadow-sm"
               aria-label="Следующий отзыв"
             >
               <ChevronRight className="w-5 h-5 text-foreground" />
@@ -125,9 +135,9 @@ export function ReviewsSection() {
         </div>
 
         {/* Mobile Stack */}
-        <div className="md:hidden flex flex-col gap-4">
-          {REVIEWS.slice(0, 3).map((review) => (
-            <ReviewCard key={review.id} review={review} />
+        <div className="md:hidden flex flex-col gap-5">
+          {REVIEWS.slice(0, 3).map((review, index) => (
+            <ReviewCard key={review.id} review={review} index={index} />
           ))}
         </div>
       </div>
@@ -137,40 +147,46 @@ export function ReviewsSection() {
 
 interface ReviewCardProps {
   review: typeof REVIEWS[0];
+  index: number;
 }
 
-function ReviewCard({ review }: ReviewCardProps) {
+function ReviewCard({ review, index }: ReviewCardProps) {
   return (
-    <Card className="flex-1 min-w-0 border-border/60 bg-card hover:shadow-lg transition-shadow duration-300">
-      <CardContent className="p-6">
-        <div className="flex items-start gap-4 mb-4">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+    <Card 
+      className="group flex-1 min-w-0 border-border/50 bg-card/70 backdrop-blur-sm hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/30 transition-all duration-500 hover:-translate-y-2 rounded-3xl"
+      style={{ animationDelay: `${index * 0.1}s` }}
+    >
+      <CardContent className="p-7">
+        <div className="flex items-start gap-4 mb-5">
+          <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
             <span className="text-sm font-bold text-primary">{review.avatar}</span>
+            {/* Glow effect */}
+            <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl opacity-0 group-hover:opacity-50 transition-opacity" />
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-foreground">{review.name}</h4>
+            <h4 className="font-semibold text-foreground text-lg">{review.name}</h4>
             <p className="text-sm text-muted-foreground">{review.date}</p>
           </div>
-          <Quote className="w-8 h-8 text-primary/20 shrink-0" />
+          <Quote className="w-10 h-10 text-primary/15 shrink-0" />
         </div>
 
-        <div className="flex gap-1 mb-3">
+        <div className="flex gap-1 mb-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <Star
               key={i}
               className={cn(
-                "w-4 h-4",
+                "w-5 h-5 transition-colors",
                 i < review.rating ? "fill-primary text-primary" : "fill-muted text-muted"
               )}
             />
           ))}
         </div>
 
-        <p className="text-foreground/80 leading-relaxed mb-4 line-clamp-4">
+        <p className="text-foreground/80 leading-relaxed mb-5 line-clamp-4">
           {review.text}
         </p>
 
-        <div className="pt-4 border-t border-border/50">
+        <div className="pt-5 border-t border-border/40">
           <p className="text-sm text-muted-foreground">
             Консультация: <span className="text-foreground font-medium">{review.doctor}</span>
           </p>
