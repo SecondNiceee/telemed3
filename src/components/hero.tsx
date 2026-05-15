@@ -1,24 +1,9 @@
 import Link from "next/link";
-import { CheckCircle, Video, Clock, Shield, ArrowRight } from "lucide-react";
+import { ArrowRight, Play } from "lucide-react";
 
-const BADGES = [
-  { icon: CheckCircle, label: "Лицензированные врачи" },
-  { icon: Video, label: "Видеоконсультации" },
-  { icon: Clock, label: "Доступно 24/7" },
-  { icon: Shield, label: "Конфиденциально" },
-];
-
-interface HeroProps {
-  title?: string;
-  subtitle?: string;
-}
-
-export function Hero({ title, subtitle }: HeroProps) {
-  const displayTitle = title || "Забота о здоровье — без дороги в поликлинику";
-  const displaySubtitle = subtitle || "Ваш врач на расстоянии одного клика. Профессиональные консультации кардиологов и терапевтов без очередей и ожидания.";
-
+export function Hero() {
   return (
-    <section className="relative overflow-hidden py-18  bg-gradient-to-b from-primary/5 via-background to-background">
+    <section className="relative overflow-hidden py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-primary/5 via-background to-background">
       {/* Decorative blurred shapes */}
       <div
         className="pointer-events-none absolute top-0 left-1/4 w-[500px] h-[500px] opacity-30"
@@ -51,74 +36,61 @@ export function Hero({ title, subtitle }: HeroProps) {
         aria-hidden="true"
       />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="text-center flex flex-col items-center gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          
+          {/* Left side - Text content */}
+          <div className="flex flex-col gap-6">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/25 bg-primary/8 w-fit animate-fade-up" style={{ animationDelay: "0.05s" }}>
+              <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+              SmartCardio
+            </span>
 
-          {/* Live badge */}
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.18em] uppercase text-primary border border-primary/25 bg-primary/8 shadow-sm animate-fade-up" style={{ animationDelay: "0.05s" }}>
-            <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-            Телемедицина нового поколения
-          </span>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.08] tracking-[-0.03em] animate-fade-up" style={{ animationDelay: "0.1s" }}>
+              <span className="text-balance">Телемедицина</span>
+              <br />
+              <span className="text-primary">нового поколения</span>
+            </h1>
 
-          {/* Heading */}
-          <h1 className="text-4xl sm:text-5xl lg:text-[66px] font-extrabold text-foreground leading-[1.04] tracking-[-0.035em] text-balance animate-fade-up" style={{ animationDelay: "0.1s" }}>
-            {displayTitle.includes("—") ? (
-              <>
-                {displayTitle.split("—")[0]}—{" "}
-                <span className="relative inline-block">
-                  <span className="text-primary">{displayTitle.split("—")[1]?.trim()}</span>
-                  <svg
-                    className="absolute -bottom-2 left-0 w-full text-primary/35"
-                    viewBox="0 0 380 10"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M2 8C70 3 220 1 378 8"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </span>
-              </>
-            ) : (
-              <span className="text-primary">{displayTitle}</span>
-            )}
-          </h1>
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-lg leading-relaxed animate-fade-up" style={{ animationDelay: "0.15s" }}>
+              Профессиональные консультации кардиологов и терапевтов онлайн. Без очередей и ожидания.
+            </p>
 
-          {/* Subheading */}
-          <p className="text-lg sm:text-xl text-foreground/55 max-w-2xl leading-relaxed animate-fade-up" style={{ animationDelay: "0.15s" }}>
-            {displaySubtitle}
-          </p>
-
-          {/* CTA */}
-          <div className="flex flex-col sm:flex-row gap-3 animate-fade-up" style={{ animationDelay: "0.2s" }}>
-            <Link
-              href="/appointment"
-              className="inline-flex items-center justify-center gap-2 text-[15px] font-semibold text-primary-foreground bg-primary px-8 py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:brightness-110 hover:shadow-primary/35 transition-all duration-200"
-            >
-              Записаться на приём
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="#how-it-works"
-              className="inline-flex items-center justify-center gap-2 text-[15px] font-medium text-foreground/65 px-8 py-3.5 rounded-xl border border-border bg-background hover:bg-secondary/50 transition-all duration-200"
-            >
-              Узнать больше
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4 pt-2 animate-fade-up" style={{ animationDelay: "0.2s" }}>
+              <Link
+                href="/appointment"
+                className="inline-flex items-center justify-center gap-2 text-[15px] font-semibold text-primary-foreground bg-primary px-8 py-4 rounded-xl shadow-lg shadow-primary/25 hover:brightness-110 hover:shadow-primary/40 transition-all duration-200"
+              >
+                Записаться на приём
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
 
-          {/* Trust badges */}
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 pt-2 animate-fade-up" style={{ animationDelay: "0.25s" }}>
-            {BADGES.map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-2.5 text-foreground/55">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Icon className="w-4 h-4 text-primary" strokeWidth={2} />
+          {/* Right side - Video placeholder */}
+          <div className="relative animate-fade-up" style={{ animationDelay: "0.25s" }}>
+            <div className="aspect-video rounded-2xl bg-card border border-border shadow-2xl shadow-primary/10 overflow-hidden flex items-center justify-center relative">
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+              
+              {/* Play button placeholder */}
+              <div className="relative z-10 flex flex-col items-center gap-4">
+                <div className="w-20 h-20 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center hover:bg-primary/20 transition-colors cursor-pointer">
+                  <Play className="w-8 h-8 text-primary ml-1" fill="currentColor" />
                 </div>
-                <span className="text-sm font-medium">{label}</span>
+                <span className="text-muted-foreground text-sm font-medium">Видео</span>
               </div>
-            ))}
+
+              {/* Corner decorations */}
+              <div className="absolute top-4 left-4 w-12 h-12 border-l-2 border-t-2 border-primary/20 rounded-tl-lg" />
+              <div className="absolute bottom-4 right-4 w-12 h-12 border-r-2 border-b-2 border-primary/20 rounded-br-lg" />
+            </div>
+
+            {/* Decorative dots */}
+            <div className="absolute -bottom-4 -left-4 w-24 h-24 opacity-50" style={{
+              backgroundImage: "radial-gradient(circle, oklch(0.50 0.28 305 / 0.3) 2px, transparent 2px)",
+              backgroundSize: "12px 12px"
+            }} />
           </div>
 
         </div>
