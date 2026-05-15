@@ -1,7 +1,10 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Heart, Smartphone, Shield, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { resolveImageUrl } from "@/lib/utils/image";
 
 const features = [
   {
@@ -80,7 +83,7 @@ export function EcgDeviceSection() {
               {/* Main image container */}
               <div className="relative glass rounded-3xl p-8 shadow-2xl shadow-primary/10">
                 <img
-                  src="/images/ecg-device.png"
+                  src={resolveImageUrl("/images/ecg-device.png")}
                   alt="Портативный кардиограф SmartCardio для домашнего использования"
                   className="w-full h-auto object-contain rounded-2xl"
                 />
