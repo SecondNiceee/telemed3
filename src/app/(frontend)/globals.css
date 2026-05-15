@@ -367,3 +367,34 @@
 .animate-spin-slow {
   animation: spin-slow 20s linear infinite;
 }
+
+/* ECG Animation */
+@keyframes ecg-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes ecg-scroll-reverse {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-ecg-scroll {
+  animation: ecg-scroll 8s linear infinite;
+}
+
+.animate-ecg-scroll-reverse {
+  animation: ecg-scroll-reverse 10s linear infinite;
+}
+
+.animate-ecg-scroll-slow {
+  animation: ecg-scroll 12s linear infinite;
+}

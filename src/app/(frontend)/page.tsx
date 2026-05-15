@@ -1,7 +1,7 @@
 import { Header } from "@/components/header";
 import { Hero } from "@/components/hero";
 import { CategoriesSection } from "@/components/categories-section";
-import { HowItWorks } from "@/components/how-it-works";
+
 import { FaqSection } from "@/components/faq-section";
 import { Footer } from "@/components/footer";
 import { SectionReveal } from "@/components/section-reveal";
@@ -37,9 +37,7 @@ export default async function HomePage() {
             <CategoriesSection />
           </Suspense>
         </SectionReveal>
-        <SectionReveal delay={80}>
-          <HowItWorks />
-        </SectionReveal>
+
         <SectionReveal delay={100}>
           <AdvantagesSection />
         </SectionReveal>
