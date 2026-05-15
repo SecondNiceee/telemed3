@@ -7,6 +7,7 @@ import { Footer } from "@/components/footer";
 import { SectionReveal } from "@/components/section-reveal";
 import { ReviewsSection } from "@/components/reviews-section";
 import { AdvantagesSection } from "@/components/advantages-section";
+import { EcgDeviceSection } from "@/components/ecg-device-section";
 import { Suspense } from "react";
 import { fetchSiteSettingsLocal } from "@/lib/api/site-settings.server";
 
@@ -44,6 +45,9 @@ export default async function HomePage() {
         </SectionReveal>
         <SectionReveal delay={100}>
           <AdvantagesSection />
+        </SectionReveal>
+        <SectionReveal delay={110}>
+          <EcgDeviceSection />
         </SectionReveal>
         <SectionReveal delay={120}>
           <ReviewsSection />
