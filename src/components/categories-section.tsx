@@ -29,7 +29,7 @@ export async function CategoriesSection() {
   }
 
   return (
-    <section id="categories" className="py-16 sm:py-20 bg-background relative overflow-hidden">
+    <section id="categories" className="py-12 sm:py-16 bg-background relative overflow-hidden">
       {/* Animated background gradient */}
       <div 
         className="absolute inset-0 opacity-50"

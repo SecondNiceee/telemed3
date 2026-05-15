@@ -3,7 +3,7 @@ import { ArrowRight, Play } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden py-16 sm:py-20 lg:py-28 bg-background">
+    <section className="relative overflow-hidden py-12 sm:py-16 lg:py-20 bg-background">
       {/* Animated gradient background */}
       <div 
         className="absolute inset-0 animate-gradient opacity-60"
