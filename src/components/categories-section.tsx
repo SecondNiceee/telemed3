@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { ApiCategory, getErrorMessage } from "../lib/api/index";
 import { fetchCategoriesLocal } from "../lib/api/categories.server";
 import { CategoryIcon } from "@/lib/utils/categoryIcon";
+import { SearchBar } from "@/components/search-bar";
 
 export async function CategoriesSection() {
   let categories: ApiCategory[] = [];
@@ -35,9 +36,12 @@ export async function CategoriesSection() {
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
             Выберите специалиста
           </h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-6">
             Найдите нужного врача по специализации и запишитесь на удобное время
           </p>
+          
+          {/* Search Bar */}
+          <SearchBar />
         </div>
 
         {categories.length > 0 ? (

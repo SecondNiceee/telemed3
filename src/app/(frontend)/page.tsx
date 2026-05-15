@@ -5,6 +5,8 @@ import { HowItWorks } from "@/components/how-it-works";
 import { FaqSection } from "@/components/faq-section";
 import { Footer } from "@/components/footer";
 import { SectionReveal } from "@/components/section-reveal";
+import { ReviewsSection } from "@/components/reviews-section";
+import { AdvantagesSection } from "@/components/advantages-section";
 import { Suspense } from "react";
 import { fetchSiteSettingsLocal } from "@/lib/api/site-settings.server";
 
@@ -40,8 +42,14 @@ export default async function HomePage() {
         <SectionReveal delay={80}>
           <HowItWorks />
         </SectionReveal>
+        <SectionReveal delay={100}>
+          <AdvantagesSection />
+        </SectionReveal>
+        <SectionReveal delay={120}>
+          <ReviewsSection />
+        </SectionReveal>
         {siteSettings?.faq && siteSettings.faq.length > 0 && (
-          <SectionReveal delay={120}>
+          <SectionReveal delay={140}>
             <FaqSection items={siteSettings.faq} />
           </SectionReveal>
         )}
