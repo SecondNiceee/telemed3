@@ -79,13 +79,10 @@ export function EcgDeviceSection() {
               
               {/* Main image container */}
               <div className="relative glass rounded-3xl p-8 shadow-2xl shadow-primary/10">
-                <Image
+                <img
                   src="/images/ecg-device.png"
                   alt="Портативный кардиограф SmartCardio для домашнего использования"
-                  width={500}
-                  height={500}
                   className="w-full h-auto object-contain rounded-2xl"
-                  priority
                 />
                 
                 {/* Shimmer effect */}
