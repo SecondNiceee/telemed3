@@ -23,7 +23,7 @@ export function Hero({ title, subtitle }: HeroProps) {
       <div
         className="pointer-events-none absolute top-0 left-1/4 w-[500px] h-[500px] opacity-30"
         style={{
-          background: "radial-gradient(circle, oklch(0.55 0.18 155 / 0.4) 0%, transparent 70%)",
+          background: "radial-gradient(circle, oklch(0.55 0.20 280 / 0.4) 0%, transparent 70%)",
           filter: "blur(80px)",
         }}
         aria-hidden="true"
@@ -31,7 +31,7 @@ export function Hero({ title, subtitle }: HeroProps) {
       <div
         className="pointer-events-none absolute top-20 right-1/4 w-[400px] h-[400px] opacity-25"
         style={{
-          background: "radial-gradient(circle, oklch(0.60 0.15 145 / 0.35) 0%, transparent 70%)",
+          background: "radial-gradient(circle, oklch(0.60 0.25 320 / 0.35) 0%, transparent 70%)",
           filter: "blur(60px)",
         }}
         aria-hidden="true"
@@ -42,8 +42,8 @@ export function Hero({ title, subtitle }: HeroProps) {
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{
           backgroundImage: `
-            linear-gradient(to right, oklch(0.50 0.15 155 / 0.06) 1px, transparent 1px),
-            linear-gradient(to bottom, oklch(0.50 0.15 155 / 0.06) 1px, transparent 1px)
+            linear-gradient(to right, oklch(0.50 0.15 305 / 0.06) 1px, transparent 1px),
+            linear-gradient(to bottom, oklch(0.50 0.15 305 / 0.06) 1px, transparent 1px)
           `,
           backgroundSize: "48px 48px",
           maskImage: "radial-gradient(ellipse 80% 60% at 50% 30%, black 20%, transparent 100%)",
